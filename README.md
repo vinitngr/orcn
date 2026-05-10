@@ -1,6 +1,6 @@
-# orkn
+# orcn
 
-> ORK-N — Orchestration & Routing Kernel Network
+> ORCN — Open Resource Compute Network
 
 Distributed inference orchestration and routing platform for deploying and serving AI models across heterogeneous compute infrastructure.
 
@@ -8,7 +8,7 @@ Distributed inference orchestration and routing platform for deploying and servi
 
 ## Overview
 
-orkn is a control-plane focused inference infrastructure system designed to:
+orcn is a control-plane focused inference infrastructure system designed to:
 
 - orchestrate model deployments
 - manage distributed GPU resources
