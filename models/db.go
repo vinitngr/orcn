@@ -5,19 +5,16 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
-
-func InitDB(filepath string) error {
+func InitDB(filepath string) (*gorm.DB, error) {
 	db, err := gorm.Open(sqlite.Open(filepath), &gorm.Config{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	
 	err = db.AutoMigrate(&Deployment{}, &Job{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	
-	DB = db
-	return nil
+	return db, nil
 }
