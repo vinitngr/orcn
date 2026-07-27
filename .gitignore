@@ -1,0 +1,46 @@
+.env
+node_modules
+bin/
+dist/
+build/
+  
+*.exe
+*.test
+*.out
+coverage.out
+*.cover
+
+  # Logs
+*.log
+
+  # Env / secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+
+  # Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+  # Go workspace / dependency cache
+go.work
+go.work.sum
+
+  # Temporary files
+tmp/
+temp/
+*.tmp
+
+  # If you later add TS tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+.dev/
