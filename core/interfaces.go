@@ -59,11 +59,12 @@ type Runtime interface {
 	BuildContainerSpec(modelID string) (*ContainerSpec, error)
 	GetWorkloadType() string // "model_inference", "workload_stateful" etc.
 	SearchModels(query string) ([]ModelInfo, error)
+	GetModelDetails(modelID string) (interface{}, error)
 }
 
 type Provider interface {
 	GetMarkets() (interface{}, error)
-	CreateDeployment(name string, marketID string, spec *ContainerSpec, replicas int, timeoutMinutes int) (string, error)
+	CreateDeployment(name string, marketID string, spec *ContainerSpec, replicas int, strategy string, timeoutMinutes int) (string, error)
 	StartDeployment(deploymentID string) error
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error

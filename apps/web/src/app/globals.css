@@ -1,123 +1,96 @@
-:root {
-  --bg: #0a0a0f;
-  --bg-card: #151520;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --border: #334155;
-  --accent: #10b981;
-}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
-html, body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-geist-sans), sans-serif;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
+:root {
+  --bg-color: #fafafa;
+  --surface: #ffffff;
+  --surface-hover: #f5f5f5;
+  --border: #eaeaea;
+  --border-hover: #cccccc;
+  
+  --text-main: #111111;
+  --text-muted: #666666;
+  --text-light: #888888;
+  
+  --primary: #000000;
+  --primary-hover: #1a1a1a;
+  --primary-foreground: #ffffff;
+  
+  --accent: #0070f3;
+  --danger: #e00;
+  --success: #10b981; 
+  
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0px 1px 2px rgba(0, 0, 0, 0.04), 0px 4px 8px rgba(0, 0, 0, 0.02);
+  --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
 * {
   box-sizing: border-box;
+  padding: 0;
+  margin: 0;
 }
 
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 40px 20px;
+body {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
 }
 
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Space Grotesk', sans-serif;
 }
 
-h1 {
-  font-size: 2.5rem;
-  margin-bottom: 8px;
-  background: linear-gradient(to right, #6366f1, #10b981);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
-h2 {
-  font-size: 1.5rem;
-  margin-bottom: 16px;
-  color: white;
-}
-
-.form-group {
-  margin-bottom: 16px;
-}
-
-label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--text-muted);
-  font-size: 0.9rem;
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: all 0.15s ease;
 }
 
 input, select {
-  width: 100%;
-  background: #0f0f17;
-  border: 1px solid var(--border);
-  color: white;
-  padding: 10px 14px;
-  border-radius: 6px;
   font-family: inherit;
-  font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: var(--text-main);
+}
+
+input::placeholder {
+  color: #a1a1aa;
 }
 
 input:focus, select:focus {
   outline: none;
-  border-color: var(--primary);
+  border-color: #999;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
 }
 
-button {
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  width: 100%;
+/* Custom Scrollbar for sleekness */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
-button:hover {
-  background: var(--primary-hover);
-  transform: translateY(-1px);
+::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-button:disabled {
-  background: var(--border);
-  cursor: not-allowed;
-  transform: none;
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
 }
-
-.badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  background: var(--border);
-  color: var(--text-muted);
-  margin-left: 8px;
-}
-
-.alert {
-  padding: 12px;
-  border-radius: 6px;
-  margin-top: 16px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid var(--accent);
-  color: var(--accent);
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }

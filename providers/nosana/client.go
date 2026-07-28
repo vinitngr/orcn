@@ -64,7 +64,7 @@ func (c *Client) GetMarkets() (any, error) {
 	return res, err
 }
 
-func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpec, replicas, timeoutMinutes int) (string, error) {
+func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpec, replicas int, strategy string, timeoutMinutes int) (string, error) {
 	expose := make([]map[string]any, 0)
 	for _, p := range spec.Ports {
 		hc := map[string]any{
@@ -150,13 +150,19 @@ func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpe
 		"meta":    meta,
 	}
 
+	if strategy == "EXTEND" || strategy == "SIMPLE-EXTEND" {
+		strategy = "SIMPLE-EXTEND"
+	} else {
+		strategy = "SIMPLE"
+	}
+
 	payload := map[string]any{
 		"name":           name,
 		"market":         marketID,
 		"job_definition": jobDef,
 		"replicas":       replicas,
 		"timeout":        timeoutMinutes,
-		"strategy":       "SIMPLE-EXTEND",
+		"strategy":       strategy,
 		"confidential":   true,
 	}
 

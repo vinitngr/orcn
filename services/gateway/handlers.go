@@ -36,6 +36,34 @@ func (s *Server) handleSearchModels(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleGetModelDetails(w http.ResponseWriter, r *http.Request) {
+	runtimeID := r.URL.Query().Get("runtime")
+	modelID := r.URL.Query().Get("model")
+
+	if runtimeID == "" || modelID == "" {
+		respondError(w, http.StatusBadRequest, "Missing runtime or model parameter")
+		return
+	}
+
+	runtime, err := core.GetRuntime(runtimeID)
+	if err != nil {
+		respondError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	details, err := runtime.GetModelDetails(modelID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"runtime": runtimeID,
+		"model":   modelID,
+		"details": details,
+	})
+}
+
 func (s *Server) handleGetMarkets(w http.ResponseWriter, r *http.Request) {
 	providerID := r.URL.Query().Get("provider")
 
@@ -69,6 +97,9 @@ type createDeploymentRequest struct {
 	RuntimeID      string `json:"runtime_id"`
 	ModelID        string `json:"model_id"`
 	TimeoutMinutes int    `json:"timeout_minutes"`
+	Replicas       int    `json:"replicas"`
+	Strategy       string `json:"strategy"`
+	HFToken        string `json:"hf_token,omitempty"`
 }
 
 func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) {
@@ -96,7 +127,18 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	deploymentID, err := provider.CreateDeployment(req.Name, req.MarketID, spec, 1, req.TimeoutMinutes)
+	if req.HFToken != "" {
+		if spec.Env == nil {
+			spec.Env = make(map[string]string)
+		}
+		spec.Env["HF_TOKEN"] = req.HFToken
+	}
+
+	if req.Replicas <= 0 {
+		req.Replicas = 1
+	}
+
+	deploymentID, err := provider.CreateDeployment(req.Name, req.MarketID, spec, req.Replicas, req.Strategy, req.TimeoutMinutes)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to create deployment: "+err.Error())
 		return
