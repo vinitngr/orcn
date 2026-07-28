@@ -138,27 +138,44 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		req.Replicas = 1
 	}
 
-	deploymentID, err := provider.CreateDeployment(req.Name, req.MarketID, spec, req.Replicas, req.Strategy, req.TimeoutMinutes)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to create deployment: "+err.Error())
+	var createdDeploymentIDs []string
+	var lastErr error
+
+	for i := 0; i < req.Replicas; i++ {
+		deploymentID, err := provider.CreateDeployment(req.Name, req.MarketID, spec)
+		if err != nil {
+			lastErr = err
+			break
+		}
+
+		dbDeployment := models.Deployment{
+			Name:         req.Name,
+			ProviderID:   req.ProviderID,
+			ID:           deploymentID,
+			MarketID:     req.MarketID,
+			ModelID:      req.ModelID,
+			Status:       "DRAFT",
+		}
+		s.DB.Create(&dbDeployment)
+		createdDeploymentIDs = append(createdDeploymentIDs, deploymentID)
+	}
+
+	if len(createdDeploymentIDs) == 0 && lastErr != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to create deployment: "+lastErr.Error())
 		return
 	}
 
-	dbDeployment := models.Deployment{
-		Name:         req.Name,
-		ProviderID:   req.ProviderID,
-		ID:           deploymentID,
-		MarketID:     req.MarketID,
-		ModelID:      req.ModelID,
-		Status:       "DRAFT",
+	response := map[string]interface{}{
+		"deployment_ids": createdDeploymentIDs,
+		"status":         "DRAFT",
+		"created_at":     time.Now().UTC().Format(time.RFC3339),
 	}
-	s.DB.Create(&dbDeployment)
 
-	respondJSON(w, http.StatusCreated, map[string]interface{}{
-		"deployment_id": deploymentID,
-		"status":        "DRAFT",
-		"created_at":    time.Now().UTC().Format(time.RFC3339),
-	})
+	if lastErr != nil {
+		response["warning"] = "Partial failure: Only created " + string(rune(len(createdDeploymentIDs)+'0')) + " replicas. Error: " + lastErr.Error()
+	}
+
+	respondJSON(w, http.StatusCreated, response)
 }
 
 func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {

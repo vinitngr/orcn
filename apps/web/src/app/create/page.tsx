@@ -277,25 +277,10 @@ export default function CreateDeploymentPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Replicas</label>
                   <input type="number" value={data.replicas || ''} onChange={e => setData({...data, replicas: e.target.value ? parseInt(e.target.value) : 0})} style={InputStyle} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Timeout (Mins)</label>
-                  <input type="number" value={data.timeout_minutes || ''} onChange={e => setData({...data, timeout_minutes: e.target.value ? parseInt(e.target.value) : 0})} style={InputStyle} />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Strategy</label>
-                  <Select 
-                    value={data.strategy} 
-                    onChange={(val: string) => setData({...data, strategy: val})} 
-                    options={[
-                      { value: "EXTEND", label: "Extend (Auto-renew)" },
-                      { value: "NORMAL", label: "Normal (Hard stop)" }
-                    ]}
-                  />
                 </div>
               </div>
               

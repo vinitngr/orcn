@@ -64,7 +64,7 @@ type Runtime interface {
 
 type Provider interface {
 	GetMarkets() (interface{}, error)
-	CreateDeployment(name string, marketID string, spec *ContainerSpec, replicas int, strategy string, timeoutMinutes int) (string, error)
+	CreateDeployment(name string, marketID string, spec *ContainerSpec) (string, error)
 	StartDeployment(deploymentID string) error
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
