@@ -137,6 +137,7 @@ func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpe
 	if spec.SystemRequirements.MinVRAMGB > 0 {
 		sysReq["vram_total_mb"] = spec.SystemRequirements.MinVRAMGB * 1024
 	}
+	
 	// We can expand required_cuda mapping here later
 	if len(sysReq) > 0 {
 		meta["system_requirements"] = sysReq

@@ -50,16 +50,19 @@ func (v *VLLMRuntime) BuildContainerSpec(modelID string) (*core.ContainerSpec, e
 	}, nil
 }
 
-var supportedArchitectures = map[string]bool{
-	"LlamaForCausalLM": true,
-	"MistralForCausalLM": true,
-	"Qwen2ForCausalLM": true,
-	"GemmaForCausalLM": true,
-	"Phi3ForCausalLM": true,
+func isVLLMCompatible(id string) bool {
+	idLower := strings.ToLower(id)
+	unsupported := []string{"mlx", "exl2", "gguf", "ggml", "bnb"}
+	for _, u := range unsupported {
+		if strings.Contains(idLower, u) {
+			return false
+		}
+	}
+	return true
 }
 
 func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
-	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=20&expand=config", url.QueryEscape(query))
+	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&filter=text-generation,safetensors&expand=config", url.QueryEscape(query))
 	resp, err := http.Get(searchURL)
 	if err != nil {
 		return nil, err
@@ -67,9 +70,9 @@ func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 	defer resp.Body.Close()
 
 	var hfModels []struct {
-		Id     string `json:"id"`
-		Author string `json:"author"`
-		Config struct {
+		Id        string `json:"id"`
+		Downloads int    `json:"downloads"`
+		Config    struct {
 			Architectures []string `json:"architectures"`
 		} `json:"config"`
 	}
@@ -79,18 +82,32 @@ func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 	}
 
 	var results []core.ModelInfo
+	seen := make(map[string]bool)
+
 	for _, m := range hfModels {
 		if len(m.Config.Architectures) > 0 {
 			arch := m.Config.Architectures[0]
-			if supportedArchitectures[arch] {
-				parts := strings.Split(m.Id, "/")
-				name := parts[len(parts)-1]
-				results = append(results, core.ModelInfo{
-					ID:           m.Id,
-					Name:         name,
-					Author:       m.Author,
-					Architecture: arch,
-				})
+
+			if supportedArchitectures[arch] && isVLLMCompatible(m.Id) {
+				if !seen[m.Id] {
+					seen[m.Id] = true
+					
+					parts := strings.Split(m.Id, "/")
+					author := ""
+					if len(parts) > 1 {
+						author = parts[0]
+					}
+
+					results = append(results, core.ModelInfo{
+						ID:           m.Id,
+						Name:         m.Id,
+						Author:       author,
+						Architecture: arch,
+						Downloads:    m.Downloads,
+						PipelineTag:  "text-generation",
+						Tags:         []string{"safetensors"},
+					})
+				}
 			}
 		}
 	}

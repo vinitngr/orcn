@@ -46,10 +46,13 @@ type HealthCheckSpec struct {
 }
 
 type ModelInfo struct {
-	ID           string
-	Name         string
-	Author       string
-	Architecture string
+	ID           string   `json:"ID"`
+	Name         string   `json:"Name"`
+	Author       string   `json:"Author"`
+	Architecture string   `json:"Architecture"`
+	Downloads    int      `json:"Downloads"`
+	PipelineTag  string   `json:"PipelineTag"`
+	Tags         []string `json:"Tags"`
 }
 
 type Runtime interface {

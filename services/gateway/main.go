@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	log.Println("Starting Inferia Gateway...")
+	log.Println("Starting orcn Gateway...")
 
 	// 1. Initialize DB
 	db, err := models.InitDB("orcn.db")
