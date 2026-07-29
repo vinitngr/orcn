@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from '../ui/Badge';
 import { Select } from '../ui/Select';
 import { useRouter } from "next/navigation";
@@ -9,12 +9,28 @@ export function DeploymentTable() {
   const router = useRouter();
 
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deployments, setDeployments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const deployments = [
-    { id: 'dep-xyz123', name: 'prod-qwen-coder', provider: 'Nosana', status: 'RUNNING', jobs: 3, updated: 'Just now', model: 'Qwen/Qwen2.5-Coder-7B-Instruct' },
-    { id: 'dep-abc456', name: 'staging-llama-3', provider: 'Nosana', status: 'RUNNING', jobs: 1, updated: '2 hours ago', model: 'meta-llama/Llama-3.1-8B-Instruct' },
-    { id: 'dep-def789', name: 'test-sarvam-moe', provider: 'AWS EC2', status: 'STOPPED', jobs: 0, updated: '1 day ago', model: 'sarvamai/sarvam-105b' },
-  ];
+  useEffect(() => {
+    fetch("/api/v1/deployments")
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDeployments(data.map(d => ({
+            id: d.ID,
+            name: d.Name,
+            provider: d.ProviderID,
+            status: d.Status,
+            nodes: d.Nodes ? d.Nodes.length : 0,
+            updated: new Date(d.UpdatedAt).toLocaleString(),
+            model: d.ModelID
+          })));
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div style={{
@@ -63,17 +79,20 @@ export function DeploymentTable() {
           </tr>
         </thead>
         <tbody>
-          {deployments.map(d => (
+          {loading ? (
+            <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>Loading deployments...</td></tr>
+          ) : deployments.length === 0 ? (
+            <tr><td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No deployments found.</td></tr>
+          ) : deployments.filter(d => statusFilter === "all" || d.status.toLowerCase() === statusFilter.toLowerCase()).map(d => (
             <tr 
               key={d.id} 
-              onClick={() => router.push(`/deployments/${d.id}`)}
+              onClick={() => router.push(`/deployments/${d.name}`)}
               style={{ borderBottom: '1px solid var(--border)', fontSize: '0.875rem', cursor: 'pointer', transition: 'background-color 0.15s ease' }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--surface-hover)'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             >
               <td style={{ padding: '1rem 1.5rem' }}>
                 <div style={{ fontWeight: 500, color: 'var(--text-main)' }}>{d.name}</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem', fontFamily: 'monospace' }}>{d.id}</div>
               </td>
               <td style={{ padding: '1rem 1.5rem' }}>
                 <Badge variant={d.status === 'RUNNING' ? 'success' : 'default'}>
@@ -90,7 +109,7 @@ export function DeploymentTable() {
               <td style={{ padding: '1rem 1.5rem', fontWeight: 400, color: 'var(--text-main)' }}>{d.provider}</td>
               <td style={{ padding: '1rem 1.5rem', color: 'var(--text-muted)' }}>{d.model}</td>
               <td style={{ padding: '1rem 1.5rem' }}>
-                <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{d.jobs}</span> <span style={{ color: 'var(--text-muted)' }}>Nodes</span>
+                <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{d.nodes}</span> <span style={{ color: 'var(--text-muted)' }}>Nodes</span>
               </td>
               <td style={{ padding: '1rem 1.5rem', color: 'var(--text-muted)' }}>{d.updated}</td>
             </tr>

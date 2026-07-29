@@ -26,6 +26,7 @@ func (s *Server) routes() {
 	s.Mux.HandleFunc("GET /api/v1/models/details", s.handleGetModelDetails)
 	s.Mux.HandleFunc("GET /api/v1/markets", s.handleGetMarkets)
 	s.Mux.HandleFunc("POST /api/v1/deployments", s.handleCreateDeployment)
+	s.Mux.HandleFunc("GET /api/v1/deployments", s.handleListDeployments)
 	s.Mux.HandleFunc("GET /api/v1/deployments/{id}", s.handleGetDeployment)
 	s.Mux.HandleFunc("POST /api/v1/deployments/{id}/action", s.handleDeploymentAction)
 }

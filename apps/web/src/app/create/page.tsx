@@ -189,15 +189,16 @@ export default function CreateDeploymentPage() {
           market_id: data.market.id,
           runtime_id: data.runtime,
           model_id: data.model,
-          timeout_minutes: data.timeout_minutes,
           replicas: data.replicas,
-          strategy: data.strategy,
           hf_token: data.hf_token
         })
       });
       const json = await res.json();
       if (res.ok && json.deployment_id) {
-        router.push(`/deployments/${json.deployment_id}`);
+        if (json.warning) {
+          alert(json.warning);
+        }
+        router.push('/');
       } else {
         alert(json.error || "Failed to deploy");
       }

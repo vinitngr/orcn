@@ -165,11 +165,22 @@ func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpe
 		return "", err
 	}
 
-	var res struct {
-		ID string `json:"id"`
+	var res map[string]interface{}
+	if err := json.Unmarshal(b, &res); err != nil {
+		return "", fmt.Errorf("failed to unmarshal nosana response: %v, body: %s", err, string(b))
 	}
-	err = json.Unmarshal(b, &res)
-	return res.ID, err
+
+	if id, ok := res["id"].(string); ok && id != "" {
+		return id, nil
+	}
+	if id, ok := res["deployment"].(string); ok && id != "" {
+		return id, nil
+	}
+	if id, ok := res["deployment_id"].(string); ok && id != "" {
+		return id, nil
+	}
+
+	return "", fmt.Errorf("no id found in nosana response, body: %s", string(b))
 }
 
 func (c *Client) StartDeployment(deploymentID string) error {
@@ -188,14 +199,50 @@ func (c *Client) UpdateTimeout(deploymentID string, timeoutMinutes int) error {
 	return err
 }
 
-func (c *Client) GetStatus(deploymentID string) (string, error) {
-	b, err := c.request("GET", fmt.Sprintf("/deployments/%s", deploymentID), nil)
+func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
+	b, err := c.request("GET", fmt.Sprintf("/deployments/%s", providerJobID), nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	var res struct {
-		Status string `json:"status"`
+
+	var res map[string]interface{}
+	if err := json.Unmarshal(b, &res); err != nil {
+		return nil, fmt.Errorf("failed to parse nosana deployment response: %v", err)
 	}
-	err = json.Unmarshal(b, &res)
-	return res.Status, err
+
+	info := &core.NodeInfo{
+		Status: "UNKNOWN",
+	}
+
+	if status, ok := res["status"].(string); ok {
+		info.Status = status
+	}
+
+	if endpoints, ok := res["endpoints"].([]interface{}); ok {
+		for _, ep := range endpoints {
+			if epMap, ok := ep.(map[string]interface{}); ok {
+				endpoint := core.Endpoint{
+					Protocol: "https",
+				}
+				if url, ok := epMap["url"].(string); ok {
+					endpoint.BaseURL = url
+				}
+				if port, ok := epMap["port"].(float64); ok {
+					endpoint.Port = int(port)
+				}
+				if endpoint.BaseURL != "" {
+					info.Endpoints = append(info.Endpoints, endpoint)
+				}
+			}
+		}
+	}
+
+	if url, ok := res["url"].(string); ok && url != "" {
+		info.Endpoints = append(info.Endpoints, core.Endpoint{
+			BaseURL:  url,
+			Protocol: "https",
+		})
+	}
+
+	return info, nil
 }

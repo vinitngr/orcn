@@ -13,6 +13,12 @@ type ContainerSpec struct {
 	Resources          []ResourceSpec
 }
 
+type Endpoint struct {
+	Port     int    `json:"port"`
+	BaseURL  string `json:"base_url"`
+	Protocol string `json:"protocol"` // e.g., "http", "https", "tcp"
+}
+
 type StorageSpec struct {
 	SizeGB    int
 	MountPath string
@@ -20,11 +26,11 @@ type StorageSpec struct {
 
 type SystemRequirements struct {
 	MinVRAMGB   int
-	CUDAVersion string // e.g., "12.0"
+	CUDAVersion string
 }
 
 type ResourceSpec struct {
-	Type   string // e.g., "S3", "Ollama"
+	Type   string
 	URL    string
 	Target string
 	Model  string
@@ -37,7 +43,7 @@ type PortMapping struct {
 }
 
 type HealthCheckSpec struct {
-	Type           string // "http", "tcp"
+	Type           string
 	Path           string
 	Method         string
 	ExpectedStatus int
@@ -62,11 +68,16 @@ type Runtime interface {
 	GetModelDetails(modelID string) (interface{}, error)
 }
 
+type NodeInfo struct {
+	Status    string     `json:"status"`
+	Endpoints []Endpoint `json:"endpoints"`
+}
+
 type Provider interface {
 	GetMarkets() (interface{}, error)
 	CreateDeployment(name string, marketID string, spec *ContainerSpec) (string, error)
 	StartDeployment(deploymentID string) error
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
-	GetStatus(deploymentID string) (string, error)
+	GetNodeInfo(providerJobID string) (*NodeInfo, error)
 }
