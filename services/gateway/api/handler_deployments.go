@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"encoding/json"
@@ -10,87 +10,6 @@ import (
 	"orcn/models"
 )
 
-func (s *Server) handleSearchModels(w http.ResponseWriter, r *http.Request) {
-	runtimeID := r.URL.Query().Get("runtime")
-	query := r.URL.Query().Get("q")
-
-	if runtimeID == "" || query == "" {
-		respondError(w, http.StatusBadRequest, "Missing runtime or q parameter")
-		return
-	}
-
-	runtime, err := core.GetRuntime(runtimeID)
-	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	results, err := runtime.SearchModels(query)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"runtime": runtimeID,
-		"results": results,
-	})
-}
-
-func (s *Server) handleGetModelDetails(w http.ResponseWriter, r *http.Request) {
-	runtimeID := r.URL.Query().Get("runtime")
-	modelID := r.URL.Query().Get("model")
-
-	if runtimeID == "" || modelID == "" {
-		respondError(w, http.StatusBadRequest, "Missing runtime or model parameter")
-		return
-	}
-
-	runtime, err := core.GetRuntime(runtimeID)
-	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	details, err := runtime.GetModelDetails(modelID)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"runtime": runtimeID,
-		"model":   modelID,
-		"details": details,
-	})
-}
-
-func (s *Server) handleGetMarkets(w http.ResponseWriter, r *http.Request) {
-	providerID := r.URL.Query().Get("provider")
-
-	if providerID == "" {
-		respondError(w, http.StatusBadRequest, "Missing provider parameter")
-		return
-	}
-
-	provider, err := core.GetProvider(providerID)
-	if err != nil {
-		respondError(w, http.StatusNotFound, err.Error())
-		return
-	}
-
-	markets, err := provider.GetMarkets()
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"provider": providerID,
-		"markets":  markets,
-	})
-}
-
 type createDeploymentRequest struct {
 	Name       string `json:"name"`
 	ProviderID string `json:"provider_id"`
@@ -99,6 +18,11 @@ type createDeploymentRequest struct {
 	ModelID    string `json:"model_id"`
 	Replicas   int    `json:"replicas"`
 	HFToken    string `json:"hf_token,omitempty"`
+}
+
+type actionRequest struct {
+	Action         string `json:"action"`
+	TimeoutMinutes int    `json:"timeout_minutes,omitempty"`
 }
 
 func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) {
@@ -143,14 +67,14 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// 1. Create the parent Deployment row
 	deploymentID := fmt.Sprintf("dep-%s-%d", req.Name, time.Now().UnixMilli())
 	dbDeployment := models.Deployment{
-		ID:         deploymentID,
-		Name:       req.Name,
-		Status:     "DRAFT",
-		ProviderID: req.ProviderID,
-		MarketID:   req.MarketID,
-		RuntimeID:  req.RuntimeID,
-		ModelID:    req.ModelID,
-		Replicas:   req.Replicas,
+		ID:          deploymentID,
+		Name:        req.Name,
+		Status:      "DRAFT",
+		ProviderID:  req.ProviderID,
+		MarketID:    req.MarketID,
+		RuntimeID:   req.RuntimeID,
+		ModelID:     req.ModelID,
+		Replicas:    req.Replicas,
 		JobSpecJSON: specJSON,
 	}
 	if err := s.DB.Create(&dbDeployment).Error; err != nil {
@@ -202,7 +126,10 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if lastErr != nil {
-		response["warning"] = fmt.Sprintf("Partial failure: Only created %d of %d nodes. Error: %s", len(createdNodeIDs), req.Replicas, lastErr.Error())
+		response["warning"] = fmt.Sprintf(
+			"Partial failure: Only created %d of %d nodes. Error: %s",
+			len(createdNodeIDs), req.Replicas, lastErr.Error(),
+		)
 	}
 
 	respondJSON(w, http.StatusCreated, response)
@@ -210,7 +137,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	idOrName := r.PathValue("id")
-	
+
 	var dep models.Deployment
 	if err := s.DB.Preload("Nodes").Where("id = ? OR name = ?", idOrName, idOrName).First(&dep).Error; err != nil {
 		respondError(w, http.StatusNotFound, "Deployment not found")
@@ -225,7 +152,7 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 
 	var spec core.ContainerSpec
 	json.Unmarshal([]byte(dep.JobSpecJSON), &spec)
-	
+
 	var hcPath string
 	var hcExpected int
 	for _, p := range spec.Ports {
@@ -259,12 +186,13 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if node.Status == "RUNNING" && len(info.Endpoints) > 0 && hcPath != "" {
-				go s.runHealthCheck(node.ID, info.Endpoints[0], hcPath, hcExpected)
+				ep := info.Endpoints[0]
+				go s.Health.RunCheck(node.ID, ep.BaseURL, ep.Protocol, hcPath, hcExpected)
 			}
 
 			s.DB.Save(node)
 		}
-		
+
 		switch node.Status {
 		case "READY":
 			hasReadyNode = true
@@ -294,9 +222,13 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, dep)
 }
 
-type actionRequest struct {
-	Action         string `json:"action"`
-	TimeoutMinutes int    `json:"timeout_minutes,omitempty"`
+func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
+	var deployments []models.Deployment
+	if err := s.DB.Preload("Nodes").Find(&deployments).Error; err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to fetch deployments")
+		return
+	}
+	respondJSON(w, http.StatusOK, deployments)
 }
 
 func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) {
@@ -338,7 +270,7 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 			respondError(w, http.StatusBadRequest, "Unknown action")
 			return
 		}
-		
+
 		if actionErr != nil {
 			lastErr = actionErr
 		}
@@ -353,29 +285,4 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 		"deployment_id": deploymentID,
 		"message":       "Action successfully processed",
 	})
-}
-
-func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
-	var deployments []models.Deployment
-	if err := s.DB.Preload("Nodes").Find(&deployments).Error; err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to fetch deployments")
-		return
-	}
-	respondJSON(w, http.StatusOK, deployments)
-}
-
-func (s *Server) runHealthCheck(nid string, endpoint core.Endpoint, hcPath string, expectedStatus int) {
-	client := &http.Client{Timeout: 2 * time.Second}
-	url := fmt.Sprintf("%s://%s%s", endpoint.Protocol, endpoint.BaseURL, hcPath)
-	if endpoint.Port > 0 && endpoint.Port != 80 && endpoint.Port != 443 {
-		url = fmt.Sprintf("%s://%s:%d%s", endpoint.Protocol, endpoint.BaseURL, endpoint.Port, hcPath)
-	}
-
-	resp, err := client.Get(url)
-	if err == nil {
-		if resp.StatusCode == expectedStatus {
-			s.DB.Model(&models.Node{}).Where("id = ?", nid).Update("status", "READY")
-		}
-		resp.Body.Close()
-	}
 }

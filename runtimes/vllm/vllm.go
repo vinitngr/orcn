@@ -130,8 +130,9 @@ python3 -m vllm.entrypoints.openai.api_server \
 	--port 9000 \
 	--dtype auto \
 	--trust-remote-code \
-	--gpu-memory-utilization 0.9 \
+	--gpu-memory-utilization 0.95 \
 	--max-model-len 4096 \
+	--enable-prefix-caching \
 	--tensor-parallel-size $TP
 `
 	compressed := strings.ReplaceAll(strings.TrimSpace(script), "\n", "; ")
