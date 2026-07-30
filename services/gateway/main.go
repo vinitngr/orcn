@@ -10,6 +10,7 @@ import (
 	"orcn/models"
 	"orcn/providers/nosana"
 	"orcn/runtimes/vllm"
+	"orcn/services/controller"
 	"orcn/services/gateway/api"
 	"orcn/services/gateway/health"
 	"orcn/services/gateway/ingress"
@@ -38,8 +39,12 @@ func main() {
 
 	// 3. Create shared services
 	healthChecker := health.New(db)
+	
+	// 4. Start Background Controller Loop (Control Plane)
+	ctrl := controller.New(db)
+	ctrl.StartLoop()
 
-	// 4. Start the Admin API Server (Control Plane) — Port 8080
+	// 5. Start the Admin API Server (Control Plane) — Port 8080
 	apiServer := api.New(db, healthChecker)
 	go func() {
 		log.Println("Admin API listening on :8080")
@@ -48,8 +53,8 @@ func main() {
 		}
 	}()
 
-	// 5. Start the Public AI Ingress (Data Plane) — Port 80
-	ingressServer := ingress.New(db)
+	ingressServer := ingress.New("http://127.0.0.1:8080/api/v1/internal/routes")
+
 	log.Println("Public AI Ingress listening on :80")
 	if err := http.ListenAndServe(":80", ingressServer.Handler()); err != nil {
 		log.Fatalf("Ingress Server failed (did you forget sudo?): %v", err)

@@ -41,6 +41,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/v1/deployments", s.handleListDeployments)
 	s.mux.HandleFunc("GET /api/v1/deployments/{id}", s.handleGetDeployment)
 	s.mux.HandleFunc("POST /api/v1/deployments/{id}/action", s.handleDeploymentAction)
+	
+	// Internal microservice endpoints
+	s.mux.HandleFunc("GET /api/v1/internal/routes", s.handleGetInternalRoutes)
 }
 
 func respondJSON(w http.ResponseWriter, status int, data any) {

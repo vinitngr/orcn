@@ -8,21 +8,17 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/url"
-	"strings"
-
-	"orcn/core"
-	"orcn/models"
+	"time"
 )
 
 func (s *Server) handleListModels(w http.ResponseWriter, _ *http.Request) {
-	var deps []models.Deployment
-	s.DB.Where("status = ?", "RUNNING").Find(&deps)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	modelsList := []map[string]any{}
-	for _, d := range deps {
+	for _, route := range s.routes {
 		modelsList = append(modelsList, map[string]any{
-			"id":       d.Name,
+			"id":       route.Name,
 			"object":   "model",
 			"created":  1686935002,
 			"owned_by": "orcn",
@@ -44,33 +40,26 @@ func (s *Server) handleChatRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Look up the deployment by friendly name
-	dep, err := s.lookupDeployment(modelName)
+	// 2. Look up the cached route
+	route, err := s.lookupRoute(modelName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Model '%s' not found or deployment is offline", modelName), http.StatusNotFound)
 		return
 	}
 
 	// 3. Rewrite the body: replace friendly name with real HuggingFace model ID
-	rewriteRequestBody(r, payload, dep.ModelID)
+	rewriteRequestBody(r, payload, route.RealModelID)
 
-	// 4. Select a healthy node
-	node, err := selectReadyNode(dep.Nodes)
+	// 4. Select a healthy, non-penalized node
+	node, err := s.selectReadyNode(route.Nodes)
 	if err != nil {
-		http.Error(w, "No ready nodes available for this model.", http.StatusServiceUnavailable)
+		http.Error(w, "No ready nodes available for this model right now.", http.StatusServiceUnavailable)
 		return
 	}
 
-	// 5. Build the target URL from node endpoints
-	targetURL, err := buildTargetURL(node)
-	if err != nil {
-		http.Error(w, "Internal error: Node endpoints are invalid", http.StatusInternalServerError)
-		return
-	}
-
-	// 6. Proxy the request
-	log.Printf("[Ingress] Routing %s request to %s -> %s\n", modelName, r.URL.Path, targetURL.String())
-	proxy := NewReverseProxy(targetURL, r.Host, node.ID)
+	// 5. Proxy the request
+	log.Printf("[Ingress] Routing %s request to %s -> %s\n", modelName, r.URL.Path, node.TargetURL.String())
+	proxy := NewReverseProxy(node.TargetURL, r.Host, node.ID, s)
 	proxy.ServeHTTP(w, r)
 }
 
@@ -98,12 +87,15 @@ func extractModelFromBody(r *http.Request) (string, map[string]any, error) {
 	return modelName, payload, nil
 }
 
-func (s *Server) lookupDeployment(name string) (*models.Deployment, error) {
-	var dep models.Deployment
-	if err := s.DB.Preload("Nodes").Where("name = ?", name).First(&dep).Error; err != nil {
-		return nil, err
+func (s *Server) lookupRoute(name string) (*CachedRoute, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	route, ok := s.routes[name]
+	if !ok || len(route.Nodes) == 0 {
+		return nil, fmt.Errorf("route not found")
 	}
-	return &dep, nil
+	return route, nil
 }
 
 func rewriteRequestBody(r *http.Request, payload map[string]any, realModelID string) {
@@ -118,12 +110,18 @@ func rewriteRequestBody(r *http.Request, payload map[string]any, realModelID str
 	r.Header.Set("Content-Length", fmt.Sprintf("%d", len(newBodyBytes)))
 }
 
-func selectReadyNode(nodes []models.Node) (*models.Node, error) {
-	var readyNodes []models.Node
+func (s *Server) selectReadyNode(nodes []*CachedNode) (*CachedNode, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var readyNodes []*CachedNode
+	now := time.Now()
 	for _, node := range nodes {
-		if node.Status == "READY" {
-			readyNodes = append(readyNodes, node)
+		// Circuit Breaking: Skip nodes that are currently in the Penalty Box
+		if penaltyTime, exists := s.penalties[node.ID]; exists && now.Before(penaltyTime) {
+			continue
 		}
+		readyNodes = append(readyNodes, node)
 	}
 
 	if len(readyNodes) == 0 {
@@ -131,20 +129,5 @@ func selectReadyNode(nodes []models.Node) (*models.Node, error) {
 	}
 
 	selected := readyNodes[rand.Intn(len(readyNodes))]
-	return &selected, nil
-}
-
-func buildTargetURL(node *models.Node) (*url.URL, error) {
-	var endpoints []core.Endpoint
-	if err := json.Unmarshal([]byte(node.EndpointsJSON), &endpoints); err != nil || len(endpoints) == 0 {
-		return nil, fmt.Errorf("invalid endpoints")
-	}
-
-	ep := endpoints[0]
-	targetURLStr := ep.BaseURL
-	if !strings.HasPrefix(targetURLStr, "http") {
-		targetURLStr = fmt.Sprintf("%s://%s", ep.Protocol, ep.BaseURL)
-	}
-
-	return url.Parse(targetURLStr)
+	return selected, nil
 }

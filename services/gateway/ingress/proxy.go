@@ -2,13 +2,26 @@ package ingress
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
-func NewReverseProxy(target *url.URL, originalHost, nodeID string) *httputil.ReverseProxy {
+func NewReverseProxy(target *url.URL, originalHost, nodeID string, server *Server) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	// Short dial timeout to prevent stalling on dead nodes (Circuit Breaking)
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   3 * time.Second, // Max time to wait for TCP handshake
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   3 * time.Second,
+		ResponseHeaderTimeout: 45 * time.Second, // vLLM might take a while to return first token
+	}
+	proxy.Transport = transport
 
 	//overriting the Director function to modify the request before it's sent to the target
 	originalDirector := proxy.Director
@@ -20,7 +33,11 @@ func NewReverseProxy(target *url.URL, originalHost, nodeID string) *httputil.Rev
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
-		log.Printf("Proxy error for node %s: %v\n", nodeID, proxyErr)
+		log.Printf("[Ingress] Proxy error for node %s: %v\n", nodeID, proxyErr)
+		
+		// Apply the Penalty!
+		server.PenalizeNode(nodeID)
+		
 		http.Error(w, "Bad Gateway: Node failed to respond", http.StatusBadGateway)
 	}
 

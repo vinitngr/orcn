@@ -145,81 +145,6 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider, err := core.GetProvider(dep.ProviderID)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Provider missing for this deployment")
-		return
-	}
-
-	var spec core.ContainerSpec
-	json.Unmarshal([]byte(dep.JobSpecJSON), &spec)
-
-	var hcPath string
-	var hcExpected int
-	for _, p := range spec.Ports {
-		if p.HealthCheck.Path != "" {
-			hcPath = p.HealthCheck.Path
-			hcExpected = p.HealthCheck.ExpectedStatus
-			if hcExpected == 0 {
-				hcExpected = 200
-			}
-			break
-		}
-	}
-
-	hasRunningNode := false
-	hasReadyNode := false
-	allCompleted := true
-
-	for i := range dep.Nodes {
-		node := &dep.Nodes[i]
-		info, err := provider.GetNodeInfo(node.ID)
-		if err == nil && info != nil {
-			if node.Status != info.Status {
-				if !(node.Status == "READY" && info.Status == "RUNNING") {
-					node.Status = info.Status
-				}
-			}
-			if len(info.Endpoints) > 0 {
-				if b, err := json.Marshal(info.Endpoints); err == nil {
-					node.EndpointsJSON = string(b)
-				}
-			}
-
-			if node.Status == "RUNNING" && len(info.Endpoints) > 0 && hcPath != "" {
-				ep := info.Endpoints[0]
-				go s.Health.RunCheck(node.ID, ep.BaseURL, ep.Protocol, hcPath, hcExpected)
-			}
-
-			s.DB.Save(node)
-		}
-
-		switch node.Status {
-		case "READY":
-			hasReadyNode = true
-			allCompleted = false
-		case "RUNNING":
-			hasRunningNode = true
-			allCompleted = false
-		case "PENDING", "DRAFT":
-			allCompleted = false
-		}
-	}
-
-	newStatus := dep.Status
-	if hasReadyNode {
-		newStatus = "READY"
-	} else if hasRunningNode {
-		newStatus = "RUNNING"
-	} else if len(dep.Nodes) > 0 && allCompleted {
-		newStatus = "STOPPED"
-	}
-
-	if dep.Status != newStatus {
-		dep.Status = newStatus
-		s.DB.Save(&dep)
-	}
-
 	respondJSON(w, http.StatusOK, dep)
 }
 
@@ -286,4 +211,13 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 		"deployment_id": deploymentID,
 		"message":       "Action successfully processed",
 	})
+}
+
+func (s *Server) handleGetInternalRoutes(w http.ResponseWriter, r *http.Request) {
+	var deps []models.Deployment
+	if err := s.DB.Preload("Nodes").Where("status IN ?", []string{"READY", "RUNNING"}).Find(&deps).Error; err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to fetch internal routes")
+		return
+	}
+	respondJSON(w, http.StatusOK, deps)
 }
