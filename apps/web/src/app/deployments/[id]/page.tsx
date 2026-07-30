@@ -255,11 +255,11 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
-                    PORT 8080
+                    PORT 80
                   </div>
                   <div>
                     <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>ORCN PROXY</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://llm.localhost:8080/v1/chat/completions</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://llm.localhost/v1/chat/completions</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Use this in your OpenAI client (Model: {deployment.Name})</div>
                   </div>
                 </div>

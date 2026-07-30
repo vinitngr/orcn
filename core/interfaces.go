@@ -61,11 +61,23 @@ type ModelInfo struct {
 	Tags         []string `json:"Tags"`
 }
 
+type ConfigOption struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Type        string   `json:"type"` // "text", "number", "boolean", "select"
+	Default     string   `json:"default"`
+	Min         *float64 `json:"min,omitempty"`
+	Max         *float64 `json:"max,omitempty"`
+	Options     []string `json:"options,omitempty"` // For "select" type
+}
+
 type Runtime interface {
-	BuildContainerSpec(modelID string) (*ContainerSpec, error)
+	BuildContainerSpec(modelID string, advancedConfig map[string]string) (*ContainerSpec, error)
 	GetWorkloadType() string // "model_inference", "workload_stateful" etc.
 	SearchModels(query string) ([]ModelInfo, error)
 	GetModelDetails(modelID string) (interface{}, error)
+	GetAdvancedConfigSchema() []ConfigOption
 }
 
 type NodeInfo struct {

@@ -1,0 +1,81 @@
+{
+  "runtime": "diffusers",
+  "supported_pipelines": {
+    "text-to-image": [
+      "StableDiffusionPipeline",
+      "StableDiffusionXLPipeline",
+      "FluxPipeline",
+      "PixArtAlphaPipeline",
+      "AuraFlowPipeline",
+      "CogView3PlusPipeline",
+      "CogView4Pipeline",
+      "KolorsPipeline",
+      "LuminaText2ImgPipeline",
+      "HunyuanDiTPipeline",
+      "SanaPipeline",
+      "IFPipeline",
+      "WuerstchenCombinedPipeline",
+      "KandinskyPipeline",
+      "KandinskyV22Pipeline",
+      "Kandinsky3Pipeline",
+      "LatentConsistencyModelPipeline"
+    ],
+    "image-to-image": [
+      "StableDiffusionImg2ImgPipeline",
+      "StableDiffusionXLImg2ImgPipeline",
+      "FluxImg2ImgPipeline",
+      "IFImg2ImgPipeline",
+      "KandinskyImg2ImgPipeline",
+      "KandinskyV22Img2ImgPipeline",
+      "LatentConsistencyModelImg2ImgPipeline"
+    ],
+    "inpainting": [
+      "StableDiffusionInpaintPipeline",
+      "StableDiffusionXLInpaintPipeline",
+      "FluxInpaintPipeline",
+      "IFInpaintingPipeline",
+      "KandinskyInpaintPipeline",
+      "KandinskyV22InpaintPipeline"
+    ],
+    "controlnet": [
+      "StableDiffusionControlNetPipeline",
+      "StableDiffusionXLControlNetPipeline",
+      "FluxControlNetPipeline",
+      "StableDiffusionXLControlNetUnionPipeline"
+    ],
+    "upscaling": [
+      "StableDiffusionUpscalePipeline",
+      "StableDiffusionLatentUpscalePipeline"
+    ],
+    "image-variation": [
+      "StableDiffusionImageVariationPipeline",
+      "UnCLIPImageVariationPipeline"
+    ],
+    "text-to-video": [
+      "TextToVideoSDPipeline",
+      "CogVideoXPipeline",
+      "HunyuanVideoPipeline",
+      "LTXPipeline"
+    ],
+    "image-to-video": [
+      "StableVideoDiffusionPipeline",
+      "CogVideoXImageToVideoPipeline"
+    ],
+    "video-to-video": [
+      "CogVideoXVideoToVideoPipeline"
+    ],
+    "text-to-3d": [
+      "ShapEPipeline"
+    ],
+    "image-to-3d": [
+      "ShapEImg2ImgPipeline"
+    ],
+    "unclip": [
+      "UnCLIPPipeline"
+    ],
+    "prior": [
+      "KandinskyPriorPipeline",
+      "KandinskyV22PriorPipeline"
+    ]
+  }
+}

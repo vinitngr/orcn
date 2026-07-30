@@ -20,18 +20,26 @@ func (v *VLLMRuntime) GetWorkloadType() string {
 	return "model_inference"
 }
 
-func (v *VLLMRuntime) BuildContainerSpec(modelID string) (*core.ContainerSpec, error) {
+func (v *VLLMRuntime) BuildContainerSpec(modelID string, advancedConfig map[string]string) (*core.ContainerSpec, error) {
 	return &core.ContainerSpec{
-		Image:      "docker.io/vllm/vllm-openai:v0.16.0",
+		Image:      "docker.io/vllm/vllm-openai:v0.26.0",
 		Entrypoint: []string{"/bin/bash", "-c"},
-		Cmd:        []string{GenerateVLLMStartScript(modelID)},
+		Cmd:        []string{GenerateVLLMStartScript(modelID, advancedConfig)},
+		Env: map[string]string{
+			"CUDA_MODULE_LOADING":     "LAZY",
+			"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+		},
+		SystemRequirements: core.SystemRequirements{
+			MinVRAMGB:   16,
+			CUDAVersion: "12.0",
+		},
 		Ports: []core.PortMapping{
 			{
 				Port:     9000,
 				Protocol: "http",
 				HealthCheck: core.HealthCheckSpec{
 					Type:           "http",
-					Path:           "/v1/models",
+					Path:           "/health",
 					Method:         "GET",
 					ExpectedStatus: 200,
 				},
@@ -41,8 +49,53 @@ func (v *VLLMRuntime) BuildContainerSpec(modelID string) (*core.ContainerSpec, e
 	}, nil
 }
 
+func floatPtr(v float64) *float64 { return &v }
+
+func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
+	return []core.ConfigOption{
+		{
+			Key:         "gpu_memory_utilization",
+			Name:        "GPU Memory Utilization",
+			Description: "Fraction of GPU VRAM to allocate for the model and KV cache.",
+			Type:        "number",
+			Default:     "0.80",
+			Min:         floatPtr(0.1),
+			Max:         floatPtr(1.0),
+		},
+		{
+			Key:         "max_model_len",
+			Name:        "Max Context Length",
+			Description: "Maximum sequence length (prompt + output). Lower values save VRAM.",
+			Type:        "number",
+			Default:     "4096",
+			Min:         floatPtr(512),
+		},
+		{
+			Key:         "enable_prefix_caching",
+			Name:        "Prefix Caching",
+			Description: "Automatically cache system prompts and shared prefixes.",
+			Type:        "boolean",
+			Default:     "true",
+		},
+		{
+			Key:         "cpu_offload_gb",
+			Name:        "CPU Offload (GB)",
+			Description: "CPU RAM limit for offloading model weights and KV cache to prevent VRAM OOM.",
+			Type:        "number",
+			Default:     "0",
+		},
+		{
+			Key:         "api_key",
+			Name:        "Enforce API Key",
+			Description: "Optional key to restrict access to this node.",
+			Type:        "text",
+			Default:     "",
+		},
+	}
+}
+
 func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
-	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&filter=text-generation,safetensors&expand=config", url.QueryEscape(query))
+	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&pipeline_tag=text-generation&filter=safetensors&expand=config", url.QueryEscape(query))
 	resp, err := http.Get(searchURL)
 	if err != nil {
 		return nil, err
@@ -116,8 +169,29 @@ func (v *VLLMRuntime) GetModelDetails(modelID string) (interface{}, error) {
 }
 
 
-func GenerateVLLMStartScript(modelID string) string {
-	script := `
+func GenerateVLLMStartScript(modelID string, config map[string]string) string {
+	getVal := func(key, def string) string {
+		if val, ok := config[key]; ok && val != "" {
+			return val
+		}
+		return def
+	}
+
+	memUtil := getVal("gpu_memory_utilization", "0.80")
+	maxLen := getVal("max_model_len", "4096")
+	cpuOffload := getVal("cpu_offload_gb", "0")
+	
+	prefixCaching := ""
+	if getVal("enable_prefix_caching", "true") == "true" {
+		prefixCaching = "--enable-prefix-caching"
+	}
+
+	apiKeyFlag := ""
+	if apiKey := getVal("api_key", ""); apiKey != "" {
+		apiKeyFlag = fmt.Sprintf("--api-key %s", apiKey)
+	}
+
+	script := fmt.Sprintf(`
 N=$(nvidia-smi -L | wc -l)
 if [ $N -ge 8 ]; then TP=8
 elif [ $N -ge 4 ]; then TP=4
@@ -130,16 +204,19 @@ python3 -m vllm.entrypoints.openai.api_server \
 	--port 9000 \
 	--dtype auto \
 	--trust-remote-code \
-	--gpu-memory-utilization 0.95 \
-	--max-model-len 4096 \
-	--enable-prefix-caching \
-	--tensor-parallel-size $TP
-`
+	--gpu-memory-utilization %s \
+	--max-model-len %s \
+	--cpu-offload-gb %s \
+	--tensor-parallel-size $TP %s %s
+`, modelID, modelID, memUtil, maxLen, cpuOffload, prefixCaching, apiKeyFlag)
+
 	compressed := strings.ReplaceAll(strings.TrimSpace(script), "\n", "; ")
 	compressed = strings.ReplaceAll(compressed, "; ;", ";")
 	compressed = strings.ReplaceAll(compressed, "\\; ", "")
+	compressed = strings.ReplaceAll(compressed, "\t", " ")
+	compressed = strings.ReplaceAll(compressed, "  ", " ") // remove double spaces
 
-	return fmt.Sprintf(compressed, modelID, modelID)
+	return compressed
 }
 
 func IsVLLMCompatible(id string) bool {

@@ -107,7 +107,8 @@ export default function CreateDeploymentPage() {
     model: "",
     provider: "nosana",
     market: null as any,
-    hf_token: ""
+    hf_token: "",
+    advanced_config: {} as Record<string, string>
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -122,6 +123,25 @@ export default function CreateDeploymentPage() {
   const [markets, setMarkets] = useState<any[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [modelDetails, setModelDetails] = useState<any>(null);
+
+  const [advancedSchema, setAdvancedSchema] = useState<any[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/v1/runtimes/schema?runtime=${data.runtime}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.schema) {
+          setAdvancedSchema(json.schema);
+          const defaults: Record<string, string> = {};
+          json.schema.forEach((opt: any) => {
+            defaults[opt.key] = opt.default;
+          });
+          setData(d => ({ ...d, advanced_config: defaults }));
+        }
+      })
+      .catch(console.error);
+  }, [data.runtime]);
 
   useEffect(() => {
     if (data.model) {
@@ -190,7 +210,8 @@ export default function CreateDeploymentPage() {
           runtime_id: data.runtime,
           model_id: data.model,
           replicas: data.replicas,
-          hf_token: data.hf_token
+          hf_token: data.hf_token,
+          advanced_config: data.advanced_config
         })
       });
       const json = await res.json();
@@ -499,6 +520,60 @@ export default function CreateDeploymentPage() {
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
                       Loading rich model details...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {data.model && advancedSchema.length > 0 && (
+                <div style={{ marginTop: '1rem', border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
+                  <div 
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+                      Advanced Configuration
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0)' }}>
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </div>
+                  
+                  {showAdvanced && (
+                    <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
+                      {advancedSchema.map(opt => (
+                        <div key={opt.key}>
+                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>{opt.name}</label>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{opt.description}</div>
+                          
+                          {opt.type === 'boolean' ? (
+                            <Select 
+                              value={data.advanced_config[opt.key] || 'false'}
+                              onChange={(val: string) => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: val}}))}
+                              options={[
+                                { value: "true", label: "Enabled" },
+                                { value: "false", label: "Disabled" }
+                              ]}
+                            />
+                          ) : opt.type === 'number' ? (
+                            <input 
+                              type="number"
+                              min={opt.min} max={opt.max} step={opt.min !== undefined && opt.max !== undefined && (opt.max - opt.min <= 1) ? 0.01 : 1}
+                              value={data.advanced_config[opt.key] || ''}
+                              onChange={e => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: e.target.value}}))}
+                              style={InputStyle}
+                            />
+                          ) : (
+                            <input 
+                              type="text"
+                              value={data.advanced_config[opt.key] || ''}
+                              onChange={e => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: e.target.value}}))}
+                              style={InputStyle}
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

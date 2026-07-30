@@ -15,9 +15,10 @@ type createDeploymentRequest struct {
 	ProviderID string `json:"provider_id"`
 	MarketID   string `json:"market_id"`
 	RuntimeID  string `json:"runtime_id"`
-	ModelID    string `json:"model_id"`
-	Replicas   int    `json:"replicas"`
-	HFToken    string `json:"hf_token,omitempty"`
+	ModelID        string            `json:"model_id"`
+	Replicas       int               `json:"replicas"`
+	HFToken        string            `json:"hf_token,omitempty"`
+	AdvancedConfig map[string]string `json:"advanced_config,omitempty"`
 }
 
 type actionRequest struct {
@@ -44,7 +45,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	spec, err := runtime.BuildContainerSpec(req.ModelID)
+	spec, err := runtime.BuildContainerSpec(req.ModelID, req.AdvancedConfig)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to build container spec: "+err.Error())
 		return

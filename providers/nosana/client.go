@@ -135,10 +135,15 @@ func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpe
 	}
 	sysReq := map[string]any{}
 	if spec.SystemRequirements.MinVRAMGB > 0 {
-		sysReq["vram_total_mb"] = spec.SystemRequirements.MinVRAMGB * 1024
+		sysReq["required_vram"] = spec.SystemRequirements.MinVRAMGB
 	}
 	
-	// We can expand required_cuda mapping here later
+	if spec.SystemRequirements.CUDAVersion != "" {
+		sysReq["required_cuda"] = []string{
+			"12.0", "12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7", "12.8", "12.9", "13.0", "13.1", "13.2",
+		}
+	}
+
 	if len(sysReq) > 0 {
 		meta["system_requirements"] = sysReq
 	}

@@ -48,16 +48,6 @@ export function DeploymentSummary({ data, onDeploy, isDeploying }: any) {
               <span style={{ color: '#737373' }}>Replicas</span>
               <span style={{ fontWeight: 400, textAlign: 'right' }}>{data.replicas || 1} Node</span>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#737373' }}>Timeout</span>
-              <span style={{ fontWeight: 400, textAlign: 'right' }}>{data.timeout_minutes || 60} Minutes</span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#737373' }}>Strategy</span>
-              <span style={{ fontWeight: 400, textAlign: 'right' }}>{data.strategy || 'EXTEND'}</span>
-            </div>
           </div>
         </div>
         

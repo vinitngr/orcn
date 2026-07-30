@@ -35,6 +35,8 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("GET /api/v1/markets", s.handleGetMarkets)
 
+	s.mux.HandleFunc("GET /api/v1/runtimes/schema", s.handleGetRuntimeSchema)
+
 	s.mux.HandleFunc("POST /api/v1/deployments", s.handleCreateDeployment)
 	s.mux.HandleFunc("GET /api/v1/deployments", s.handleListDeployments)
 	s.mux.HandleFunc("GET /api/v1/deployments/{id}", s.handleGetDeployment)
