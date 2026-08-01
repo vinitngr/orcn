@@ -70,7 +70,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	dbDeployment := models.Deployment{
 		ID:          deploymentID,
 		Name:        req.Name,
-		Status:      "DRAFT",
+		Status:      models.DeploymentDraft,
 		ProviderID:  req.ProviderID,
 		MarketID:    req.MarketID,
 		RuntimeID:   req.RuntimeID,
@@ -98,7 +98,8 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 			ID:           providerJobID,
 			DeploymentID: deploymentID,
 			ProviderID:   req.ProviderID,
-			Status:       "PENDING",
+			InfraStatus:  models.InfraPending,
+			AppStatus:    models.AppPending,
 		}
 		if err := s.DB.Create(&node).Error; err != nil {
 			lastErr = fmt.Errorf("failed to save node to db: %v", err)
@@ -114,7 +115,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if lastErr != nil {
-		dbDeployment.Status = "PARTIAL"
+		dbDeployment.Status = models.DeploymentPartial
 		dbDeployment.Replicas = len(createdNodeIDs)
 	}
 	s.DB.Save(&dbDeployment)
@@ -215,7 +216,7 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleGetInternalRoutes(w http.ResponseWriter, r *http.Request) {
 	var deps []models.Deployment
-	if err := s.DB.Preload("Nodes").Where("status IN ?", []string{"READY", "RUNNING"}).Find(&deps).Error; err != nil {
+	if err := s.DB.Preload("Nodes").Where("status IN ?", []string{models.DeploymentReady, models.DeploymentRunning}).Find(&deps).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch internal routes")
 		return
 	}

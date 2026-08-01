@@ -88,7 +88,7 @@ func (s *Server) syncRoutes() {
 		}
 
 		for _, node := range d.Nodes {
-			if node.Status != "READY" {
+			if node.AppStatus != models.AppReady {
 				continue
 			}
 

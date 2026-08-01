@@ -53,11 +53,11 @@ func (c *Controller) reconcile() {
 	var deployments []models.Deployment
 	
 	activeStatuses := []string{
-		models.StatusDraft,
-		models.StatusPending,
-		models.StatusRunning,
-		models.StatusReady,
-		models.StatusPartial,
+		models.DeploymentDraft,
+		models.DeploymentPending,
+		models.DeploymentRunning,
+		models.DeploymentReady,
+		models.DeploymentPartial,
 	}
 
 	if err := c.DB.Preload("Nodes").Where("status IN ?", activeStatuses).Find(&deployments).Error; err != nil {
@@ -101,11 +101,11 @@ func (c *Controller) reconcile() {
 				info, err := provider.GetNodeInfo(n.ID)
 				if err == nil && info != nil {
 					statusChanged := false
-					if n.Status != info.Status {
-						if !(n.Status == models.StatusReady && info.Status == models.StatusRunning) {
-							n.Status = info.Status
-							statusChanged = true
-						}
+					
+					// 1. Update Infra Status blindly (no conditional hell needed!)
+					if n.InfraStatus != info.Status {
+						n.InfraStatus = info.Status
+						statusChanged = true
 					}
 					
 					if len(info.Endpoints) > 0 {
@@ -122,8 +122,8 @@ func (c *Controller) reconcile() {
 						c.DB.Save(&n)
 					}
 
-					// B. Ping the AI Health Endpoint
-					if n.Status == models.StatusRunning && len(info.Endpoints) > 0 && hcPath != "" {
+					// 2. Ping the AI Health Endpoint if hardware is on
+					if n.InfraStatus == models.InfraRunning && len(info.Endpoints) > 0 && hcPath != "" {
 						ep := info.Endpoints[0]
 						
 						c.Health.RunCheck(n.ID, ep.BaseURL, ep.Protocol, hcPath, hcExpected)
@@ -148,25 +148,25 @@ func (c *Controller) updateDeploymentStatus(dep models.Deployment) {
 	allCompleted := true
 
 	for _, n := range currentNodes {
-		switch n.Status {
-		case models.StatusReady:
+		// AppStatus takes priority for the Deployment status
+		if n.AppStatus == models.AppReady {
 			hasReadyNode = true
 			allCompleted = false
-		case models.StatusRunning:
+		} else if n.InfraStatus == models.InfraRunning {
 			hasRunningNode = true
 			allCompleted = false
-		case models.StatusPending, models.StatusDraft, models.StatusRestarting:
+		} else if n.InfraStatus == models.InfraPending {
 			allCompleted = false
 		}
 	}
 
 	newStatus := dep.Status
 	if hasReadyNode {
-		newStatus = models.StatusReady
+		newStatus = models.DeploymentReady
 	} else if hasRunningNode {
-		newStatus = models.StatusRunning
+		newStatus = models.DeploymentRunning
 	} else if len(currentNodes) > 0 && allCompleted {
-		newStatus = models.StatusStopped
+		newStatus = models.DeploymentStopped
 	}
 
 	if dep.Status != newStatus {

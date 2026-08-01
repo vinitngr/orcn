@@ -37,6 +37,6 @@ func (c *Checker) RunCheck(nodeID, baseURL, protocol, path string, expectedStatu
 	defer resp.Body.Close()
 
 	if resp.StatusCode == expectedStatus {
-		c.DB.Model(&models.Node{}).Where("id = ?", nodeID).Update("status", "READY")
+		c.DB.Model(&models.Node{}).Where("id = ?", nodeID).Update("app_status", models.AppReady)
 	}
 }

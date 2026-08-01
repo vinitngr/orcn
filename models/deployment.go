@@ -27,7 +27,8 @@ type Node struct {
 	ID             string `gorm:"primaryKey"`          // Provider-assigned ID (Nosana deployment ID, AWS instance ID, etc.)
 	DeploymentID   string `gorm:"not null;index"`      // FK to Deployment
 	ProviderID     string `gorm:"not null"`             // e.g., "nosana", "aws"
-	Status         string `gorm:"default:'PENDING'"`
+	InfraStatus    string `gorm:"default:'PENDING'"`
+	AppStatus      string `gorm:"default:'PENDING'"`
 
 	EndpointsJSON  string `gorm:"type:text"`            // JSON array of core.Endpoint
 	NodeURL        string                               // Legacy/convenience: primary resolved URL
