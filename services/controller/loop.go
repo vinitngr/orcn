@@ -71,18 +71,24 @@ func (c *Controller) reconcile() {
 			continue
 		}
 
-		var spec core.ContainerSpec
+		var spec core.JobSpec
 		json.Unmarshal([]byte(dep.JobSpecJSON), &spec)
 
 		var hcPath string
 		var hcExpected int
-		for _, p := range spec.Ports {
-			if p.HealthCheck.Path != "" {
-				hcPath = p.HealthCheck.Path
-				hcExpected = p.HealthCheck.ExpectedStatus
-				if hcExpected == 0 {
-					hcExpected = 200
+		
+		for _, container := range spec.Containers {
+			for _, p := range container.Args.Expose {
+				if p.HealthCheck != nil && p.HealthCheck.Path != "" {
+					hcPath = p.HealthCheck.Path
+					hcExpected = p.HealthCheck.ExpectedStatus
+					if hcExpected == 0 {
+						hcExpected = 200
+					}
+					break
 				}
+			}
+			if hcPath != "" {
 				break
 			}
 		}

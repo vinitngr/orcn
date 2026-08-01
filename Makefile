@@ -10,12 +10,12 @@ all: build-gateway
 build-gateway:
 	@echo "Building Gateway Service..."
 	@mkdir -p bin
-	@go build -o bin/gateway ./services/gateway/...
+	@go build -o bin/gateway ./services/gateway
 	@echo "Build complete! Binary located at: bin/gateway"
 
 run-gateway:
 	@echo "Starting Gateway Service..."
-	@go run ./services/gateway/...
+	@go run ./services/gateway
 
 # ==========================================
 # Utilities

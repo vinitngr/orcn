@@ -45,17 +45,19 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	spec, err := runtime.BuildContainerSpec(req.ModelID, req.AdvancedConfig)
+	spec, err := runtime.BuildJobSpec(req.ModelID, req.AdvancedConfig)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Failed to build container spec: "+err.Error())
+		respondError(w, http.StatusInternalServerError, "Failed to build job spec: "+err.Error())
 		return
 	}
 
 	if req.HFToken != "" {
-		if spec.Env == nil {
-			spec.Env = make(map[string]string)
+		for i := range spec.Containers {
+			if spec.Containers[i].Args.Env == nil {
+				spec.Containers[i].Args.Env = make(map[string]string)
+			}
+			spec.Containers[i].Args.Env["HF_TOKEN"] = req.HFToken
 		}
-		spec.Env["HF_TOKEN"] = req.HFToken
 	}
 
 	if req.Replicas <= 0 {

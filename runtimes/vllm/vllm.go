@@ -20,32 +20,46 @@ func (v *VLLMRuntime) GetWorkloadType() string {
 	return "model_inference"
 }
 
-func (v *VLLMRuntime) BuildContainerSpec(modelID string, advancedConfig map[string]string) (*core.ContainerSpec, error) {
-	return &core.ContainerSpec{
-		Image:      "docker.io/vllm/vllm-openai:v0.26.0",
-		Entrypoint: []string{"/bin/bash", "-c"},
-		Cmd:        []string{GenerateVLLMStartScript(modelID, advancedConfig)},
-		Env: map[string]string{
-			"CUDA_MODULE_LOADING":     "LAZY",
-			"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
-		},
+func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]string) (*core.JobSpec, error) {
+	return &core.JobSpec{
+		Version: "v2",
+		Type:    "container",
 		SystemRequirements: core.SystemRequirements{
 			MinVRAMGB:   16,
 			CUDAVersion: "12.0",
 		},
-		Ports: []core.PortMapping{
+		Containers: []core.ContainerSpec{
 			{
-				Port:     9000,
-				Protocol: "http",
-				HealthCheck: core.HealthCheckSpec{
-					Type:           "http",
-					Path:           "/health",
-					Method:         "GET",
-					ExpectedStatus: 200,
+				ID: "ai-master",
+				Args: core.ContainerArgs{
+					Image: "docker.io/vllm/vllm-openai:v0.16.0",
+					GPU:   true,
+					Entrypoint: []string{
+						"/bin/bash",
+						"-c",
+					},
+					Cmd: []string{
+						GenerateVLLMStartScript(modelID, advancedConfig),
+					},
+					Env: map[string]string{
+						"CUDA_MODULE_LOADING":     "LAZY",
+						"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+					},
+					Expose: []core.ExposeSpec{
+						{
+							Port:     9000,
+							Protocol: "http",
+							IsPublic: true,
+							HealthCheck: &core.HealthCheckSpec{
+								Path:           "/health",
+								ExpectedStatus: 200,
+								TimeoutSeconds: 10,
+							},
+						},
+					},
 				},
 			},
 		},
-		GPU: true,
 	}, nil
 }
 

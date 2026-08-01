@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"orcn/core"
+	"orcn/models"
 )
 
 type Client struct {
@@ -64,70 +66,55 @@ func (c *Client) GetMarkets() (any, error) {
 	return res, err
 }
 
-func (c *Client) CreateDeployment(name, marketID string, spec *core.ContainerSpec) (string, error) {
-	expose := make([]map[string]any, 0)
-	for _, p := range spec.Ports {
-		hc := map[string]any{
-			"type":            p.HealthCheck.Type,
-			"path":            p.HealthCheck.Path,
-			"method":          p.HealthCheck.Method,
-			"expected_status": p.HealthCheck.ExpectedStatus,
-			"continuous":      false,
-		}
-		if len(p.HealthCheck.Headers) > 0 {
-			hc["headers"] = p.HealthCheck.Headers
-		}
-		if p.HealthCheck.Body != "" {
-			hc["body"] = p.HealthCheck.Body
+func (c *Client) CreateDeployment(name, marketID string, spec *core.JobSpec) (string, error) {
+	ops := make([]map[string]any, 0)
+
+	for _, container := range spec.Containers {
+		args := map[string]any{
+			"image": container.Args.Image,
+			"gpu":   container.Args.GPU,
 		}
 
-		expose = append(expose, map[string]any{
-			"port":          p.Port,
-			"health_checks": []map[string]any{hc},
-		})
-	}
-
-	resources := make([]map[string]any, 0)
-	for _, r := range spec.Resources {
-		res := map[string]any{"type": r.Type}
-		if r.URL != "" {
-			res["url"] = r.URL
+		if len(container.Args.Cmd) > 0 {
+			args["cmd"] = container.Args.Cmd
 		}
-		if r.Target != "" {
-			res["target"] = r.Target
+		if len(container.Args.Entrypoint) > 0 {
+			args["entrypoint"] = container.Args.Entrypoint
 		}
-		if r.Model != "" {
-			res["model"] = r.Model
+		if len(container.Args.Env) > 0 {
+			args["env"] = container.Args.Env
 		}
-		resources = append(resources, res)
-	}
 
-	args := map[string]any{
-		"image": spec.Image,
-		"gpu":   spec.GPU,
-	}
-	if len(spec.Cmd) > 0 {
-		args["cmd"] = spec.Cmd
-	}
-	if len(spec.Entrypoint) > 0 {
-		args["entrypoint"] = spec.Entrypoint
-	}
-	if len(expose) > 0 {
-		args["expose"] = expose
-	}
-	if len(spec.Env) > 0 {
-		args["env"] = spec.Env
-	}
-	if len(resources) > 0 {
-		args["resources"] = resources
-	}
+		expose := make([]map[string]any, 0)
+		for _, p := range container.Args.Expose {
+			hc := map[string]any{
+				"continuous": false,
+			}
+			if p.HealthCheck != nil {
+				hc["type"] = "http"
+				hc["path"] = p.HealthCheck.Path
+				hc["method"] = "GET"
+				hc["expected_status"] = p.HealthCheck.ExpectedStatus
+			}
 
-	ops := []map[string]any{
-		{
+			exposeItem := map[string]any{
+				"port": p.Port,
+			}
+			if p.HealthCheck != nil {
+				exposeItem["health_checks"] = []map[string]any{hc}
+			}
+			expose = append(expose, exposeItem)
+		}
+
+		if len(expose) > 0 {
+			args["expose"] = expose
+		}
+
+		ops = append(ops, map[string]any{
 			"type": "container/run",
-			"id":   name,
+			"id":   container.ID,
 			"args": args,
-		},
+		})
 	}
 
 	meta := map[string]any{
@@ -220,7 +207,18 @@ func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
 	}
 
 	if status, ok := res["status"].(string); ok {
-		info.Status = status
+		switch strings.ToUpper(status) {
+		case "QUEUED", "STARTING", "PENDING", "DRAFT":
+			info.Status = models.InfraPending
+		case "RUNNING":
+			info.Status = models.InfraRunning
+		case "COMPLETED", "STOPPED":
+			info.Status = models.InfraStopped
+		case "FAILED", "TERMINATED":
+			info.Status = models.InfraFailed
+		default:
+			info.Status = models.InfraPending
+		}
 	}
 
 	if endpoints, ok := res["endpoints"].([]interface{}); ok {

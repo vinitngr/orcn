@@ -96,7 +96,7 @@ export default function NodeDetailPage(props: { params: Promise<{ id: string, no
           <span style={{ color: 'var(--text-muted)' }}>/</span>
           <span style={{ fontFamily: 'monospace', fontSize: '1.25rem' }}>{node.ID}</span>
         </h1>
-        <Badge variant={statusVariant(node.Status)}>{node.Status}</Badge>
+        <Badge variant={statusVariant(node.InfraStatus)}>{node.InfraStatus}</Badge>
       </div>
 
       <div style={{
@@ -136,7 +136,7 @@ export default function NodeDetailPage(props: { params: Promise<{ id: string, no
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <InfoRow label="Node/Job ID" value={node.ID} monospace highlight />
               <InfoRow label="Parent Deployment" value={deployment.Name} />
-              <InfoRow label="Status" value={<Badge variant={statusVariant(node.Status)}>{node.Status}</Badge>} />
+              <InfoRow label="Status" value={<Badge variant={statusVariant(node.InfraStatus)}>{node.InfraStatus}</Badge>} />
               <InfoRow label="Provider" value={node.ProviderID} />
               <InfoRow label="Market" value={deployment.MarketID || "-"} monospace />
               <InfoRow label="Created At" value={createdAt} />
@@ -151,38 +151,42 @@ export default function NodeDetailPage(props: { params: Promise<{ id: string, no
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '0', padding: '1.5rem' }}>
             <h2 style={{ fontSize: '0.875rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Containers</h2>
-            {parsedSpec ? (
-              <div style={{ border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <div style={{ width: '40px', height: '40px', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            {(parsedSpec && parsedSpec.containers && parsedSpec.containers.length > 0) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {parsedSpec.containers.map((c: any, index: number) => (
+                  <div key={index} style={{ border: '1px solid var(--border)', padding: '1.5rem', backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ width: '40px', height: '40px', backgroundColor: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
+                            {c.id || `CONTAINER_${index + 1}`}
+                          </h3>
+                          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{c.args?.image}</p>
+                        </div>
+                      </div>
+                      <Badge variant={statusVariant(node.InfraStatus)}>{node.InfraStatus}</Badge>
                     </div>
-                    <div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-main)' }}>
-                        {parsedSpec.ID || parsedSpec.Name || (deployment?.RuntimeID ? `${deployment.RuntimeID.toUpperCase()}_CONTAINER` : 'PRIMARY_CONTAINER')}
-                      </h3>
-                      <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{parsedSpec.Image}</p>
+                    
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {c.args?.expose && c.args.expose.map((p: any, i: number) => (
+                        <div key={i} style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                          <strong style={{ color: 'var(--text-main)' }}>Exposed Port:</strong> {p.port}/{p.protocol || 'http'}
+                        </div>
+                      ))}
+                      {c.args?.gpu && (
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                          <strong style={{ color: 'var(--text-main)' }}>Hardware Requirement:</strong> GPU Enabled
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <Badge variant={statusVariant(node.Status)}>{node.Status}</Badge>
-                </div>
-                
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {parsedSpec.Ports && parsedSpec.Ports.map((p: any, i: number) => (
-                    <div key={i} style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                      <strong style={{ color: 'var(--text-main)' }}>Exposed Port:</strong> {p.Port}/{p.Protocol || 'http'}
-                    </div>
-                  ))}
-                  {parsedSpec.GPU && (
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                      <strong style={{ color: 'var(--text-main)' }}>Hardware Requirement:</strong> GPU Enabled
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
             ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No container specification available.</div>
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No containers specified in the job definition.</div>
             )}
           </div>
         </div>

@@ -219,7 +219,7 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                 >
                   <td style={{ padding: '1rem 1.5rem', color: 'var(--accent)', fontFamily: 'monospace' }}>{n.ID}</td>
                   <td style={{ padding: '1rem 1.5rem' }}>
-                    <Badge variant={statusVariant(n.Status)}>{n.Status}</Badge>
+                    <Badge variant={statusVariant(n.InfraStatus)}>{n.InfraStatus}</Badge>
                   </td>
                   <td style={{ padding: '1rem 1.5rem', color: 'var(--text-main)' }}>{n.ProviderID}</td>
                   <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>

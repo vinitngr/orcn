@@ -14,6 +14,8 @@ const (
 const (
 	InfraPending = "PENDING"
 	InfraRunning = "RUNNING"
+	InfraStopped = "STOPPED"
+	InfraFailed  = "FAILED"
 	InfraError   = "ERROR"
 )
 
