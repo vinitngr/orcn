@@ -21,6 +21,55 @@ func (v *VLLMRuntime) GetWorkloadType() string {
 }
 
 func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]string) (*core.JobSpec, error) {
+	getVal := func(key, def string) string {
+		if val, ok := advancedConfig[key]; ok && val != "" {
+			return val
+		}
+		return def
+	}
+
+	cmdArgs := []string{
+		"--model", modelID,
+		"--served-model-name", modelID,
+		"--port", "9000",
+		"--dtype", "auto",
+		"--trust-remote-code",
+		"--gpu-memory-utilization", getVal("gpu_memory_utilization", "0.80"),
+		"--max-model-len", getVal("max_model_len", "4096"),
+		"--cpu-offload-gb", getVal("cpu_offload_gb", "0"),
+	}
+
+	if tp := getVal("tensor_parallel", "0"); tp != "0" && tp != "" {
+		cmdArgs = append(cmdArgs, "--tensor-parallel-size", tp)
+	}
+
+	if getVal("enable_prefix_caching", "true") == "true" {
+		cmdArgs = append(cmdArgs, "--enable-prefix-caching")
+	}
+
+	if apiKey := getVal("api_key", ""); apiKey != "" {
+		cmdArgs = append(cmdArgs, "--api-key", apiKey)
+	}
+
+	if tp := getVal("tool_parser", ""); tp != "" {
+		cmdArgs = append(cmdArgs, "--enable-auto-tool-choice", "--tool-call-parser", tp)
+	}
+
+	if rp := getVal("reasoning_parser", ""); rp != "" {
+		cmdArgs = append(cmdArgs, "--reasoning-parser", rp)
+	}
+
+	// In v0.16+, structured outputs are enabled by default via --structured-outputs-config
+	// We no longer need to explicitly pass --guided-decoding-backend xgrammar
+
+	if kv := getVal("kv_cache_dtype", ""); kv == "fp8" {
+		cmdArgs = append(cmdArgs, "--kv-cache-dtype", "fp8")
+	}
+
+	if ee := getVal("enforce_eager", "false"); ee == "true" {
+		cmdArgs = append(cmdArgs, "--enforce-eager")
+	}
+
 	return &core.JobSpec{
 		Version: "v2",
 		Type:    "container",
@@ -35,12 +84,11 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 					Image: "docker.io/vllm/vllm-openai:v0.16.0",
 					GPU:   true,
 					Entrypoint: []string{
-						"/bin/bash",
-						"-c",
+						"python3",
+						"-m",
+						"vllm.entrypoints.openai.api_server",
 					},
-					Cmd: []string{
-						GenerateVLLMStartScript(modelID, advancedConfig),
-					},
+					Cmd: cmdArgs,
 					Env: map[string]string{
 						"CUDA_MODULE_LOADING":     "LAZY",
 						"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
@@ -66,6 +114,16 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 func floatPtr(v float64) *float64 { return &v }
 
 func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
+	toolOptions := []string{""}
+	for _, p := range ToolParsers {
+		toolOptions = append(toolOptions, p.ID)
+	}
+
+	reasoningOptions := []string{""}
+	for _, p := range ReasoningParsers {
+		reasoningOptions = append(reasoningOptions, p.ID)
+	}
+
 	return []core.ConfigOption{
 		{
 			Key:         "gpu_memory_utilization",
@@ -104,6 +162,45 @@ func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
 			Description: "Optional key to restrict access to this node.",
 			Type:        "text",
 			Default:     "",
+		},
+		{
+			Key:         "tensor_parallel",
+			Name:        "Tensor Parallel Size",
+			Description: "Number of GPUs to use (0=Disable, 2, 4, 8).",
+			Type:        "select",
+			Default:     "0",
+			Options:     []string{"0", "2", "4", "8"},
+		},
+		{
+			Key:         "tool_parser",
+			Name:        "Tool Parser (Advanced)",
+			Description: "Forces a specific parser for function calling. Leave empty for Auto Detect.",
+			Type:        "select",
+			Default:     "",
+			Options:     toolOptions,
+		},
+		{
+			Key:         "reasoning_parser",
+			Name:        "Reasoning Parser (Advanced)",
+			Description: "Forces a specific parser for reasoning output (Thought blocks).",
+			Type:        "select",
+			Default:     "",
+			Options:     reasoningOptions,
+		},
+		{
+			Key:         "kv_cache_dtype",
+			Name:        "KV Cache Quantization (Advanced)",
+			Description: "Forces FP8 KV cache to save 50% memory. WARNING: Requires RTX 4000/5000 or H100 GPU.",
+			Type:        "select",
+			Default:     "",
+			Options:     []string{"", "fp8"},
+		},
+		{
+			Key:         "enforce_eager",
+			Name:        "Disable CUDA Graphs",
+			Description: "Disables graph capture. Saves VRAM and prevents OOM crashes on boot, but slightly reduces decoding speed.",
+			Type:        "boolean",
+			Default:     "false",
 		},
 	}
 }
@@ -183,6 +280,7 @@ func (v *VLLMRuntime) GetModelDetails(modelID string) (interface{}, error) {
 }
 
 
+// dont remove this rebundant script
 func GenerateVLLMStartScript(modelID string, config map[string]string) string {
 	getVal := func(key, def string) string {
 		if val, ok := config[key]; ok && val != "" {
@@ -205,6 +303,21 @@ func GenerateVLLMStartScript(modelID string, config map[string]string) string {
 		apiKeyFlag = fmt.Sprintf("--api-key %s", apiKey)
 	}
 
+	toolParserFlag := ""
+	if tp := getVal("tool_parser", ""); tp != "" {
+		toolParserFlag = fmt.Sprintf("--enable-auto-tool-choice --tool-call-parser %s", tp)
+	}
+
+	reasoningParserFlag := ""
+	if rp := getVal("reasoning_parser", ""); rp != "" {
+		reasoningParserFlag = fmt.Sprintf("--reasoning-parser %s", rp)
+	}
+
+	structuredJsonFlag := ""
+	if sj := getVal("structured_json", "true"); sj == "true" {
+		structuredJsonFlag = "--guided-decoding-backend xgrammar"
+	}
+
 	script := fmt.Sprintf(`
 N=$(nvidia-smi -L | wc -l)
 if [ $N -ge 8 ]; then TP=8
@@ -221,14 +334,14 @@ python3 -m vllm.entrypoints.openai.api_server \
 	--gpu-memory-utilization %s \
 	--max-model-len %s \
 	--cpu-offload-gb %s \
-	--tensor-parallel-size $TP %s %s
-`, modelID, modelID, memUtil, maxLen, cpuOffload, prefixCaching, apiKeyFlag)
+	--tensor-parallel-size $TP %s %s %s %s %s
+`, modelID, modelID, memUtil, maxLen, cpuOffload, prefixCaching, apiKeyFlag, toolParserFlag, reasoningParserFlag, structuredJsonFlag)
 
 	compressed := strings.ReplaceAll(strings.TrimSpace(script), "\n", "; ")
 	compressed = strings.ReplaceAll(compressed, "; ;", ";")
 	compressed = strings.ReplaceAll(compressed, "\\; ", "")
 	compressed = strings.ReplaceAll(compressed, "\t", " ")
-	compressed = strings.ReplaceAll(compressed, "  ", " ") // remove double spaces
+	compressed = strings.ReplaceAll(compressed, "  ", " ")
 
 	return compressed
 }

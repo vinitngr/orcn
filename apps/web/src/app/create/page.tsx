@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { MarketCard } from "@/components/create/MarketCard";
 import { DeploymentSummary } from "@/components/create/DeploymentSummary";
+import { AdvancedConfiguration } from "@/components/create/AdvancedConfiguration";
 
 import { Logo } from "@/components/ui/Logos";
 import { Select } from "@/components/ui/Select";
@@ -525,58 +526,14 @@ export default function CreateDeploymentPage() {
                 </div>
               )}
 
-              {data.model && advancedSchema.length > 0 && (
-                <div style={{ marginTop: '1rem', border: '1px solid var(--border)', backgroundColor: 'var(--surface)' }}>
-                  <div 
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontWeight: 500, fontSize: '0.875rem' }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
-                      Advanced Configuration
-                    </div>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0)' }}>
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </div>
-                  
-                  {showAdvanced && (
-                    <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-                      {advancedSchema.map(opt => (
-                        <div key={opt.key}>
-                          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.25rem' }}>{opt.name}</label>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{opt.description}</div>
-                          
-                          {opt.type === 'boolean' ? (
-                            <Select 
-                              value={data.advanced_config[opt.key] || 'false'}
-                              onChange={(val: string) => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: val}}))}
-                              options={[
-                                { value: "true", label: "Enabled" },
-                                { value: "false", label: "Disabled" }
-                              ]}
-                            />
-                          ) : opt.type === 'number' ? (
-                            <input 
-                              type="number"
-                              min={opt.min} max={opt.max} step={opt.min !== undefined && opt.max !== undefined && (opt.max - opt.min <= 1) ? 0.01 : 1}
-                              value={data.advanced_config[opt.key] || ''}
-                              onChange={e => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: e.target.value}}))}
-                              style={InputStyle}
-                            />
-                          ) : (
-                            <input 
-                              type="text"
-                              value={data.advanced_config[opt.key] || ''}
-                              onChange={e => setData(d => ({...d, advanced_config: {...d.advanced_config, [opt.key]: e.target.value}}))}
-                              style={InputStyle}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {data.model && (
+                <AdvancedConfiguration 
+                  schema={advancedSchema}
+                  data={data.advanced_config}
+                  onChange={(key, value) => setData(d => ({ ...d, advanced_config: { ...d.advanced_config, [key]: value } }))}
+                  show={showAdvanced}
+                  onToggle={() => setShowAdvanced(!showAdvanced)}
+                />
               )}
 
               <div style={{ marginTop: '1rem' }}>
