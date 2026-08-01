@@ -15,11 +15,13 @@ func NewReverseProxy(target *url.URL, originalHost, nodeID string, server *Serve
 	// Short dial timeout to prevent stalling on dead nodes (Circuit Breaking)
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{
-			Timeout:   3 * time.Second, // Max time to wait for TCP handshake
+			Timeout:   15 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
-		TLSHandshakeTimeout:   3 * time.Second,
-		ResponseHeaderTimeout: 45 * time.Second, // vLLM might take a while to return first token
+		TLSHandshakeTimeout:   15 * time.Second,
+		ResponseHeaderTimeout: 120 * time.Second,
+		MaxIdleConns:          1000,
+		MaxIdleConnsPerHost:   1000,
 	}
 	proxy.Transport = transport
 

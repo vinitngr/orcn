@@ -206,8 +206,25 @@ func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
 		Status: "UNKNOWN",
 	}
 
-	if status, ok := res["status"].(string); ok {
-		switch strings.ToUpper(status) {
+	rawStatus := ""
+	
+	if nodes, ok := res["nodes"].([]interface{}); ok && len(nodes) > 0 {
+		if firstNode, ok := nodes[0].(map[string]interface{}); ok {
+			if s, ok := firstNode["status"].(string); ok {
+				rawStatus = s
+			}
+		}
+	}
+	
+	// Fallback to top-level deployment status
+	if rawStatus == "" {
+		if s, ok := res["status"].(string); ok {
+			rawStatus = s
+		}
+	}
+
+	if rawStatus != "" {
+		switch strings.ToUpper(rawStatus) {
 		case "QUEUED", "STARTING", "PENDING", "DRAFT":
 			info.Status = models.InfraPending
 		case "RUNNING":

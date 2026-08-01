@@ -111,6 +111,11 @@ func (c *Controller) reconcile() {
 					// 1. Update Infra Status blindly (no conditional hell needed!)
 					if n.InfraStatus != info.Status {
 						n.InfraStatus = info.Status
+						
+						if n.InfraStatus != models.InfraRunning {
+							n.AppStatus = models.AppPending
+						}
+						
 						statusChanged = true
 					}
 					
