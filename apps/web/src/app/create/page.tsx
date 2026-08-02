@@ -57,22 +57,46 @@ function estimateVramNeeded(modelId: string, modelDetails?: any) {
     else if (dtype.includes('float32')) bytesPerParam = 4;
     else if (dtype.includes('float16') || dtype.includes('bfloat16')) bytesPerParam = 2;
   }
-  // Priority 3: Name Parsing fallback
+  // Priority 3: Ollama Quantization (GGUF)
+  else if (modelDetails?.quantization) {
+    const q = modelDetails.quantization.toLowerCase();
+    if (q.includes('fp16')) bytesPerParam = 2;
+    else if (q.includes('q8')) bytesPerParam = 1;
+    else if (q.includes('q6')) bytesPerParam = 0.75;
+    else if (q.includes('q5')) bytesPerParam = 0.625;
+    else if (q.includes('q4')) bytesPerParam = 0.5;
+    else if (q.includes('q3')) bytesPerParam = 0.375;
+    else if (q.includes('q2')) bytesPerParam = 0.25;
+  }
+  // Priority 4: Name Parsing fallback
   else {
     const idLower = modelId.toLowerCase();
-    if (idLower.includes('fp8') || idLower.includes('int8') || idLower.includes('8bit') || idLower.includes('w8a16') || idLower.includes('w8a8')) {
+    if (idLower.includes('fp8') || idLower.includes('int8') || idLower.includes('8bit') || idLower.includes('w8') || idLower.includes('q8')) {
       bytesPerParam = 1;
-    } else if (idLower.includes('awq') || idLower.includes('gptq') || idLower.includes('int4') || idLower.includes('4bit') || idLower.includes('nf4')) {
+    } else if (idLower.includes('q6')) {
+      bytesPerParam = 0.75;
+    } else if (idLower.includes('q5')) {
+      bytesPerParam = 0.625;
+    } else if (idLower.includes('awq') || idLower.includes('gptq') || idLower.includes('int4') || idLower.includes('4bit') || idLower.includes('nf4') || idLower.includes('q4')) {
       bytesPerParam = 0.5;
+    } else if (idLower.includes('q3')) {
+      bytesPerParam = 0.375;
+    } else if (idLower.includes('q2')) {
+      bytesPerParam = 0.25;
     } else if (idLower.includes('fp32')) {
       bytesPerParam = 4;
     }
   }
 
   // 3. Formula: (params * bytesPerParam) + overhead (KV cache, context, etc)
-  let overhead = 2;
+  let overhead = 2; // Default for context window / KV Cache
   if (paramsB > 50) overhead = 8;
   else if (paramsB > 20) overhead = 4;
+  
+  // GGUF/Ollama models have a slight packing overhead compared to raw safetensors
+  if (modelDetails?.quantization) {
+    overhead += 1;
+  }
 
   return (paramsB * bytesPerParam) + overhead;
 }
@@ -187,7 +211,8 @@ export default function CreateDeploymentPage() {
           id: r.ID,
           name: r.ID.split('/').pop(),
           org: r.Author,
-          downloads: r.Downloads
+          downloads: r.Downloads,
+          tags: r.Tags
         }));
         setSearchResults(mapped);
       }
@@ -387,10 +412,17 @@ export default function CreateDeploymentPage() {
                         <div style={{ width: '32px', height: '32px', backgroundColor: '#fff', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', flexShrink: 0 }}>
                           <Logo name={m.org} size={16} />
                         </div>
-                        <div style={{ overflow: 'hidden', minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 500, fontSize: '0.875rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={m.name}>{m.name}</div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace', marginTop: '0.1rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={m.id}>{m.id}</div>
-                          {m.downloads && (
+                        <div style={{ overflow: 'hidden', minWidth: 0, flex: 1, position: 'relative' }}>
+                          <div style={{ fontWeight: 500, fontSize: '0.875rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', paddingRight: '4rem' }} title={m.name}>{m.name}</div>
+                          {m.tags && m.tags.length > 0 && (
+                            <div style={{ position: 'absolute', top: 0, right: 0, fontSize: '0.65rem', backgroundColor: 'var(--surface)', padding: '0.1rem 0.4rem', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
+                              {m.tags[0]}
+                            </div>
+                          )}
+                          {m.id !== m.name && (
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontFamily: 'monospace', marginTop: '0.1rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={m.id}>{m.id}</div>
+                          )}
+                          {m.downloads > 0 && (
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                               {Intl.NumberFormat('en-US', { notation: "compact", maximumFractionDigits: 1 }).format(m.downloads)}
@@ -425,16 +457,26 @@ export default function CreateDeploymentPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', padding: '1rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border)' }}>
                         <div>
                           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Cpu size={14} /> Params</div>
-                          <div style={{ fontWeight: 500 }}>{modelDetails.safetensors?.total ? `${(modelDetails.safetensors.total / 1000000000).toFixed(1)}B` : 'Unknown'}</div>
+                          <div style={{ fontWeight: 500 }}>
+                            {modelDetails.safetensors?.total 
+                              ? `${(modelDetails.safetensors.total / 1000000000).toFixed(1)}B` 
+                              : modelDetails.parameters 
+                                ? `${modelDetails.parameters}B` 
+                                : 'Unknown'}
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Download size={14} /> Pulls</div>
-                          <div style={{ fontWeight: 500 }}>{Intl.NumberFormat('en-US', { notation: "compact" }).format(modelDetails.downloads || 0)}</div>
-                        </div>
-                        <div>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Heart size={14} /> Likes</div>
-                          <div style={{ fontWeight: 500 }}>{Intl.NumberFormat('en-US', { notation: "compact" }).format(modelDetails.likes || 0)}</div>
-                        </div>
+                        {modelDetails.downloads !== undefined && (
+                          <div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Download size={14} /> Pulls</div>
+                            <div style={{ fontWeight: 500 }}>{Intl.NumberFormat('en-US', { notation: "compact" }).format(modelDetails.downloads || 0)}</div>
+                          </div>
+                        )}
+                        {modelDetails.likes !== undefined && (
+                          <div>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Heart size={14} /> Likes</div>
+                            <div style={{ fontWeight: 500 }}>{Intl.NumberFormat('en-US', { notation: "compact" }).format(modelDetails.likes || 0)}</div>
+                          </div>
+                        )}
                         <div>
                           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><HardDrive size={14} /> VRAM</div>
                           <div style={{ fontWeight: 500 }}>~{Math.ceil(requiredVram)} GB</div>
@@ -442,24 +484,30 @@ export default function CreateDeploymentPage() {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
-                          <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Box size={14} /> Architecture:</span>
-                          <span style={{ fontWeight: 500 }}>
-                            {modelDetails.config?.architectures ? modelDetails.config.architectures.join(', ') : 'Unknown'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
-                          <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Info size={14} /> Model Type:</span>
-                          <span style={{ fontWeight: 500 }}>
-                            {modelDetails.config?.model_type || 'Unknown'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
-                          <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Updated:</span>
-                          <span style={{ fontWeight: 500 }}>
-                            {modelDetails.lastModified ? new Date(modelDetails.lastModified).toLocaleDateString() : 'Unknown'}
-                          </span>
-                        </div>
+                        {(modelDetails.config?.architectures || modelDetails.family) && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Box size={14} /> Architecture:</span>
+                            <span style={{ fontWeight: 500 }}>
+                              {modelDetails.config?.architectures ? modelDetails.config.architectures.join(', ') : modelDetails.family}
+                            </span>
+                          </div>
+                        )}
+                        {(modelDetails.config?.model_type || modelDetails.quantization) && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Info size={14} /> Model Type:</span>
+                            <span style={{ fontWeight: 500 }}>
+                              {modelDetails.config?.model_type || modelDetails.quantization}
+                            </span>
+                          </div>
+                        )}
+                        {modelDetails.lastModified && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calendar size={14} /> Updated:</span>
+                            <span style={{ fontWeight: 500 }}>
+                              {new Date(modelDetails.lastModified).toLocaleDateString()}
+                            </span>
+                          </div>
+                        )}
                         {modelDetails.safetensors?.parameters && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
                             <span style={{ color: 'var(--text-muted)', width: '130px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Layers size={14} /> dtype:</span>

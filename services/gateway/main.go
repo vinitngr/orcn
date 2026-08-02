@@ -9,6 +9,7 @@ import (
 	"orcn/core"
 	"orcn/models"
 	"orcn/providers/nosana"
+	"orcn/runtimes/ollama"
 	"orcn/runtimes/vllm"
 	"orcn/services/controller"
 	"orcn/services/gateway/api"
@@ -34,6 +35,9 @@ func main() {
 
 	vllmRT := vllm.New()
 	core.RegisterRuntime("vllm", vllmRT)
+
+	ollamaRT := ollama.New()
+	core.RegisterRuntime("ollama", ollamaRT)
 
 	log.Println("Plugins registered successfully.")
 
