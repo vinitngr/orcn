@@ -53,7 +53,7 @@ export function DeploymentSummary({ data, onDeploy, isDeploying }: any) {
         
         <Button 
           variant="primary" 
-          size="lg" 
+          size="sm" 
           style={{ width: '100%', marginTop: '1rem', borderRadius: '0', backgroundColor: '#fff', color: '#000', fontWeight: 600 }}
           disabled={!data.name || !data.model || !data.market || isDeploying}
           onClick={onDeploy}

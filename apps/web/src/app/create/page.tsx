@@ -333,7 +333,7 @@ export default function CreateDeploymentPage() {
               </div>
               
               <div style={{ marginTop: '1rem' }}>
-                <Button variant="primary" style={{ borderRadius: '0' }} onClick={nextStep} disabled={!data.name}>Continue to Model Selection</Button>
+                <Button size="sm" variant="primary" style={{ borderRadius: '0' }} onClick={nextStep} disabled={!data.name}>Continue to Model Selection</Button>
               </div>
             </div>
           )}
@@ -586,6 +586,7 @@ export default function CreateDeploymentPage() {
 
               <div style={{ marginTop: '1rem' }}>
                 <Button 
+                  size="sm"
                   variant="primary" 
                   style={{ borderRadius: '0' }} 
                   onClick={nextStep} 

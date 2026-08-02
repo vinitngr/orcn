@@ -19,15 +19,15 @@ export function Button({
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: 500,
-    borderRadius: 'var(--radius-sm)',
+    borderRadius: '0', // Enforce sharp edges globally
     transition: 'all 0.15s ease',
     cursor: props.disabled ? 'not-allowed' : 'pointer',
     ...style
   };
   
   const sizeStyles = {
-    sm: { padding: '0.375rem 0.75rem', fontSize: '0.75rem' },
-    md: { padding: '0.5rem 1rem', fontSize: '0.875rem' },
+    sm: { padding: '0.25rem 0.75rem', fontSize: '0.75rem' },
+    md: { padding: '0.4rem 1rem', fontSize: '0.875rem' },
     lg: { padding: '0.75rem 1.5rem', fontSize: '0.875rem' }
   };
   
