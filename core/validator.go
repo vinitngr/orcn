@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -42,8 +43,11 @@ func ValidateJobSpecBytes(specJSON []byte) (bool, []string) {
 	var errors []string
 	var spec TemplateSpecV2
 
-	if err := json.Unmarshal(specJSON, &spec); err != nil {
-		errors = append(errors, fmt.Sprintf("Invalid JSON format: %v", err))
+	decoder := json.NewDecoder(bytes.NewReader(specJSON))
+	decoder.DisallowUnknownFields()
+
+	if err := decoder.Decode(&spec); err != nil {
+		errors = append(errors, fmt.Sprintf("Invalid JSON schema or unknown field found: %v", err))
 		return false, errors
 	}
 

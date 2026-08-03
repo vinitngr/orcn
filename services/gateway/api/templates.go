@@ -4,7 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
+	
+	"orcn/core"
 	"orcn/models"
 )
 
@@ -24,34 +27,36 @@ func (s *Server) handleListTemplates(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCreateTemplate(w http.ResponseWriter, r *http.Request) {
-	var payload map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Failed to read request body")
+		return
+	}
+	defer r.Body.Close()
+
+	isValid, validationErrors := core.ValidateJobSpecBytes(bodyBytes)
+	if !isValid {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"error": "Invalid Template Specification",
+			"details": validationErrors,
+		})
 		return
 	}
 
-	name, _ := payload["name"].(string)
-	image, _ := payload["image"].(string)
-	computeType, _ := payload["computeType"].(string)
+	var spec core.TemplateSpecV2
+	json.Unmarshal(bodyBytes, &spec)
 
-	if name == "" || image == "" {
-		respondError(w, http.StatusBadRequest, "Name and Image are required")
-		return
+	image := ""
+	if len(spec.Containers) > 0 {
+		image = spec.Containers[0].Args.Image
 	}
-
-	// Remove top level fields so we can store the rest in Data
-	delete(payload, "name")
-	delete(payload, "image")
-	delete(payload, "computeType")
-	
-	dataBytes, _ := json.Marshal(payload)
 
 	template := models.Template{
 		ID:          generateID("temp"),
-		Name:        name,
+		Name:        spec.Name,
 		Image:       image,
-		ComputeType: computeType,
-		Data:        string(dataBytes),
+		ComputeType: spec.ComputeType,
+		Data:        string(bodyBytes),
 	}
 
 	if err := s.DB.Create(&template).Error; err != nil {
@@ -80,31 +85,31 @@ func (s *Server) handleUpdateTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid request body")
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Failed to read request body")
+		return
+	}
+	defer r.Body.Close()
+
+	isValid, validationErrors := core.ValidateJobSpecBytes(bodyBytes)
+	if !isValid {
+		respondJSON(w, http.StatusBadRequest, map[string]any{
+			"error": "Invalid Template Specification",
+			"details": validationErrors,
+		})
 		return
 	}
 
-	if name, ok := payload["name"].(string); ok && name != "" {
-		template.Name = name
-	}
-	if image, ok := payload["image"].(string); ok && image != "" {
-		template.Image = image
-	}
-	if computeType, ok := payload["computeType"].(string); ok && computeType != "" {
-		template.ComputeType = computeType
-	}
+	var spec core.TemplateSpecV2
+	json.Unmarshal(bodyBytes, &spec)
 
-	delete(payload, "name")
-	delete(payload, "image")
-	delete(payload, "computeType")
-	delete(payload, "id")
-	delete(payload, "created_at")
-	delete(payload, "updated_at")
-
-	dataBytes, _ := json.Marshal(payload)
-	template.Data = string(dataBytes)
+	template.Name = spec.Name
+	if len(spec.Containers) > 0 {
+		template.Image = spec.Containers[0].Args.Image
+	}
+	template.ComputeType = spec.ComputeType
+	template.Data = string(bodyBytes)
 
 	if err := s.DB.Save(&template).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to update template")

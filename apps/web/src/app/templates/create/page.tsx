@@ -37,6 +37,17 @@ export default function CreateTemplatePage() {
   };
 
   const generateSpec = (data: any) => {
+    const parseCommand = (str: string) => {
+      if (!str) return [];
+      const matches = str.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+      return matches.map(s => {
+        if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+          return s.slice(1, -1);
+        }
+        return s;
+      });
+    };
+
     const storageVolumes = (data.volumes || []).map((s: any) => ({
       name: s.name,
       type: s.type || "persistent",
@@ -44,46 +55,72 @@ export default function CreateTemplatePage() {
       ...(s.type === 'bind' && s.hostPath ? { host_path: s.hostPath } : {})
     }));
 
+    const systemReqs: any = {};
+    if (parseInt(data.minVram)) systemReqs.min_vram_gb = parseInt(data.minVram);
+    if (parseInt(data.minCores)) systemReqs.min_cores = parseInt(data.minCores);
+    if (parseInt(data.minRam)) systemReqs.min_ram_gb = parseInt(data.minRam);
+    if (data.cudaVersion) systemReqs.cuda_version = data.cudaVersion;
+    if (data.arch && data.arch !== "any") systemReqs.arch = data.arch;
+    if (data.gpuModel) systemReqs.gpu_model = data.gpuModel;
+
+    const meta: any = { trigger: "dashboard" };
+    if (data.readme) meta.description = data.readme;
+    if (Object.keys(systemReqs).length > 0) meta.system_requirements = systemReqs;
+
     return {
-      name: data.name,
-      computeType: data.computeType,
+      name: data.name || "untitled-template",
+      computeType: data.computeType || "CPU",
       version: "v2",
       type: "container",
-      meta: {
-        trigger: "dashboard",
-        description: data.readme || "",
-        system_requirements: {
-          min_vram_gb: parseInt(data.minVram) || 0,
-          min_cores: parseInt(data.minCores) || 0,
-          min_ram_gb: parseInt(data.minRam) || 0,
-          cuda_version: data.cudaVersion || "",
-          arch: data.arch || "any",
-          gpu_model: data.gpuModel || ""
+      meta,
+      ...(storageVolumes.length > 0 ? { volumes: storageVolumes } : {}),
+      containers: (data.containers || []).map((c: any) => {
+        const entrypoint = parseCommand((c.entrypoint || "").trim());
+        
+        let cmd = [];
+        const rawCmd = (c.cmd || "").trim();
+        if (rawCmd) {
+          // If the entrypoint is a shell script runner (-c), the cmd must be passed as one single string argument
+          if (entrypoint.includes("-c")) {
+            cmd = [rawCmd];
+          } else {
+            cmd = parseCommand(rawCmd);
+          }
         }
-      },
-      volumes: storageVolumes,
-      containers: (data.containers || []).map((c: any) => ({
-        id: c.id || "ai-master",
-        args: {
-          image: c.image,
+
+        
+        const env = (c.envVars || []).reduce((acc: any, env: any) => {
+          if (env.key) acc[env.key] = env.value;
+          return acc;
+        }, {});
+
+        const mounts = (c.mounts || []).filter((m: any) => m.volumeName && m.mountPath).map((m: any) => ({
+          volume_name: m.volumeName,
+          mount_path: m.mountPath
+        }));
+
+        const expose = (c.ports || []).filter((p: any) => parseInt(p)).map((p: any) => ({
+          port: parseInt(p),
+          protocol: "tcp",
+          is_public: true
+        }));
+
+        const args: any = {
+          image: c.image || "ubuntu:latest",
           gpu: data.computeType === 'GPU',
-          cmd: (c.cmd || "").split(" ").filter(Boolean),
-          entrypoint: (c.entrypoint || "").split(" ").filter(Boolean),
-          env: (c.envVars || []).reduce((acc: any, env: any) => {
-            if (env.key) acc[env.key] = env.value;
-            return acc;
-          }, {}),
-          volume_mounts: (c.mounts || []).map((m: any) => ({
-             volume_name: m.volumeName,
-             mount_path: m.mountPath
-          })),
-          expose: (c.ports || []).map((p: any) => ({
-            port: parseInt(p) || 0,
-            protocol: "tcp",
-            is_public: true
-          }))
-        }
-      }))
+        };
+
+        if (cmd.length > 0) args.cmd = cmd;
+        if (entrypoint.length > 0) args.entrypoint = entrypoint;
+        if (Object.keys(env).length > 0) args.env = env;
+        if (mounts.length > 0) args.volume_mounts = mounts;
+        if (expose.length > 0) args.expose = expose;
+
+        return {
+          id: c.id || "master",
+          args
+        };
+      })
     };
   };
 
