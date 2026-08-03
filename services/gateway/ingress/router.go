@@ -117,7 +117,6 @@ func (s *Server) selectReadyNode(nodes []*CachedNode) (*CachedNode, error) {
 	var readyNodes []*CachedNode
 	now := time.Now()
 	for _, node := range nodes {
-		// Circuit Breaking: Skip nodes that are currently in the Penalty Box
 		if penaltyTime, exists := s.penalties[node.ID]; exists && now.Before(penaltyTime) {
 			continue
 		}

@@ -17,7 +17,7 @@ type Deployment struct {
 	InstanceName     string
 	InstanceTypeID   string
 
-	RuntimeID        string `gorm:"not null"`
+	RuntimeID        string
 	ModelID          string
 	WorkloadType     string `gorm:"not null;default:'model_inference'"`
 	Replicas         int    `gorm:"default:1"`

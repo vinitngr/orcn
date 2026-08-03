@@ -128,3 +128,65 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 
 	return len(errors) == 0, errors
 }
+
+func ConvertTemplateSpecV2ToJobSpec(v2 *TemplateSpecV2) *JobSpec {
+	job := &JobSpec{
+		Version: "v2",
+		JobName: v2.Name,
+		Type:    v2.Type,
+		Meta:    make(map[string]string),
+	}
+
+	if job.Type == "" {
+		job.Type = "container"
+	}
+
+	if reqs, ok := v2.Meta["system_requirements"].(map[string]any); ok {
+		if vram, ok := reqs["min_vram_gb"].(float64); ok {
+			job.SystemRequirements.MinVRAMGB = int(vram)
+		}
+		if cuda, ok := reqs["cuda_version"].(string); ok {
+			job.SystemRequirements.CUDAVersion = cuda
+		}
+	}
+
+	for _, v := range v2.Volumes {
+		job.Volumes = append(job.Volumes, VolumeSpec{
+			Name:   v.Name,
+			Type:   v.Type,
+			SizeGB: v.SizeGB,
+		})
+	}
+
+	for _, c := range v2.Containers {
+		container := ContainerSpec{
+			ID: c.ID,
+			Args: ContainerArgs{
+				Image:      c.Args.Image,
+				GPU:        c.Args.GPU,
+				Cmd:        c.Args.Cmd,
+				Entrypoint: c.Args.Entrypoint,
+				Env:        c.Args.Env,
+			},
+		}
+
+		for _, m := range c.Args.VolumeMounts {
+			container.Args.VolumeMounts = append(container.Args.VolumeMounts, VolumeMount{
+				VolumeName: m.VolumeName,
+				MountPath:  m.MountPath,
+			})
+		}
+
+		for _, e := range c.Args.Expose {
+			container.Args.Expose = append(container.Args.Expose, ExposeSpec{
+				Port:     e.Port,
+				Protocol: e.Protocol,
+				IsPublic: e.IsPublic,
+			})
+		}
+
+		job.Containers = append(job.Containers, container)
+	}
+
+	return job
+}

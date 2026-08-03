@@ -290,7 +290,6 @@ export default function EditTemplatePage() {
             <div style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 500 }}>Raw JSON Spec</h2>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Advanced manual editing</span>
               </div>
               <textarea 
                 value={rawSpec}

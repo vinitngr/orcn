@@ -8,6 +8,8 @@ import (
 
 	"orcn/core"
 	"orcn/models"
+
+	"gorm.io/gorm"
 )
 
 type createDeploymentRequest struct {
@@ -28,10 +30,28 @@ type actionRequest struct {
 	TimeoutMinutes int    `json:"timeout_minutes,omitempty"`
 }
 
+func validateDeploymentName(name string, db *gorm.DB) error {
+	reservedNames := map[string]bool{"llm": true, "embedding": true}
+	if reservedNames[name] {
+		return fmt.Errorf("the deployment name '%s' is reserved for system use", name)
+	}
+	var count int64
+	db.Model(&models.Deployment{}).Where("name = ?", name).Count(&count)
+	if count > 0 {
+		return fmt.Errorf("a deployment with the name '%s' already exists", name)
+	}
+	return nil
+}
+
 func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) {
 	var req createDeploymentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if err := validateDeploymentName(req.Name, s.DB); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -227,4 +247,126 @@ func (s *Server) handleGetInternalRoutes(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	respondJSON(w, http.StatusOK, deps)
+}
+
+type createWorkloadRequest struct {
+	Name           string          `json:"name"`
+	TemplateID     string          `json:"template_id"`
+	ProviderID     string          `json:"provider_id"`
+	InstanceTypeID string          `json:"instance_type_id"`
+	InstanceName   string          `json:"instance_name"`
+	Replicas       int             `json:"replicas"`
+	Spec           json.RawMessage `json:"spec"`
+}
+
+func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
+	var req createWorkloadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if err := validateDeploymentName(req.Name, s.DB); err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	provider, err := core.GetProvider(req.ProviderID)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid provider_id")
+		return
+	}
+
+	if req.Replicas <= 0 {
+		req.Replicas = 1
+	}
+
+	// 1. Strict Validation of the incoming Raw Spec!
+	valid, validationErrors := core.ValidateJobSpecBytes(req.Spec)
+	if !valid {
+		respondJSON(w, http.StatusBadRequest, map[string]interface{}{
+			"error":   "Spec validation failed",
+			"details": validationErrors,
+		})
+		return
+	}
+
+	var v2Spec core.TemplateSpecV2
+	_ = json.Unmarshal(req.Spec, &v2Spec)
+
+	// 2. Convert to Internal Provider Format
+	internalSpec := core.ConvertTemplateSpecV2ToJobSpec(&v2Spec)
+
+	// 3. Create the Database Record to archive this deployment
+	deploymentID := fmt.Sprintf("workload-%s-%d", req.Name, time.Now().UnixMilli())
+	dbDeployment := models.Deployment{
+		ID:             deploymentID,
+		Name:           req.Name,
+		TemplateID:     req.TemplateID,
+		Status:         models.DeploymentDraft,
+		ProviderID:     req.ProviderID,
+		InstanceName:   req.InstanceName,
+		InstanceTypeID: req.InstanceTypeID,
+		WorkloadType:   "container",
+		Replicas:       req.Replicas,
+		JobSpecJSON:    string(req.Spec),
+	}
+
+	if err := s.DB.Create(&dbDeployment).Error; err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to save deployment to db: "+err.Error())
+		return
+	}
+
+	// 4. Launch on the infrastructure
+	var createdNodeIDs []string
+	var lastErr error
+
+	for i := 0; i < req.Replicas; i++ {
+		providerJobID, err := provider.CreateDeployment(req.Name, req.InstanceTypeID, internalSpec)
+		if err != nil {
+			lastErr = err
+			break
+		}
+
+		node := models.Node{
+			ID:           providerJobID,
+			DeploymentID: deploymentID,
+			ProviderID:   req.ProviderID,
+			InfraStatus:  models.InfraPending,
+			AppStatus:    models.AppPending,
+		}
+		if err := s.DB.Create(&node).Error; err != nil {
+			lastErr = fmt.Errorf("failed to save node to db: %v", err)
+			break
+		}
+		createdNodeIDs = append(createdNodeIDs, providerJobID)
+	}
+
+	if len(createdNodeIDs) == 0 && lastErr != nil {
+		s.DB.Delete(&dbDeployment)
+		respondError(w, http.StatusInternalServerError, "Failed to deploy on provider: "+lastErr.Error())
+		return
+	}
+
+	if lastErr != nil {
+		dbDeployment.Status = models.DeploymentPartial
+		dbDeployment.Replicas = len(createdNodeIDs)
+	}
+	s.DB.Save(&dbDeployment)
+
+	response := map[string]interface{}{
+		"deployment_id": deploymentID,
+		"node_ids":      createdNodeIDs,
+		"status":        dbDeployment.Status,
+		"created_at":    time.Now().UTC().Format(time.RFC3339),
+	}
+
+	if lastErr != nil {
+		response["warning"] = fmt.Sprintf(
+			"Partial failure: Only created %d of %d replicas. Error: %s",
+			len(createdNodeIDs), req.Replicas, lastErr.Error(),
+		)
+	}
+
+	respondJSON(w, http.StatusCreated, response)
 }

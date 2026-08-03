@@ -77,10 +77,9 @@ export default function CreateTemplatePage() {
       containers: (data.containers || []).map((c: any) => {
         const entrypoint = parseCommand((c.entrypoint || "").trim());
         
-        let cmd = [];
+        let cmd : string[] = [];
         const rawCmd = (c.cmd || "").trim();
         if (rawCmd) {
-          // If the entrypoint is a shell script runner (-c), the cmd must be passed as one single string argument
           if (entrypoint.includes("-c")) {
             cmd = [rawCmd];
           } else {
@@ -228,7 +227,6 @@ export default function CreateTemplatePage() {
             <div style={{ minHeight: '520px', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 500 }}>Raw JSON Spec</h2>
-                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Advanced manual editing</span>
               </div>
               <textarea 
                 value={rawSpec}

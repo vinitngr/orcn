@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"sync"
@@ -136,11 +137,18 @@ func (s *Server) Handler() http.Handler {
 		}
 
 		if host != "llm.localhost" && host != "localhost" {
-			http.Error(
-				w,
-				"Service not found on Ingress Gateway",
-				http.StatusNotFound,
-			)
+			// Proxy all other subdomains to the main API server running on 8080
+			targetURL, _ := url.Parse("http://127.0.0.1:8080")
+			proxy := httputil.NewSingleHostReverseProxy(targetURL)
+			
+			// We MUST preserve the original Host so the 8080 proxy knows which subdomain it is routing
+			originalDirector := proxy.Director
+			proxy.Director = func(req *http.Request) {
+				originalDirector(req)
+				req.Host = r.Host 
+			}
+			
+			proxy.ServeHTTP(w, r)
 			return
 		}
 

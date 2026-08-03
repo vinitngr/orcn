@@ -185,7 +185,7 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
               <InfoRow label="Model" value={deployment.ModelID || "-"} />
               <InfoRow label="Runtime" value={deployment.RuntimeID || "-"} />
               <InfoRow label="Provider" value={deployment.ProviderID || "-"} />
-              <InfoRow label="Market" value={deployment.MarketID || "-"} monospace />
+              <InfoRow label="Instance" value={deployment.InstanceName || "-"} />
               <InfoRow label="Nodes (Active / Desired)" value={`${nodes.length} / ${deployment.Replicas}`} />
               <InfoRow label="Estimated Cost" value="-" />
               <InfoRow label="Created At" value={createdAt} />
@@ -246,6 +246,7 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
           
           <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Gateway Endpoint (Primary)</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
+            {deployment.ModelID ? (
               <div style={{ 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                 backgroundColor: 'var(--bg-color)', 
@@ -258,12 +259,49 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                     PORT 80
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>ORCN PROXY</div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>ORCN PROXY (Model Inference)</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://llm.localhost/v1/chat/completions</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Use this in your OpenAI client (Model: {deployment.Name})</div>
                   </div>
                 </div>
               </div>
+            ) : (() => {
+              const exposedPorts: number[] = [];
+              if (parsedSpec && parsedSpec.containers) {
+                parsedSpec.containers.forEach((c: any) => {
+                  if (c.args && c.args.expose) {
+                    c.args.expose.forEach((e: any) => {
+                      if (e.port && !exposedPorts.includes(e.port)) exposedPorts.push(e.port);
+                    });
+                  }
+                });
+              }
+
+              return exposedPorts.length > 0 ? exposedPorts.map(port => (
+                <div key={port} style={{ 
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                  backgroundColor: 'var(--bg-color)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '0', 
+                  padding: '1rem 1.25rem' 
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
+                      PORT {port}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>Gateway Endpoint</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://{deployment.Name}.localhost</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Routes traffic across all {nodes.length} healthy nodes</div>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
+                  No ports were exposed in this workload configuration.
+                </div>
+              );
+            })()}
           </div>
 
           <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Direct Node Endpoints (Internal)</h3>

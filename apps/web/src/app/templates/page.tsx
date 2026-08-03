@@ -83,7 +83,7 @@ export default function TemplatesPage() {
                     {new Date(tpl.CreatedAt || Date.now()).toLocaleDateString()}
                   </td>
                   <td style={{ padding: '1rem 1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center', height: '72px' }}>
-                    <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); /* handle deploy */ }}>Deploy</Button>
+                    <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); router.push(`/workloads/create?template=${tpl.id}`); }}>Deploy</Button>
                     <Button 
                       variant="outline" 
                       size="sm" 

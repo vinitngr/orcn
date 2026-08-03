@@ -67,14 +67,18 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
       <nav style={{ flex: 1, padding: isCollapsed ? '0 0.5rem' : '0 1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', transition: 'padding 0.2s ease' }}>
         
         <div style={{ marginTop: '0.5rem', marginBottom: '0.25rem', padding: '0 0.75rem', display: isCollapsed ? 'none' : 'block' }}>
-          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Orchestration</span>
+          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deploy</span>
         </div>
 
-        <Link href="/" style={navItemStyle(pathname === '/' || pathname.startsWith('/deployments'))}>
+        <Link href="/" style={navItemStyle(pathname === '/' || pathname.startsWith('/deployments') || pathname.startsWith('/workloads'))}>
           <LayoutGrid size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Deployments</span>}
         </Link>
-        <Link href="/create" style={navItemStyle(pathname === '/create')}>
+        <Link href="/workloads/create" style={navItemStyle(pathname === '/workloads/create')}>
+          <Boxes size={18} strokeWidth={2.2} />
+          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Create Workload</span>}
+        </Link>
+        <Link href="/models/create" style={navItemStyle(pathname === '/models/create')}>
           <Zap size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Deploy AI Model</span>}
         </Link>
