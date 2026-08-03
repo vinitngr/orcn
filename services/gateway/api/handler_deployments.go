@@ -11,10 +11,12 @@ import (
 )
 
 type createDeploymentRequest struct {
-	Name       string `json:"name"`
-	ProviderID string `json:"provider_id"`
-	MarketID   string `json:"market_id"`
-	RuntimeID  string `json:"runtime_id"`
+	Name           string            `json:"name"`
+	TemplateID     string            `json:"template_id"`
+	ProviderID     string            `json:"provider_id"`
+	InstanceTypeID string            `json:"instance_type_id"`
+	InstanceName   string            `json:"instance_name"`
+	RuntimeID      string            `json:"runtime_id"`
 	ModelID        string            `json:"model_id"`
 	Replicas       int               `json:"replicas"`
 	HFToken        string            `json:"hf_token,omitempty"`
@@ -70,15 +72,17 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// 1. Create the parent Deployment row
 	deploymentID := fmt.Sprintf("dep-%s-%d", req.Name, time.Now().UnixMilli())
 	dbDeployment := models.Deployment{
-		ID:          deploymentID,
-		Name:        req.Name,
-		Status:      models.DeploymentDraft,
-		ProviderID:  req.ProviderID,
-		MarketID:    req.MarketID,
-		RuntimeID:   req.RuntimeID,
-		ModelID:     req.ModelID,
-		Replicas:    req.Replicas,
-		JobSpecJSON: specJSON,
+		ID:             deploymentID,
+		Name:           req.Name,
+		TemplateID:     req.TemplateID,
+		Status:         models.DeploymentDraft,
+		ProviderID:     req.ProviderID,
+		InstanceName:   req.InstanceName,
+		InstanceTypeID: req.InstanceTypeID,
+		RuntimeID:      req.RuntimeID,
+		ModelID:        req.ModelID,
+		Replicas:       req.Replicas,
+		JobSpecJSON:    specJSON,
 	}
 	if err := s.DB.Create(&dbDeployment).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to save deployment: "+err.Error())
@@ -90,7 +94,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	var lastErr error
 
 	for i := 0; i < req.Replicas; i++ {
-		providerJobID, err := provider.CreateDeployment(req.Name, req.MarketID, spec)
+		providerJobID, err := provider.CreateDeployment(req.Name, req.InstanceTypeID, spec)
 		if err != nil {
 			lastErr = err
 			break

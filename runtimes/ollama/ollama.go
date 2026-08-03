@@ -119,6 +119,7 @@ func (v *OllamaRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 				Name:         m.Name,
 				Author:       "Ollama",
 				Architecture: m.Family,
+				PipelineTag:  "text-generation",
 				Tags:         tags,
 			})
 			count++

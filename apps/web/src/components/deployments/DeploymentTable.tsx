@@ -24,7 +24,7 @@ export function DeploymentTable() {
             status: d.Status,
             nodes: d.Nodes ? d.Nodes.length : 0,
             updated: new Date(d.UpdatedAt).toLocaleString(),
-            model: d.ModelID
+            instance: d.InstanceName || d.ModelID || 'Unknown Instance'
           })));
         }
       })
@@ -73,7 +73,7 @@ export function DeploymentTable() {
             <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Deployment</th>
             <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Status</th>
             <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Provider</th>
-            <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Model</th>
+            <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Instance</th>
             <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Active Jobs</th>
             <th style={{ padding: '1rem 1.5rem', fontWeight: 600 }}>Last Updated</th>
           </tr>
@@ -114,7 +114,7 @@ export function DeploymentTable() {
                 </Badge>
               </td>
               <td style={{ padding: '1rem 1.5rem', fontWeight: 400, color: 'var(--text-main)' }}>{d.provider}</td>
-              <td style={{ padding: '1rem 1.5rem', color: 'var(--text-muted)' }}>{d.model}</td>
+              <td style={{ padding: '1rem 1.5rem', color: 'var(--text-muted)' }}>{d.instance}</td>
               <td style={{ padding: '1rem 1.5rem' }}>
                 <span style={{ fontWeight: 500, color: 'var(--text-main)' }}>{d.nodes}</span> <span style={{ color: 'var(--text-muted)' }}>Nodes</span>
               </td>

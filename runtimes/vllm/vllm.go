@@ -59,9 +59,6 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 		cmdArgs = append(cmdArgs, "--reasoning-parser", rp)
 	}
 
-	// In v0.16+, structured outputs are enabled by default via --structured-outputs-config
-	// We no longer need to explicitly pass --guided-decoding-backend xgrammar
-
 	if kv := getVal("kv_cache_dtype", ""); kv == "fp8" {
 		cmdArgs = append(cmdArgs, "--kv-cache-dtype", "fp8")
 	}
@@ -112,98 +109,6 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 }
 
 func floatPtr(v float64) *float64 { return &v }
-
-func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
-	toolOptions := []string{""}
-	for _, p := range ToolParsers {
-		toolOptions = append(toolOptions, p.ID)
-	}
-
-	reasoningOptions := []string{""}
-	for _, p := range ReasoningParsers {
-		reasoningOptions = append(reasoningOptions, p.ID)
-	}
-
-	return []core.ConfigOption{
-		{
-			Key:         "gpu_memory_utilization",
-			Name:        "GPU Memory Utilization",
-			Description: "Fraction of GPU VRAM to allocate for the model and KV cache.",
-			Type:        "number",
-			Default:     "0.80",
-			Min:         floatPtr(0.1),
-			Max:         floatPtr(1.0),
-		},
-		{
-			Key:         "max_model_len",
-			Name:        "Max Context Length",
-			Description: "Maximum sequence length (prompt + output). Lower values save VRAM.",
-			Type:        "number",
-			Default:     "4096",
-			Min:         floatPtr(512),
-		},
-		{
-			Key:         "enable_prefix_caching",
-			Name:        "Prefix Caching",
-			Description: "Automatically cache system prompts and shared prefixes.",
-			Type:        "boolean",
-			Default:     "true",
-		},
-		{
-			Key:         "cpu_offload_gb",
-			Name:        "CPU Offload (GB)",
-			Description: "CPU RAM limit for offloading model weights and KV cache to prevent VRAM OOM.",
-			Type:        "number",
-			Default:     "0",
-		},
-		{
-			Key:         "api_key",
-			Name:        "Enforce API Key",
-			Description: "Optional key to restrict access to this node.",
-			Type:        "text",
-			Default:     "",
-		},
-		{
-			Key:         "tensor_parallel",
-			Name:        "Tensor Parallel Size",
-			Description: "Number of GPUs to use (0=Disable, 2, 4, 8).",
-			Type:        "select",
-			Default:     "0",
-			Options:     []string{"0", "2", "4", "8"},
-		},
-		{
-			Key:         "tool_parser",
-			Name:        "Tool Parser (Advanced)",
-			Description: "Forces a specific parser for function calling. Leave empty for Auto Detect.",
-			Type:        "select",
-			Default:     "",
-			Options:     toolOptions,
-		},
-		{
-			Key:         "reasoning_parser",
-			Name:        "Reasoning Parser (Advanced)",
-			Description: "Forces a specific parser for reasoning output (Thought blocks).",
-			Type:        "select",
-			Default:     "",
-			Options:     reasoningOptions,
-		},
-		{
-			Key:         "kv_cache_dtype",
-			Name:        "KV Cache Quantization (Advanced)",
-			Description: "Forces FP8 KV cache to save 50% memory. WARNING: Requires RTX 4000/5000 or H100 GPU.",
-			Type:        "select",
-			Default:     "",
-			Options:     []string{"", "fp8"},
-		},
-		{
-			Key:         "enforce_eager",
-			Name:        "Disable CUDA Graphs",
-			Description: "Disables graph capture. Saves VRAM and prevents OOM crashes on boot, but slightly reduces decoding speed.",
-			Type:        "boolean",
-			Default:     "false",
-		},
-	}
-}
 
 func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&pipeline_tag=text-generation&filter=safetensors&expand=config", url.QueryEscape(query))
@@ -355,4 +260,98 @@ func IsVLLMCompatible(id string) bool {
 		}
 	}
 	return true
+}
+
+
+
+func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
+	toolOptions := []string{""}
+	for _, p := range ToolParsers {
+		toolOptions = append(toolOptions, p.ID)
+	}
+
+	reasoningOptions := []string{""}
+	for _, p := range ReasoningParsers {
+		reasoningOptions = append(reasoningOptions, p.ID)
+	}
+
+	return []core.ConfigOption{
+		{
+			Key:         "gpu_memory_utilization",
+			Name:        "GPU Memory Utilization",
+			Description: "Fraction of GPU VRAM to allocate for the model and KV cache.",
+			Type:        "number",
+			Default:     "0.80",
+			Min:         floatPtr(0.1),
+			Max:         floatPtr(1.0),
+		},
+		{
+			Key:         "max_model_len",
+			Name:        "Max Context Length",
+			Description: "Maximum sequence length (prompt + output). Lower values save VRAM.",
+			Type:        "number",
+			Default:     "4096",
+			Min:         floatPtr(512),
+		},
+		{
+			Key:         "enable_prefix_caching",
+			Name:        "Prefix Caching",
+			Description: "Automatically cache system prompts and shared prefixes.",
+			Type:        "boolean",
+			Default:     "true",
+		},
+		{
+			Key:         "cpu_offload_gb",
+			Name:        "CPU Offload (GB)",
+			Description: "CPU RAM limit for offloading model weights and KV cache to prevent VRAM OOM.",
+			Type:        "number",
+			Default:     "0",
+		},
+		{
+			Key:         "api_key",
+			Name:        "Enforce API Key",
+			Description: "Optional key to restrict access to this node.",
+			Type:        "text",
+			Default:     "",
+		},
+		{
+			Key:         "tensor_parallel",
+			Name:        "Tensor Parallel Size",
+			Description: "Number of GPUs to use (0=Disable, 2, 4, 8).",
+			Type:        "select",
+			Default:     "0",
+			Options:     []string{"0", "2", "4", "8"},
+		},
+		{
+			Key:         "tool_parser",
+			Name:        "Tool Parser (Advanced)",
+			Description: "Forces a specific parser for function calling. Leave empty for Auto Detect.",
+			Type:        "select",
+			Default:     "",
+			Options:     toolOptions,
+		},
+		{
+			Key:         "reasoning_parser",
+			Name:        "Reasoning Parser (Advanced)",
+			Description: "Forces a specific parser for reasoning output (Thought blocks).",
+			Type:        "select",
+			Default:     "",
+			Options:     reasoningOptions,
+		},
+		{
+			Key:         "kv_cache_dtype",
+			Name:        "KV Cache Quantization (Advanced)",
+			Description: "Forces FP8 KV cache to save 50% memory. WARNING: Requires RTX 4000/5000 or H100 GPU.",
+			Type:        "select",
+			Default:     "",
+			Options:     []string{"", "fp8"},
+		},
+		{
+			Key:         "enforce_eager",
+			Name:        "Disable CUDA Graphs",
+			Description: "Disables graph capture. Saves VRAM and prevents OOM crashes on boot, but slightly reduces decoding speed.",
+			Type:        "boolean",
+			Default:     "false",
+		},
+	}
 }

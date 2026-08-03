@@ -1,15 +1,21 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Deployment struct {
-	gorm.Model
 	ID               string `gorm:"primaryKey"`
 	Name             string `gorm:"not null;uniqueIndex"`
+	TemplateID       string `gorm:"index"`
 	Status           string `gorm:"default:'DRAFT'"`
 
 	ProviderID       string `gorm:"not null"`
-	MarketID         string `gorm:"not null"`
+
+	InstanceName     string
+	InstanceTypeID   string
 
 	RuntimeID        string `gorm:"not null"`
 	ModelID          string
@@ -20,16 +26,23 @@ type Deployment struct {
 	JobSpecJSON      string `gorm:"type:text"`
 
 	Nodes            []Node `gorm:"foreignKey:DeploymentID"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 type Node struct {
-	gorm.Model
 	ID             string `gorm:"primaryKey"`          // Provider-assigned ID (Nosana deployment ID, AWS instance ID, etc.)
-	DeploymentID   string `gorm:"not null;index"`      // FK to Deployment
-	ProviderID     string `gorm:"not null"`             // e.g., "nosana", "aws"
+	DeploymentID   string `gorm:"not null;index"`
+	ProviderID     string `gorm:"not null"`
 	InfraStatus    string `gorm:"default:'PENDING'"`
 	AppStatus      string `gorm:"default:'PENDING'"`
 
 	EndpointsJSON  string `gorm:"type:text"`            // JSON array of core.Endpoint
 	NodeURL        string                               // Legacy/convenience: primary resolved URL
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }

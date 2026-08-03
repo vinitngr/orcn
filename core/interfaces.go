@@ -97,7 +97,7 @@ type NodeInfo struct {
 
 type Provider interface {
 	GetMarkets() (interface{}, error)
-	CreateDeployment(name string, marketID string, spec *JobSpec) (string, error)
+	CreateDeployment(name string, instanceTypeID string, spec *JobSpec) (string, error)
 	StartDeployment(deploymentID string) error
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error

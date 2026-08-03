@@ -66,7 +66,7 @@ func (c *Client) GetMarkets() (any, error) {
 	return res, err
 }
 
-func (c *Client) CreateDeployment(name, marketID string, spec *core.JobSpec) (string, error) {
+func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpec) (string, error) {
 	ops := make([]map[string]any, 0)
 
 	for _, container := range spec.Containers {
@@ -144,7 +144,7 @@ func (c *Client) CreateDeployment(name, marketID string, spec *core.JobSpec) (st
 
 	payload := map[string]any{
 		"name":           name,
-		"market":         marketID,
+		"market":         instanceTypeID,
 		"job_definition": jobDef,
 		"replicas":       1,
 		"timeout":        60,
