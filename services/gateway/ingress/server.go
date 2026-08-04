@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"orcn/core"
+	"orcn/core/config"
 	"orcn/models"
 )
 
@@ -29,15 +30,17 @@ type CachedRoute struct {
 
 type Server struct {
 	apiURL string
+	cfg    *config.Config
 
 	mu        sync.RWMutex
 	routes    map[string]*CachedRoute
 	penalties map[string]time.Time
 }
 
-func New(apiURL string) *Server {
+func New(apiURL string, cfg *config.Config) *Server {
 	s := &Server{
 		apiURL:    apiURL,
+		cfg:       cfg,
 		routes:    make(map[string]*CachedRoute),
 		penalties: make(map[string]time.Time),
 	}
@@ -176,8 +179,8 @@ func (s *Server) Handler() http.Handler {
 			host = strings.Split(host, ":")[0]
 		}
 
-		if host != "llm.localhost" && host != "localhost" {
-			routeKey := strings.ToLower(strings.TrimSuffix(host, ".localhost"))
+		if host != "llm."+s.cfg.AppDomain && host != s.cfg.AppDomain {
+			routeKey := strings.ToLower(strings.TrimSuffix(host, "."+s.cfg.AppDomain))
 			
 			s.mu.RLock()
 			route, exists := s.routes[routeKey]

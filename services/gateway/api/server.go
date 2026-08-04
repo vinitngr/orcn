@@ -8,8 +8,9 @@ import (
 	"net/url"
 	"strings"
 
-	"orcn/services/gateway/health"
+	"orcn/core/config"
 	"orcn/models"
+	"orcn/services/gateway/health"
 
 	"gorm.io/gorm"
 )
@@ -17,13 +18,15 @@ import (
 type Server struct {
 	DB     *gorm.DB
 	Health *health.Checker
+	Cfg    *config.Config
 	mux    *http.ServeMux
 }
 
-func New(db *gorm.DB, hc *health.Checker) *Server {
+func New(db *gorm.DB, hc *health.Checker, cfg *config.Config) *Server {
 	s := &Server{
 		DB:     db,
 		Health: hc,
+		Cfg:    cfg,
 		mux:    http.NewServeMux(),
 	}
 	s.registerRoutes()
@@ -41,13 +44,12 @@ func (s *Server) withSubdomainProxy(next http.Handler) http.Handler {
 			host = strings.Split(host, ":")[0]
 		}
 		
-		if host == "localhost" || host == "127.0.0.1" {
+		if host == s.Cfg.AppDomain || host == "127.0.0.1" {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		// Extract the subdomain (e.g., test-container.localhost)
-		subdomain := strings.TrimSuffix(host, ".localhost")
+		subdomain := strings.TrimSuffix(host, "."+s.Cfg.AppDomain)
 
 		var dep models.Deployment
 		if err := s.DB.Preload("Nodes").Where("name = ? AND status IN ?", subdomain, []string{models.DeploymentReady, models.DeploymentRunning}).First(&dep).Error; err != nil {
@@ -71,7 +73,6 @@ func (s *Server) withSubdomainProxy(next http.Handler) http.Handler {
 					baseUrl := ""
 					if b, ok := eps[0]["base_url"].(string); ok { baseUrl = b }
 					
-					// Fix: Don't prepend proto:// if baseUrl already has it
 					if !strings.HasPrefix(baseUrl, "http") {
 						proto := "http"
 						if p, ok := eps[0]["protocol"].(string); ok && p != "" { proto = p }
@@ -100,20 +101,15 @@ func (s *Server) withSubdomainProxy(next http.Handler) http.Handler {
 		originalDirector := proxy.Director
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
-			// Required for Kubernetes Ingress on the rented node to route correctly
 			req.Host = targetURL.Host 
 			
 			// Fix CORS/CSRF issues for strict apps (like n8n)
-			// Rewrite the Origin header to match the target host so the app doesn't block it
 			if req.Header.Get("Origin") != "" {
 				req.Header.Set("Origin", targetURL.Scheme+"://"+targetURL.Host)
 			}
-			
-			// Trick apps into accepting secure cookies over local HTTP
 			req.Header.Set("X-Forwarded-Proto", "https")
 		}
 		
-		// Set headers for the backend workload to know where traffic originated
 		r.Header.Set("X-Forwarded-Host", host)
 
 		proxy.ServeHTTP(w, r)
@@ -134,16 +130,14 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/v1/deployments/{id}/action", s.handleDeploymentAction)
 	
 	s.mux.HandleFunc("POST /api/v1/workloads", s.handleCreateWorkload)
-	// Secrets
+
 	s.mux.HandleFunc("GET /api/v1/secrets", s.handleListSecrets)
 	s.mux.HandleFunc("POST /api/v1/secrets", s.handleCreateSecret)
 	s.mux.HandleFunc("DELETE /api/v1/secrets/{name}", s.handleDeleteSecret)
 
-	// Registries
 	s.mux.HandleFunc("GET /api/v1/registries", s.handleListRegistries)
 	s.mux.HandleFunc("POST /api/v1/registries", s.handleCreateRegistry)
 
-	// Templates
 	s.mux.HandleFunc("GET /api/v1/templates", s.handleListTemplates)
 	s.mux.HandleFunc("POST /api/v1/templates", s.handleCreateTemplate)
 	s.mux.HandleFunc("GET /api/v1/templates/{id}", s.handleGetTemplate)
