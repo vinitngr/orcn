@@ -167,7 +167,7 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	idOrName := r.PathValue("id")
 
 	var dep models.Deployment
-	if err := s.DB.Preload("Nodes").Where("id = ? OR name = ?", idOrName, idOrName).First(&dep).Error; err != nil {
+	if err := s.DB.Preload("Nodes").Preload("Endpoints").Where("id = ? OR name = ?", idOrName, idOrName).First(&dep).Error; err != nil {
 		respondError(w, http.StatusNotFound, "Deployment not found")
 		return
 	}
@@ -177,7 +177,7 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	var deployments []models.Deployment
-	if err := s.DB.Preload("Nodes").Find(&deployments).Error; err != nil {
+	if err := s.DB.Preload("Nodes").Preload("Endpoints").Find(&deployments).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch deployments")
 		return
 	}
@@ -242,11 +242,62 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleGetInternalRoutes(w http.ResponseWriter, r *http.Request) {
 	var deps []models.Deployment
-	if err := s.DB.Preload("Nodes").Where("status IN ?", []string{models.DeploymentReady, models.DeploymentRunning}).Find(&deps).Error; err != nil {
+	if err := s.DB.Preload("Nodes").Preload("Endpoints").Where("status IN ?", []string{models.DeploymentReady, models.DeploymentRunning}).Find(&deps).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch internal routes")
 		return
 	}
 	respondJSON(w, http.StatusOK, deps)
+}
+
+// Helper Functions for Endpoint Generation
+func (s *Server) generateDeploymentEndpoints(deploymentID, name string, ports []int) {
+	for i, port := range ports {
+		s.DB.Create(&models.RouteEndpoint{
+			ID:           fmt.Sprintf("ep-dep-%s-%d", deploymentID, port),
+			Subdomain:    fmt.Sprintf("%s-%d", name, port),
+			TargetPort:   port,
+			Type:         models.EndpointTypeDeployment,
+			DeploymentID: deploymentID,
+		})
+		// First port acts as the primary wildcard route
+		if i == 0 {
+			s.DB.Create(&models.RouteEndpoint{
+				ID:           fmt.Sprintf("ep-dep-%s-primary", deploymentID),
+				Subdomain:    name,
+				TargetPort:   port,
+				Type:         models.EndpointTypeDeployment,
+				DeploymentID: deploymentID,
+			})
+		}
+	}
+}
+
+func (s *Server) generateNodeEndpoints(deploymentID, nodeID string, ports []int) {
+	shortNodeID := nodeID
+	if len(shortNodeID) > 8 {
+		shortNodeID = shortNodeID[:8]
+	}
+	for i, port := range ports {
+		s.DB.Create(&models.RouteEndpoint{
+			ID:           fmt.Sprintf("ep-node-%s-%d", shortNodeID, port),
+			Subdomain:    fmt.Sprintf("%s-%d", shortNodeID, port),
+			TargetPort:   port,
+			Type:         models.EndpointTypeNode,
+			DeploymentID: deploymentID,
+			NodeID:       nodeID,
+		})
+		// First port acts as the primary wildcard route for this node
+		if i == 0 {
+			s.DB.Create(&models.RouteEndpoint{
+				ID:           fmt.Sprintf("ep-node-%s-primary", shortNodeID),
+				Subdomain:    shortNodeID,
+				TargetPort:   port,
+				Type:         models.EndpointTypeNode,
+				DeploymentID: deploymentID,
+				NodeID:       nodeID,
+			})
+		}
+	}
 }
 
 type createWorkloadRequest struct {
@@ -316,6 +367,15 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to save deployment to db: "+err.Error())
 		return
 	}
+	
+	// 3.5 Generate Database Endpoints for UI to query
+	var ports []int
+	for _, c := range internalSpec.Containers {
+		for _, p := range c.Args.Expose {
+			ports = append(ports, p.Port)
+		}
+	}
+	s.generateDeploymentEndpoints(dbDeployment.ID, req.Name, ports)
 
 	// 4. Launch on the infrastructure
 	var createdNodeIDs []string
@@ -340,6 +400,8 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		createdNodeIDs = append(createdNodeIDs, providerJobID)
+		
+		s.generateNodeEndpoints(dbDeployment.ID, providerJobID, ports)
 	}
 
 	if len(createdNodeIDs) == 0 && lastErr != nil {

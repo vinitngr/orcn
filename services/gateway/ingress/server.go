@@ -2,6 +2,7 @@ package ingress
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -81,13 +82,29 @@ func (s *Server) syncRoutes() {
 	}
 
 	newRoutes := make(map[string]*CachedRoute)
-	for _, d := range deps {
-		route := &CachedRoute{
-			Name:        d.Name,
-			RealModelID: d.ModelID,
-			Nodes:       []*CachedNode{},
+	
+	addNodeToRoute := func(routeName string, nodeID string, targetURL *url.URL, modelID string) {
+		routeKey := strings.ToLower(routeName)
+		if _, exists := newRoutes[routeKey]; !exists {
+			newRoutes[routeKey] = &CachedRoute{
+				Name:        routeKey, 
+				RealModelID: modelID, 
+				Nodes:       []*CachedNode{},
+			}
 		}
+		
+		// Add node if not already present
+		for _, n := range newRoutes[routeKey].Nodes {
+			if n.ID == nodeID { return }
+		}
+		
+		newRoutes[routeKey].Nodes = append(newRoutes[routeKey].Nodes, &CachedNode{
+			ID:        nodeID,
+			TargetURL: targetURL,
+		})
+	}
 
+	for _, d := range deps {
 		for _, node := range d.Nodes {
 			if node.AppStatus != models.AppReady {
 				continue
@@ -95,22 +112,45 @@ func (s *Server) syncRoutes() {
 
 			var endpoints []core.Endpoint
 			if err := json.Unmarshal([]byte(node.EndpointsJSON), &endpoints); err == nil && len(endpoints) > 0 {
-				ep := endpoints[0]
-				targetURLStr := ep.BaseURL
-				if !strings.HasPrefix(targetURLStr, "http") {
-					targetURLStr = ep.Protocol + "://" + ep.BaseURL
+				
+				shortNodeID := node.ID
+				if len(shortNodeID) > 8 {
+					shortNodeID = shortNodeID[:8]
 				}
-				if parsedURL, err := url.Parse(targetURLStr); err == nil {
-					route.Nodes = append(route.Nodes, &CachedNode{
-						ID:        node.ID,
-						TargetURL: parsedURL,
-					})
+
+				// 1. Primary Route (using first endpoint)
+				ep0 := endpoints[0]
+				targetURLStr0 := ep0.BaseURL
+				if !strings.HasPrefix(targetURLStr0, "http") {
+					proto := "http"
+					if ep0.Protocol != "" { proto = ep0.Protocol }
+					targetURLStr0 = proto + "://" + ep0.BaseURL
+				}
+				
+				if parsedURL0, err := url.Parse(targetURLStr0); err == nil {
+					// Deployment wildcard: e.g. n8n.localhost
+					addNodeToRoute(d.Name, node.ID, parsedURL0, d.ModelID)
+					// Direct node hash: e.g. a7f9b2c.localhost
+					addNodeToRoute(shortNodeID, node.ID, parsedURL0, d.ModelID)
+				}
+
+				// 2. Port-Specific Routes (for multi-port containers)
+				for _, ep := range endpoints {
+					portStr := fmt.Sprintf("%d", ep.Port)
+					targetURLStr := ep.BaseURL
+					if !strings.HasPrefix(targetURLStr, "http") {
+						proto := "http"
+						if ep.Protocol != "" { proto = ep.Protocol }
+						targetURLStr = proto + "://" + ep.BaseURL
+					}
+					if parsedURL, err := url.Parse(targetURLStr); err == nil {
+						// e.g. n8n-5678.localhost
+						addNodeToRoute(d.Name+"-"+portStr, node.ID, parsedURL, d.ModelID)
+						// e.g. a7f9b2c-5678.localhost
+						addNodeToRoute(shortNodeID+"-"+portStr, node.ID, parsedURL, d.ModelID)
+					}
 				}
 			}
-		}
-
-		if len(route.Nodes) > 0 {
-			newRoutes[d.Name] = route
 		}
 	}
 
@@ -137,15 +177,65 @@ func (s *Server) Handler() http.Handler {
 		}
 
 		if host != "llm.localhost" && host != "localhost" {
-			// Proxy all other subdomains to the main API server running on 8080
-			targetURL, _ := url.Parse("http://127.0.0.1:8080")
-			proxy := httputil.NewSingleHostReverseProxy(targetURL)
+			routeKey := strings.ToLower(strings.TrimSuffix(host, ".localhost"))
 			
-			// We MUST preserve the original Host so the 8080 proxy knows which subdomain it is routing
+			s.mu.RLock()
+			route, exists := s.routes[routeKey]
+			s.mu.RUnlock()
+
+			if !exists || len(route.Nodes) == 0 {
+				http.Error(w, "Service not found or no healthy nodes available on Ingress Gateway", http.StatusNotFound)
+				return
+			}
+			
+			// Find a healthy node (filter out those in the Penalty Box)
+			var healthyNodes []*CachedNode
+			s.mu.RLock()
+			for _, n := range route.Nodes {
+				if penalty, penalized := s.penalties[n.ID]; penalized {
+					if time.Now().Before(penalty) {
+						continue 
+					}
+				}
+				healthyNodes = append(healthyNodes, n)
+			}
+			s.mu.RUnlock()
+
+			if len(healthyNodes) == 0 {
+				http.Error(w, "All nodes for this service are currently unhealthy or penalized", http.StatusBadGateway)
+				return
+			}
+
+			// Random selection for now (LoadBalancer Strategy pattern to be wired up)
+			// var lb LoadBalancerRef = &PrefixLB{}
+			// targetNode := lb.SelectNode(healthyNodes, key)
+			// lb = &RoundRobinLB{} // Dynamic toggle example
+			targetNode := healthyNodes[time.Now().UnixNano()%int64(len(healthyNodes))]
+
+			proxy := httputil.NewSingleHostReverseProxy(targetNode.TargetURL)
+			
 			originalDirector := proxy.Director
 			proxy.Director = func(req *http.Request) {
 				originalDirector(req)
-				req.Host = r.Host 
+				req.Host = targetNode.TargetURL.Host 
+				// Fix CORS/CSRF issues for strict apps (like n8n)
+				if req.Header.Get("Origin") != "" {
+					req.Header.Set("Origin", targetNode.TargetURL.Scheme+"://"+targetNode.TargetURL.Host)
+				}
+				// Trick apps into accepting secure cookies (LOOKFOR : controversial)
+				req.Header.Set("X-Forwarded-Proto", "https")
+			}
+			
+			proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
+				log.Printf("[Ingress] Proxy error for generic container %s (Node: %s): %v\n", routeKey, targetNode.ID, proxyErr)
+				
+				if len(route.Nodes) > 1 {
+					s.PenalizeNode(targetNode.ID)
+				} else {
+					log.Printf("[Ingress] ⚠️ Not penalizing Node %s because it is the only available replica for %s", targetNode.ID, routeKey)
+				}
+				
+				http.Error(w, "Bad Gateway: Node failed to respond", http.StatusBadGateway)
 			}
 			
 			proxy.ServeHTTP(w, r)

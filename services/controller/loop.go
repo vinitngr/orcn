@@ -134,10 +134,17 @@ func (c *Controller) reconcile() {
 					}
 
 					// 2. Ping the AI Health Endpoint if hardware is on
-					if n.InfraStatus == models.InfraRunning && len(info.Endpoints) > 0 && hcPath != "" {
-						ep := info.Endpoints[0]
-						
-						c.Health.RunCheck(n.ID, ep.BaseURL, ep.Protocol, hcPath, hcExpected)
+					if n.InfraStatus == models.InfraRunning && len(info.Endpoints) > 0 {
+						if hcPath != "" {
+							ep := info.Endpoints[0]
+							c.Health.RunCheck(n.ID, ep.BaseURL, ep.Protocol, hcPath, hcExpected)
+						} else {
+							// Generic workload, no health check required. Mark as Ready immediately!
+							if n.AppStatus != models.AppReady {
+								n.AppStatus = models.AppReady
+								c.DB.Save(&n)
+							}
+						}
 					}
 				}
 			}(node, dep.ID)

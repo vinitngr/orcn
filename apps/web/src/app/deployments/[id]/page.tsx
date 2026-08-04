@@ -244,9 +244,9 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
             </div>
           </div>
           
-          <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Gateway Endpoint (Primary)</h3>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Gateway Endpoints (Load Balanced)</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-            {deployment.ModelID ? (
+            {(deployment.WorkloadType === "model_inference" || deployment.ModelID) ? (
               <div style={{ 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                 backgroundColor: 'var(--bg-color)', 
@@ -265,20 +265,12 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                   </div>
                 </div>
               </div>
-            ) : (() => {
-              const exposedPorts: number[] = [];
-              if (parsedSpec && parsedSpec.containers) {
-                parsedSpec.containers.forEach((c: any) => {
-                  if (c.args && c.args.expose) {
-                    c.args.expose.forEach((e: any) => {
-                      if (e.port && !exposedPorts.includes(e.port)) exposedPorts.push(e.port);
-                    });
-                  }
-                });
-              }
-
-              return exposedPorts.length > 0 ? exposedPorts.map(port => (
-                <div key={port} style={{ 
+            ) : (!deployment.Endpoints || deployment.Endpoints.filter((e: any) => e.type === "deployment").length === 0) ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
+                No gateway endpoints available.
+              </div>
+            ) : deployment.Endpoints.filter((e: any) => e.type === "deployment").map((ep: any) => (
+                <div key={ep.id} style={{ 
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                   backgroundColor: 'var(--bg-color)', 
                   border: '1px solid var(--border)', 
@@ -287,49 +279,15 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
-                      PORT {port}
+                      PORT {ep.target_port}
                     </div>
                     <div>
                       <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>Gateway Endpoint</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://{deployment.Name}.localhost</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Routes traffic across all {nodes.length} healthy nodes</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://{ep.subdomain}.localhost</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Routes traffic across all healthy nodes</div>
                     </div>
                   </div>
-                </div>
-              )) : (
-                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                  No ports were exposed in this workload configuration.
-                </div>
-              );
-            })()}
-          </div>
-
-          <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Direct Node Endpoints (Internal)</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {allEndpoints.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                No direct endpoints resolved yet. Endpoints will appear once nodes are RUNNING.
-              </div>
-            ) : allEndpoints.map((p, i) => (
-              <div key={i} style={{ 
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                backgroundColor: 'var(--bg-color)', 
-                border: '1px solid var(--border)', 
-                borderRadius: '0', 
-                padding: '1rem 1.25rem' 
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
-                    PORT {p.port}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>{p.protocol?.toUpperCase() || "HTTP"}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>{p.base_url}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Node: {p.nodeId}</div>
-                  </div>
-                </div>
-                {p.base_url && (
-                  <a href={p.base_url} target="_blank" rel="noreferrer" style={{ 
+                  <a href={`http://${ep.subdomain}.localhost`} target="_blank" rel="noreferrer" style={{ 
                     display: 'flex', alignItems: 'center', gap: '0.5rem', 
                     fontSize: '0.75rem', color: 'var(--accent)',
                     backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.5rem 0.75rem', borderRadius: '0',
@@ -338,7 +296,42 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                     Open Link
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                   </a>
-                )}
+                </div>
+            ))}
+          </div>
+
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.75rem' }}>Direct Node Endpoints (Bypass Load Balancer)</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {(!deployment.Endpoints || deployment.Endpoints.filter((e: any) => e.type === "node").length === 0) ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
+                No direct node endpoints resolved. (Only applicable to multi-node workloads).
+              </div>
+            ) : deployment.Endpoints.filter((e: any) => e.type === "node").map((ep: any) => (
+              <div key={ep.id} style={{ 
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
+                backgroundColor: 'var(--bg-color)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '0', 
+                padding: '1rem 1.25rem' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
+                    PORT {ep.target_port}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>Direct Node Endpoint (Node: {ep.node_id?.substring(0, 8)})</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://{ep.subdomain}.localhost</div>
+                  </div>
+                </div>
+                <a href={`http://${ep.subdomain}.localhost`} target="_blank" rel="noreferrer" style={{ 
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                  fontSize: '0.75rem', color: 'var(--accent)',
+                  backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.5rem 0.75rem', borderRadius: '0',
+                  transition: 'all 0.15s ease'
+                }}>
+                  Open Link
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
               </div>
             ))}
           </div>

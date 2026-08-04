@@ -25,7 +25,8 @@ type Deployment struct {
 	ConfidentialMode bool   `gorm:"default:true"`
 	JobSpecJSON      string `gorm:"type:text"`
 
-	Nodes            []Node `gorm:"foreignKey:DeploymentID"`
+	Nodes            []Node          `gorm:"foreignKey:DeploymentID"`
+	Endpoints        []RouteEndpoint `gorm:"foreignKey:DeploymentID"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

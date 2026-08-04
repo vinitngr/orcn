@@ -232,7 +232,8 @@ export default function CreateDeploymentPage() {
         body: JSON.stringify({
           name: data.name,
           provider_id: data.provider,
-          market_id: data.market.id,
+          instance_type_id: data.market.id,
+          instance_name: data.market.name,
           runtime_id: data.runtime,
           model_id: data.model,
           replicas: data.replicas,

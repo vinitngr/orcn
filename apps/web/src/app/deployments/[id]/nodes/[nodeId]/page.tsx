@@ -202,12 +202,12 @@ export default function NodeDetailPage(props: { params: Promise<{ id: string, no
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {endpoints.length === 0 ? (
+            {(!deployment.Endpoints || deployment.Endpoints.filter((e: any) => e.type === "node" && e.node_id === node.ID).length === 0) ? (
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}>
-                No endpoints resolved yet. The node may still be starting up.
+                No direct node endpoints resolved.
               </div>
-            ) : endpoints.map((p, i) => (
-              <div key={i} style={{ 
+            ) : deployment.Endpoints.filter((e: any) => e.type === "node" && e.node_id === node.ID).map((ep: any) => (
+              <div key={ep.id} style={{ 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
                 backgroundColor: 'var(--bg-color)', 
                 border: '1px solid var(--border)', 
@@ -216,24 +216,22 @@ export default function NodeDetailPage(props: { params: Promise<{ id: string, no
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{ backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', borderRadius: '0', fontSize: '0.75rem', color: 'var(--text-main)' }}>
-                    PORT {p.port}
+                    PORT {ep.target_port}
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>{p.protocol?.toUpperCase() || "HTTP"}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>{p.base_url}</div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>Direct Node Endpoint</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://{ep.subdomain}.localhost</div>
                   </div>
                 </div>
-                {p.base_url && (
-                  <a href={p.base_url} target="_blank" rel="noreferrer" style={{ 
-                    display: 'flex', alignItems: 'center', gap: '0.5rem', 
-                    fontSize: '0.75rem', color: 'var(--accent)',
-                    backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.5rem 0.75rem', borderRadius: '0',
-                    transition: 'all 0.15s ease'
-                  }}>
-                    Open Link
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-                  </a>
-                )}
+                <a href={`http://${ep.subdomain}.localhost`} target="_blank" rel="noreferrer" style={{ 
+                  display: 'flex', alignItems: 'center', gap: '0.5rem', 
+                  fontSize: '0.75rem', color: 'var(--accent)',
+                  backgroundColor: 'var(--surface)', border: '1px solid var(--border)', padding: '0.5rem 0.75rem', borderRadius: '0',
+                  transition: 'all 0.15s ease'
+                }}>
+                  Open Link
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                </a>
               </div>
             ))}
           </div>

@@ -150,6 +150,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("PUT /api/v1/templates/{id}", s.handleUpdateTemplate)
 	s.mux.HandleFunc("DELETE /api/v1/templates/{id}", s.handleDeleteTemplate)
 
+	s.mux.HandleFunc("GET /api/v1/endpoints", s.handleListEndpoints)
+	
 	// Internal microservice endpoints
 	s.mux.HandleFunc("GET /api/v1/internal/routes", s.handleGetInternalRoutes)
 }
