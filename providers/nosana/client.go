@@ -61,9 +61,22 @@ func (c *Client) GetMarkets() (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	var res any
-	err = json.Unmarshal(b, &res)
-	return res, err
+
+	var markets []map[string]any
+	if err := json.Unmarshal(b, &markets); err != nil {
+		return nil, err
+	}
+	filtered := make([]map[string]any, 0, len(markets))
+	for _, market := range markets {
+		if marketType, ok := market["type"].(string); ok {
+			if strings.EqualFold(marketType, "COMMUNITY") || strings.EqualFold(marketType, "OTHER") {
+				continue
+			}
+			market["tag"] = marketType
+		}
+		filtered = append(filtered, market)
+	}
+	return filtered, nil
 }
 
 func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpec) (string, error) {
@@ -124,7 +137,7 @@ func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpe
 	if spec.SystemRequirements.MinVRAMGB > 0 {
 		sysReq["required_vram"] = spec.SystemRequirements.MinVRAMGB
 	}
-	
+
 	if spec.SystemRequirements.CUDAVersion != "" {
 		sysReq["required_cuda"] = []string{
 			"12.0", "12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7", "12.8", "12.9", "13.0", "13.1", "13.2",
@@ -207,7 +220,7 @@ func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
 	}
 
 	rawStatus := ""
-	
+
 	if nodes, ok := res["nodes"].([]interface{}); ok && len(nodes) > 0 {
 		if firstNode, ok := nodes[0].(map[string]interface{}); ok {
 			if s, ok := firstNode["status"].(string); ok {
@@ -215,7 +228,7 @@ func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
 			}
 		}
 	}
-	
+
 	// Fallback to top-level deployment status
 	if rawStatus == "" {
 		if s, ok := res["status"].(string); ok {

@@ -56,6 +56,7 @@ export default function CreateDeploymentPage() {
           const mapped = json.markets.map((m: any) => ({
             id: m.address,
             name: m.name,
+            tag: m.tag || m.type,
             price: (m.usd_reward_per_hour || 0).toFixed(3),
             available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
             vram_gb: 24 // Placeholder for deployment UI unless we compute it
@@ -264,15 +265,16 @@ export default function CreateDeploymentPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 500, letterSpacing: '-0.025em' }}>
               {step === 1 && "1. Workload & Compute"}
-              {step === 2 && "2. Configuration Overrides"}
+              {step === 2 && "2. Storage Volumes"}
+              {step === 3 && "3. Containers"}
             </h2>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button onClick={() => setStep(1)} disabled={step === 1} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', backgroundColor: step === 1 ? 'var(--bg-color)' : 'var(--surface)', color: step === 1 ? 'var(--text-muted)' : 'var(--text-main)', cursor: step === 1 ? 'not-allowed' : 'pointer' }}>
+              <button onClick={() => setStep(Math.max(1, step - 1))} disabled={step === 1} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', backgroundColor: step === 1 ? 'var(--bg-color)' : 'var(--surface)', color: step === 1 ? 'var(--text-muted)' : 'var(--text-main)', cursor: step === 1 ? 'not-allowed' : 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
               </button>
-              <span style={{ fontSize: '0.875rem', fontWeight: 500, padding: '0 0.5rem' }}>Step {step} of 2</span>
-              <button onClick={() => setStep(2)} disabled={step === 2} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', backgroundColor: step === 2 ? 'var(--bg-color)' : 'var(--surface)', color: step === 2 ? 'var(--text-muted)' : 'var(--text-main)', cursor: step === 2 ? 'not-allowed' : 'pointer' }}>
+              <span style={{ fontSize: '0.875rem', fontWeight: 500, padding: '0 0.5rem' }}>Step {step} of 3</span>
+              <button onClick={() => setStep(Math.min(3, step + 1))} disabled={step === 3} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)', backgroundColor: step === 3 ? 'var(--bg-color)' : 'var(--surface)', color: step === 3 ? 'var(--text-muted)' : 'var(--text-main)', cursor: step === 3 ? 'not-allowed' : 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
               </button>
             </div>
@@ -360,22 +362,29 @@ export default function CreateDeploymentPage() {
 
               <div style={{ marginTop: '1rem' }}>
                 <Button size="sm" variant="primary" style={{ borderRadius: '0' }} onClick={() => setStep(2)} disabled={!formData.workloadName || !formData.templateId || !formData.market}>
-                  Continue to Overrides
+                  Continue to Containers
                 </Button>
               </div>
             </div>
           )}
 
           {step === 2 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <NodeVolumesConfig data={formData} updateData={updateData} />
-              
-              <div style={{ height: '1px', background: 'var(--border)' }} />
-              
-              <ContainersConfig data={formData} updateData={updateData} />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
                 <Button size="sm" variant="secondary" onClick={() => setStep(1)}>Back</Button>
+                <Button size="sm" variant="primary" onClick={() => setStep(3)}>Continue to Containers</Button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <ContainersConfig data={formData} updateData={updateData} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+                <Button size="sm" variant="secondary" onClick={() => setStep(2)}>Back</Button>
               </div>
             </div>
           )}

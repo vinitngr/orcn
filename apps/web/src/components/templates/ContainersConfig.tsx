@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 export function ContainersConfig({ data, updateData }: any) {
   const containers = data.containers || [];
   const nodeVolumes = data.volumes || [];
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const addContainer = () => {
     updateData({ 
@@ -37,7 +39,7 @@ export function ContainersConfig({ data, updateData }: any) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.875rem', fontWeight: 500 }}>Containers</label>
@@ -53,7 +55,7 @@ export function ContainersConfig({ data, updateData }: any) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {containers.map((container: any, cIndex: number) => (
-            <div key={cIndex} style={{ border: '1px solid var(--border)', background: 'var(--surface)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div key={cIndex} style={{ border: '1px solid var(--border)', background: 'var(--surface)', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}>
                 <div style={{ flex: 1, maxWidth: '300px' }}>
@@ -87,6 +89,18 @@ export function ContainersConfig({ data, updateData }: any) {
                 </div>
               </div>
 
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 0', background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 500 }}
+                >
+                  <span>Advanced Configuration</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>{showAdvanced ? '−' : '+'}</span>
+                </button>
+              </div>
+
+              {showAdvanced && <>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                   <label style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Volume Mounts</label>
@@ -138,6 +152,8 @@ export function ContainersConfig({ data, updateData }: any) {
                   ))}
                 </div>
               </div>
+
+              </>}
 
             </div>
           ))}

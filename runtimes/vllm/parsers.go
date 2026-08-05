@@ -10,14 +10,24 @@ type ParserProfile struct {
 
 var ToolParsers = []ParserProfile{
 	{
-		ID:          "hermes",
-		DisplayName: "Hermes (NousResearch)",
-		Regex:       regexp.MustCompile(`(?i)<tool_call>`),
+		ID:          "openai",
+		DisplayName: "OpenAI Harmony",
+		Regex:       regexp.MustCompile(`(?i)<\|channel\|>commentary`),
+	},
+	{
+		ID:          "gemma4",
+		DisplayName: "Gemma 4",
+		Regex:       regexp.MustCompile(`(?i)<\|tool_call\|>|call:`),
 	},
 	{
 		ID:          "llama3_json",
-		DisplayName: "Llama 3 / 3.1 JSON",
+		DisplayName: "Llama 3 JSON",
 		Regex:       regexp.MustCompile(`(?i)<\|start_header_id\|>tool<\|end_header_id\|>`),
+	},
+	{
+		ID:          "llama4_pythonic",
+		DisplayName: "Llama 4 Pythonic",
+		Regex:       regexp.MustCompile(`(?i)<\|python_tag\|>`),
 	},
 	{
 		ID:          "mistral",
@@ -30,9 +40,49 @@ var ToolParsers = []ParserProfile{
 		Regex:       regexp.MustCompile(`(?i)<\|im_start\|>tool`),
 	},
 	{
-    ID:          "qwen3_xml",
-    DisplayName: "Qwen3 XML",
-    Regex:       regexp.MustCompile(`(?i)<tool_call>|<tool_response>|<function=`),
+		ID:          "hermes",
+		DisplayName: "Hermes",
+		Regex:       regexp.MustCompile(`(?i)<tool_call>`),
+	},
+	{
+		ID:          "qwen3_xml",
+		DisplayName: "Qwen 3 XML",
+		Regex:       regexp.MustCompile(`(?i)<tool_call>|<tool_response>|<function=`),
+	},
+	{
+		ID:          "granite",
+		DisplayName: "Granite",
+		Regex:       regexp.MustCompile(`(?i)<\|tool_call\|>`),
+	},
+	{
+		ID:          "glm47",
+		DisplayName: "GLM 4.7",
+		Regex:       regexp.MustCompile(`(?i)<\|assistant\|>|<tool_call>`),
+	},
+	{
+		ID:          "xlam",
+		DisplayName: "xLAM",
+		Regex:       regexp.MustCompile(`(?i)<function=|<tool_call>`),
+	},
+	{
+		ID:          "cohere_command3",
+		DisplayName: "Cohere Command",
+		Regex:       regexp.MustCompile(`(?i)<\|START_OF_TURN_TOKEN\|>tool`),
+	},
+	{
+		ID:          "internlm",
+		DisplayName: "InternLM",
+		Regex:       regexp.MustCompile(`(?i)<\|im_start\|>tool`),
+	},
+	{
+		ID:          "phi4_mini_json",
+		DisplayName: "Phi-4 Mini JSON",
+		Regex:       regexp.MustCompile(`(?i)<\|tool_call\|>`),
+	},
+	{
+		ID:          "minimax_m2",
+		DisplayName: "MiniMax",
+		Regex:       regexp.MustCompile(`(?i)<tool_call>`),
 	},
 }
 
@@ -48,12 +98,11 @@ var ReasoningParsers = []ParserProfile{
 		Regex:       regexp.MustCompile(`(?i)<think>|</think>`),
 	},
 	{
-    ID:          "granite",
-    DisplayName: "Granite Reasoning",
-    Regex:       regexp.MustCompile(`(?i)<think>`),
+		ID:          "granite",
+		DisplayName: "Granite Reasoning",
+		Regex:       regexp.MustCompile(`(?i)<think>`),
 	},
 }
-
 
 func DetectParser(chatTemplate string, profiles []ParserProfile) string {
 	for _, p := range profiles {

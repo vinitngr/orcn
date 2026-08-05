@@ -78,7 +78,7 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 			{
 				ID: "ai-master",
 				Args: core.ContainerArgs{
-					Image: "docker.io/vllm/vllm-openai:v0.16.0",
+					Image: "docker.io/vllm/vllm-openai:v0.22.1",
 					GPU:   true,
 					Entrypoint: []string{
 						"python3",
@@ -117,6 +117,9 @@ func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("hugging face search failed: %s", resp.Status)
+	}
 
 	var hfModels []struct {
 		Id        string `json:"id"`
@@ -140,7 +143,7 @@ func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 			if supportedArchitectures[arch] && IsVLLMCompatible(m.Id) {
 				if !seen[m.Id] {
 					seen[m.Id] = true
-					
+
 					parts := strings.Split(m.Id, "/")
 					author := ""
 					if len(parts) > 1 {
@@ -154,7 +157,7 @@ func (v *VLLMRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 						Architecture: arch,
 						Downloads:    m.Downloads,
 						PipelineTag:  "text-generation",
-						Tags:         []string{"safetensors"},
+						Tags:         []string{arch},
 					})
 				}
 			}
@@ -176,14 +179,80 @@ func (v *VLLMRuntime) GetModelDetails(modelID string) (interface{}, error) {
 		return nil, fmt.Errorf("model not found")
 	}
 
-	var data interface{}
+	var data map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
 
+	injectRecommendedParsers(modelID, data)
+
 	return data, nil
 }
 
+func injectRecommendedParsers(modelID string, data map[string]interface{}) {
+	// The expanded model API already includes tokenizer_config for many models.
+	// Use it first; the raw file request below is the fallback for older API
+	// responses and models whose config is not expanded.
+	if tmpl := chatTemplateFrom(data); tmpl != "" {
+		setRecommendedParsers(data, tmpl)
+		return
+	}
+
+	tokenizerURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/tokenizer_config.json", modelID)
+	tokResp, err := http.Get(tokenizerURL)
+	if err != nil || tokResp.StatusCode != http.StatusOK {
+		return
+	}
+	defer tokResp.Body.Close()
+
+	var tokData map[string]interface{}
+	if err := json.NewDecoder(tokResp.Body).Decode(&tokData); err != nil {
+		return
+	}
+
+	if tmpl := chatTemplateFrom(tokData); tmpl != "" {
+		setRecommendedParsers(data, tmpl)
+	}
+}
+
+func chatTemplateFrom(data map[string]interface{}) string {
+	if tmpl, ok := data["chat_template"].(string); ok {
+		return tmpl
+	}
+	if tmpl, ok := data["chat_template_jinja"].(string); ok {
+		return tmpl
+	}
+	if templates, ok := data["chat_template"].([]interface{}); ok {
+		for _, item := range templates {
+			if obj, ok := item.(map[string]interface{}); ok {
+				if tmpl, ok := obj["template"].(string); ok {
+					return tmpl
+				}
+			}
+		}
+	}
+	if config, ok := data["config"].(map[string]interface{}); ok {
+		if tmpl := chatTemplateFrom(config); tmpl != "" {
+			return tmpl
+		}
+		if tokenizer, ok := config["tokenizer_config"].(map[string]interface{}); ok {
+			return chatTemplateFrom(tokenizer)
+		}
+	}
+	return ""
+}
+
+func setRecommendedParsers(data map[string]interface{}, tmpl string) {
+	data["chat_template"] = tmpl
+	toolParser := DetectParser(tmpl, ToolParsers)
+	reasoningParser := DetectParser(tmpl, ReasoningParsers)
+	data["recommended_tool_parser"] = toolParser
+	data["recommended_reasoning_parser"] = reasoningParser
+	data["metadata"] = map[string]string{
+		"tool_parser":      toolParser,
+		"reasoning_parser": reasoningParser,
+	}
+}
 
 // dont remove this rebundant script
 func GenerateVLLMStartScript(modelID string, config map[string]string) string {
@@ -197,7 +266,7 @@ func GenerateVLLMStartScript(modelID string, config map[string]string) string {
 	memUtil := getVal("gpu_memory_utilization", "0.80")
 	maxLen := getVal("max_model_len", "4096")
 	cpuOffload := getVal("cpu_offload_gb", "0")
-	
+
 	prefixCaching := ""
 	if getVal("enable_prefix_caching", "true") == "true" {
 		prefixCaching = "--enable-prefix-caching"
@@ -261,8 +330,6 @@ func IsVLLMCompatible(id string) bool {
 	}
 	return true
 }
-
-
 
 func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
 	toolOptions := []string{""}
@@ -348,8 +415,8 @@ func (v *VLLMRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
 		},
 		{
 			Key:         "enforce_eager",
-			Name:        "Disable CUDA Graphs",
-			Description: "Disables graph capture. Saves VRAM and prevents OOM crashes on boot, but slightly reduces decoding speed.",
+			Name:        "CUDA Graphs",
+			Description: "Enable CUDA graph capture for better decoding performance. Disable this if the model has CUDA graph capture issues.",
 			Type:        "boolean",
 			Default:     "false",
 		},

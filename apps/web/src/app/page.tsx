@@ -14,7 +14,7 @@ export default function DeploymentsPage() {
         title="Deployments" 
         description="Find information about your deployments here"
         action={
-          <Button onClick={() => router.push('/create')}>
+          <Button onClick={() => router.push('/workloads/create')}>
             + Create Deployment
           </Button>
         }

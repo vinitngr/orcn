@@ -174,11 +174,34 @@ export default function CreateDeploymentPage() {
       fetch(`/api/v1/models/details?runtime=${data.runtime}&model=${encodeURIComponent(data.model)}`)
         .then(res => res.json())
         .then(json => {
-          if (json.details) setModelDetails(json.details);
+          if (json.details) {
+            setModelDetails(json.details);
+          }
         })
         .catch(console.error);
     }
   }, [data.model, data.runtime]);
+
+  // Apply detector output only after the schema is loaded. This avoids the
+  // schema request overwriting the model detail request with its defaults.
+  useEffect(() => {
+    if (!modelDetails || advancedSchema.length === 0) return;
+
+    const metadata = modelDetails.metadata || {};
+    const detected = {
+      tool_parser: metadata.tool_parser ?? modelDetails.recommended_tool_parser ?? "",
+      reasoning_parser: metadata.reasoning_parser ?? modelDetails.recommended_reasoning_parser ?? ""
+    };
+    const nextConfig = { ...data.advanced_config };
+
+    for (const key of ["tool_parser", "reasoning_parser"]) {
+      const option = advancedSchema.find(opt => opt.key === key);
+      const value = detected[key as keyof typeof detected];
+      nextConfig[key] = option?.options?.includes(value) ? value : "";
+    }
+
+    setData(d => ({ ...d, advanced_config: nextConfig }));
+  }, [modelDetails, advancedSchema]);
 
   useEffect(() => {
     if (step === 3) {
@@ -189,6 +212,7 @@ export default function CreateDeploymentPage() {
             const mapped = json.markets.map((m: any) => ({
               id: m.address,
               name: m.name,
+              tag: m.tag || m.type,
               price: (m.usd_reward_per_hour || 0).toFixed(3),
               available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
               vram_gb: getMarketVram(m.name)

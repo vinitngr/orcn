@@ -1,4 +1,4 @@
-export function MarketCard({ name, price, vram_gb, selected, disabled, warning, onClick }: any) {
+export function MarketCard({ name, price, vram_gb, tag, selected, disabled, warning, onClick }: any) {
   const isAvailable = !disabled;
   return (
     <div 
@@ -25,8 +25,11 @@ export function MarketCard({ name, price, vram_gb, selected, disabled, warning, 
           <rect width="24" height="24" rx="0" fill="#E8F5E9"/>
           <path d="M7 8H17L12 16L7 8Z" fill="#4CAF50"/>
         </svg>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div>{name}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+            <span>{name}</span>
+            {tag && <span style={{ flexShrink: 0, fontSize: '0.65rem', padding: '0.15rem 0.4rem', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 500 }}>{tag}</span>}
+          </div>
           {vram_gb && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400, marginTop: '2px' }}>{vram_gb} GB VRAM</div>}
         </div>
       </div>

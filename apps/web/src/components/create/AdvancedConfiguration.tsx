@@ -47,8 +47,8 @@ export function AdvancedConfiguration({ schema, data, onChange, show, onToggle }
               
               {opt.type === 'boolean' ? (
                 <Select 
-                  value={data[opt.key] || 'false'}
-                  onChange={(val: string) => onChange(opt.key, val)}
+                  value={opt.key === 'enforce_eager' ? (data[opt.key] === 'true' ? 'false' : 'true') : (data[opt.key] || 'false')}
+                  onChange={(val: string) => onChange(opt.key, opt.key === 'enforce_eager' ? (val === 'true' ? 'false' : 'true') : val)}
                   options={[
                     { value: "true", label: "Enabled" },
                     { value: "false", label: "Disabled" }
