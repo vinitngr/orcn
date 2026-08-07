@@ -2,16 +2,18 @@ package controller
 
 import (
 	"encoding/json"
-	"log"
 	"sync"
 	"time"
 
 	"orcn/core"
+	"orcn/core/logger"
 	"orcn/models"
 	"orcn/services/gateway/health"
 
 	"gorm.io/gorm"
 )
+
+var controllerLog = logger.New("CONTROLLER")
 
 type Controller struct {
 	DB     *gorm.DB
@@ -30,7 +32,7 @@ func New(db *gorm.DB) *Controller {
 }
 
 func (c *Controller) StartLoop() {
-	log.Println("[Controller] Starting background reconciliation loop...")
+	controllerLog.Info("Starting background reconciliation loop...")
 	ticker := time.NewTicker(15 * time.Second)
 	
 	// Run the first reconciliation immediately
@@ -61,7 +63,7 @@ func (c *Controller) reconcile() {
 	}
 
 	if err := c.DB.Preload("Nodes").Where("status IN ?", activeStatuses).Find(&deployments).Error; err != nil {
-		log.Println("[Controller] Error fetching deployments:", err)
+		controllerLog.Error("Error fetching deployments: %v", err)
 		return
 	}
 

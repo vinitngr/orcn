@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { Select } from "@/components/ui/Select";
 
 export function NodeVolumesConfig({ data, updateData }: any) {
   const volumes = data.volumes || [];
@@ -45,15 +46,17 @@ export function NodeVolumesConfig({ data, updateData }: any) {
                   style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-color)', border: '1px solid var(--border)', color: 'var(--text-main)', borderRadius: '0', fontFamily: 'monospace', fontSize: '0.875rem' }}
                 />
                 
-                <select
-                  value={vol.type || 'persistent'}
-                  onChange={(e) => updateVolume(i, 'type', e.target.value)}
-                  style={{ flex: 1, padding: '0.75rem', background: 'var(--bg-color)', border: '1px solid var(--border)', color: 'var(--text-main)', borderRadius: '0', fontSize: '0.875rem' }}
-                >
-                  <option value="persistent">Persistent Disk (Cloud/EBS)</option>
-                  <option value="docker">Docker Managed Volume</option>
-                  <option value="bind">Host Path (Bind)</option>
-                </select>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    value={vol.type || 'persistent'}
+                    onChange={(val: string) => updateVolume(i, 'type', val)}
+                    options={[
+                      { value: 'persistent', label: 'Persistent Disk (Cloud/EBS)' },
+                      { value: 'docker', label: 'Docker Managed Volume' },
+                      { value: 'bind', label: 'Host Path (Bind)' }
+                    ]}
+                  />
+                </div>
 
                 {vol.type === 'bind' ? (
                   <input 

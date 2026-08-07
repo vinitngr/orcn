@@ -133,7 +133,8 @@ export default function CreateDeploymentPage() {
     provider: "nosana",
     market: null as any,
     hf_token: "",
-    advanced_config: {} as Record<string, string>
+    advanced_config: {} as Record<string, string>,
+    resources: [] as { type: string, url: string, target: string }[]
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -262,7 +263,8 @@ export default function CreateDeploymentPage() {
           model_id: data.model,
           replicas: data.replicas,
           hf_token: data.hf_token,
-          advanced_config: data.advanced_config
+          advanced_config: data.advanced_config,
+          resources: data.resources
         })
       });
       const json = await res.json();

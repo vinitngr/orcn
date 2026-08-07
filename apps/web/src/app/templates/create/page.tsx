@@ -98,26 +98,26 @@ export default function CreateTemplatePage() {
           mount_path: m.mountPath
         }));
 
-        const expose = (c.ports || []).filter((p: any) => parseInt(p)).map((p: any) => ({
-          port: parseInt(p),
-          protocol: "tcp",
-          is_public: true
+        const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
+          type: r.type,
+          url: r.url,
+          target: r.target
         }));
 
-        const args: any = {
-          image: c.image || "ubuntu:latest",
-          gpu: data.computeType === 'GPU',
-        };
-
-        if (cmd.length > 0) args.cmd = cmd;
-        if (entrypoint.length > 0) args.entrypoint = entrypoint;
-        if (Object.keys(env).length > 0) args.env = env;
-        if (mounts.length > 0) args.volume_mounts = mounts;
-        if (expose.length > 0) args.expose = expose;
-
         return {
-          id: c.id || "master",
-          args
+          id: c.id || `container-${Date.now()}`,
+          args: {
+            image: c.image || "ubuntu:latest",
+            gpu: data.computeType === 'GPU',
+            ...(entrypoint.length > 0 ? { entrypoint } : {}),
+            ...(cmd.length > 0 ? { cmd } : {}),
+            ...(Object.keys(env).length > 0 ? { env } : {}),
+            ...(mounts.length > 0 ? { volume_mounts: mounts } : {}),
+            ...(resources.length > 0 ? { resources } : {}),
+            ...(c.ports && (c.ports || []).filter((p: any) => parseInt(p)).length > 0 ? { 
+              expose: (c.ports || []).filter((p: any) => parseInt(p)).map((p: any) => ({ port: parseInt(p), protocol: "tcp", is_public: true }))
+            } : {})
+          }
         };
       })
     };
@@ -145,9 +145,15 @@ export default function CreateTemplatePage() {
       if (res.ok) {
         router.push("/templates");
       } else {
-        console.error("Failed to save template");
+        const errJson = await res.json();
+        let msg = errJson.error || "Failed to save template";
+        if (errJson.details && errJson.details.length > 0) {
+          msg += ":\n- " + errJson.details.join("\n- ");
+        }
+        alert("Validation Error:\n" + msg);
       }
-    } catch (e) {
+    } catch (e: any) {
+      alert("Error: " + e.toString());
       console.error(e);
     }
   };

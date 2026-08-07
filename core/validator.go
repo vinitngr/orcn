@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 )
 
 type TemplateSpecV2 struct {
@@ -35,6 +37,11 @@ type TemplateSpecV2 struct {
 				Protocol string `json:"protocol"`
 				IsPublic bool   `json:"is_public"`
 			} `json:"expose"`
+			Resources []struct {
+				Type   string `json:"type"`
+				URL    string `json:"url"`
+				Target string `json:"target"`
+			} `json:"resources"`
 		} `json:"args"`
 	} `json:"containers"`
 }
@@ -124,6 +131,38 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 				errors = append(errors, fmt.Sprintf("Container '%s' has invalid protocol '%s' for port %d", c.ID, p.Protocol, p.Port))
 			}
 		}
+
+		// Validate Resources
+		for j, r := range c.Args.Resources {
+			if r.Type == "" {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource at index %d is missing 'type'", c.ID, j))
+			} else {
+				t := strings.ToUpper(r.Type)
+				if t != "HF" && t != "S3" && t != "HTTP" && t != "GIT" {
+					errors = append(errors, fmt.Sprintf("Container '%s' resource %d has unsupported type '%s'", c.ID, j, r.Type))
+				}
+			}
+
+			if r.Target == "" {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource at index %d is missing 'target' path", c.ID, j))
+			}
+
+			if r.URL == "" {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource at index %d is missing 'url'", c.ID, j))
+			} else {
+				// Specific validations
+				if strings.ToUpper(r.Type) == "HF" {
+					matched, _ := regexp.MatchString(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`, r.URL)
+					if !matched {
+						errors = append(errors, fmt.Sprintf("Container '%s' HF resource at index %d must use 'org/repo' format (e.g., 'runwayml/stable-diffusion-v1-5')", c.ID, j))
+					}
+				} else if strings.ToUpper(r.Type) == "GIT" {
+					if !strings.HasSuffix(r.URL, ".git") && !strings.Contains(r.URL, "github.com") && !strings.Contains(r.URL, "gitlab.com") {
+						errors = append(errors, fmt.Sprintf("Container '%s' GIT resource at index %d does not look like a valid git URL", c.ID, j))
+					}
+				}
+			}
+		}
 	}
 
 	return len(errors) == 0, errors
@@ -182,6 +221,14 @@ func ConvertTemplateSpecV2ToJobSpec(v2 *TemplateSpecV2) *JobSpec {
 				Port:     e.Port,
 				Protocol: e.Protocol,
 				IsPublic: e.IsPublic,
+			})
+		}
+
+		for _, r := range c.Args.Resources {
+			container.Args.Resources = append(container.Args.Resources, ResourceSpec{
+				Type:   r.Type,
+				URL:    r.URL,
+				Target: r.Target,
 			})
 		}
 

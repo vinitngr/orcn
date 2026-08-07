@@ -4,11 +4,13 @@ import (
 	_ "embed"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strings"
 
 	"orcn/core"
+	"orcn/core/logger"
 )
+
+var ollamaLog = logger.New("OLLAMA")
 
 //go:embed models.json
 var modelsJSON []byte
@@ -33,7 +35,7 @@ type OllamaRuntime struct {
 func New() *OllamaRuntime {
 	var families []OllamaFamily
 	if err := json.Unmarshal(modelsJSON, &families); err != nil {
-		fmt.Printf("Error loading Ollama models JSON: %v\n", err)
+		ollamaLog.Error("Error loading Ollama models JSON: %v", err)
 	}
 
 	modelMap := make(map[string]OllamaModelDetails)
@@ -44,7 +46,7 @@ func New() *OllamaRuntime {
 		}
 	}
 
-	fmt.Printf("[OllamaRuntime] Successfully loaded %d model families containing %d total variants.\n", len(families), len(modelMap))
+	ollamaLog.Info("Successfully loaded %d model families containing %d total variants.", len(families), len(modelMap))
 
 	return &OllamaRuntime{
 		families: families,

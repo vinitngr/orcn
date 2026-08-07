@@ -31,11 +31,11 @@ export default function CreateDeploymentPage() {
   const [isDeploying, setIsDeploying] = useState(false);
 
   useEffect(() => {
+    let urlTemplateId = "";
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const templateParam = params.get('template');
-      if (templateParam) {
-        setFormData((prev: any) => ({ ...prev, templateId: templateParam }));
+      urlTemplateId = params.get('template') || "";
+      if (urlTemplateId) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
@@ -43,7 +43,49 @@ export default function CreateDeploymentPage() {
     fetch('/api/v1/templates')
       .then(res => res.json())
       .then(json => {
-        if (Array.isArray(json)) setTemplates(json);
+        if (Array.isArray(json)) {
+          setTemplates(json);
+          if (urlTemplateId) {
+            const t = json.find(x => x.id === urlTemplateId);
+            if (t) {
+              let parsed: any = {};
+              try { parsed = JSON.parse(t.data); } catch(e) {}
+              setFormData((prev: any) => ({
+                ...prev,
+                templateId: urlTemplateId,
+                volumes: (parsed.volumes || []).map((v: any) => ({
+                  name: v.name,
+                  type: v.type || "persistent",
+                  size: v.size_gb?.toString() || "10",
+                  hostPath: v.host_path || ""
+                })),
+                containers: (parsed.containers || []).map((c: any) => {
+                  const args = c.args || {};
+                  return {
+                    id: c.id || "",
+                    image: args.image || "",
+                    gpu: args.gpu || false,
+                    cmd: (args.cmd || []).join(" "),
+                    entrypoint: (args.entrypoint || []).join(" "),
+                    envVars: Object.entries(args.env || {}).map(([key, value]) => ({ key, value })),
+                    ports: (args.expose || []).map((p: any) => p?.port ? p.port.toString() : ""),
+                    mounts: (args.volume_mounts || []).map((m: any) => ({
+                      volumeName: m.volume_name || "",
+                      mountPath: m.mount_path || ""
+                    })),
+                    resources: (args.resources || []).map((r: any) => ({
+                      type: r.type || "HF",
+                      url: r.url || "",
+                      target: r.target || ""
+                    }))
+                  };
+                })
+              }));
+            } else {
+              setFormData((prev: any) => ({ ...prev, templateId: urlTemplateId }));
+            }
+          }
+        }
       })
       .catch(console.error);
   }, []);
@@ -108,6 +150,11 @@ export default function CreateDeploymentPage() {
           mounts: (args.volume_mounts || []).map((m: any) => ({
             volumeName: m.volume_name || "",
             mountPath: m.mount_path || ""
+          })),
+          resources: (args.resources || []).map((r: any) => ({
+            type: r.type || "HF",
+            url: r.url || "",
+            target: r.target || ""
           }))
         };
       })
@@ -182,6 +229,12 @@ export default function CreateDeploymentPage() {
           is_public: true
         }));
 
+        const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
+          type: r.type,
+          url: r.url,
+          target: r.target
+        }));
+
         const args: any = {
           image: c.image || "ubuntu:latest",
           gpu: c.gpu,
@@ -192,6 +245,7 @@ export default function CreateDeploymentPage() {
         if (Object.keys(env).length > 0) args.env = env;
         if (mounts.length > 0) args.volume_mounts = mounts;
         if (expose.length > 0) args.expose = expose;
+        if (resources.length > 0) args.resources = resources;
 
         return {
           id: c.id || "master",

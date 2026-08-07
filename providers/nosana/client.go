@@ -98,6 +98,29 @@ func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpe
 			args["env"] = container.Args.Env
 		}
 
+		if len(container.Args.Resources) > 0 {
+			resources := make([]map[string]any, 0)
+			for _, r := range container.Args.Resources {
+				t := strings.ToUpper(r.Type)
+				if t == "HF" {
+					resources = append(resources, map[string]any{
+						"type":   "HF",
+						"repo":   r.URL,
+						"target": r.Target,
+					})
+				} else if t == "S3" || t == "HTTP" {
+					resources = append(resources, map[string]any{
+						"type":   t,
+						"url":    r.URL,
+						"target": r.Target,
+					})
+				}
+			}
+			if len(resources) > 0 {
+				args["resources"] = resources
+			}
+		}
+
 		expose := make([]map[string]any, 0)
 		for _, p := range container.Args.Expose {
 			hc := map[string]any{

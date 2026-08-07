@@ -74,6 +74,11 @@ export default function EditTemplatePage() {
               mounts: (args.volume_mounts || []).map((m: any) => ({
                 volumeName: m.volume_name || "",
                 mountPath: m.mount_path || ""
+              })),
+              resources: (args.resources || []).map((r: any) => ({
+                type: r.type || "HF",
+                url: r.url || "",
+                target: r.target || ""
               }))
             };
           })
@@ -165,6 +170,12 @@ export default function EditTemplatePage() {
           is_public: true
         }));
 
+        const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
+          type: r.type,
+          url: r.url,
+          target: r.target
+        }));
+
         const args: any = {
           image: c.image || "ubuntu:latest",
           gpu: data.computeType === 'GPU',
@@ -175,6 +186,7 @@ export default function EditTemplatePage() {
         if (Object.keys(env).length > 0) args.env = env;
         if (mounts.length > 0) args.volume_mounts = mounts;
         if (expose.length > 0) args.expose = expose;
+        if (resources.length > 0) args.resources = resources;
 
         return {
           id: c.id || "master",
@@ -205,8 +217,16 @@ export default function EditTemplatePage() {
       });
       if (res.ok) {
         router.push("/templates");
+      } else {
+        const errJson = await res.json();
+        let msg = errJson.error || "Failed to update template";
+        if (errJson.details && errJson.details.length > 0) {
+          msg += ":\n- " + errJson.details.join("\n- ");
+        }
+        alert("Validation Error:\n" + msg);
       }
-    } catch (e) {
+    } catch (e: any) {
+      alert("Error: " + e.toString());
       console.error(e);
     }
   };

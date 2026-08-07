@@ -34,7 +34,14 @@ type ContainerArgs struct {
 	Cmd          []string          `json:"cmd,omitempty"`
 	Env          map[string]string `json:"env,omitempty"`
 	VolumeMounts []VolumeMount     `json:"volume_mounts,omitempty"`
+	Resources    []ResourceSpec    `json:"resources,omitempty"`
 	Expose       []ExposeSpec      `json:"expose,omitempty"`
+}
+
+type ResourceSpec struct {
+	Type   string `json:"type"`   // "HTTP", "S3", "HF", "GIT"
+	URL    string `json:"url"`
+	Target string `json:"target"` // path inside the container
 }
 
 type VolumeMount struct {
