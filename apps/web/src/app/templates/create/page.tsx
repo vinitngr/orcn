@@ -101,7 +101,8 @@ export default function CreateTemplatePage() {
         const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
           type: r.type,
           url: r.url,
-          target: r.target
+          target: r.target,
+          files: (r.filesFilter || "").split(",").map((f: string) => f.trim()).filter((f: string) => f)
         }));
 
         return {
@@ -114,8 +115,8 @@ export default function CreateTemplatePage() {
             ...(Object.keys(env).length > 0 ? { env } : {}),
             ...(mounts.length > 0 ? { volume_mounts: mounts } : {}),
             ...(resources.length > 0 ? { resources } : {}),
-            ...(c.ports && (c.ports || []).filter((p: any) => parseInt(p)).length > 0 ? { 
-              expose: (c.ports || []).filter((p: any) => parseInt(p)).map((p: any) => ({ port: parseInt(p), protocol: "tcp", is_public: true }))
+            ...(c.ports && (c.ports || []).filter((p: any) => parseInt(p.port)).length > 0 ? { 
+              expose: (c.ports || []).filter((p: any) => parseInt(p.port)).map((p: any) => ({ port: parseInt(p.port), protocol: "tcp", is_public: p.is_public ?? true }))
             } : {})
           }
         };

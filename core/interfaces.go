@@ -39,9 +39,10 @@ type ContainerArgs struct {
 }
 
 type ResourceSpec struct {
-	Type   string `json:"type"`   // "HTTP", "S3", "HF", "GIT"
-	URL    string `json:"url"`
-	Target string `json:"target"` // path inside the container
+	Type   string   `json:"type"`   // HF, S3, HTTP, GIT
+	URL    string   `json:"url"`    // The URL or Repo ID
+	Target string   `json:"target"` // Internal mount path inside container
+	Files  []string `json:"files,omitempty"` // Specific files to download
 }
 
 type VolumeMount struct {

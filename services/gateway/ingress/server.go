@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -218,6 +219,21 @@ func (s *Server) Handler() http.Handler {
 			targetNode := healthyNodes[time.Now().UnixNano()%int64(len(healthyNodes))]
 
 			proxy := httputil.NewSingleHostReverseProxy(targetNode.TargetURL)
+			
+			// Use a high-performance transport with aggressive keep-alives and connection pooling
+			// This is CRITICAL for web apps like ComfyUI that load 100+ small assets concurrently
+			proxy.Transport = &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout:   15 * time.Second,
+					KeepAlive: 30 * time.Second,
+				}).DialContext,
+				ForceAttemptHTTP2:     true,
+				MaxIdleConns:          1000,
+				MaxIdleConnsPerHost:   100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			}
 			
 			originalDirector := proxy.Director
 			proxy.Director = func(req *http.Request) {

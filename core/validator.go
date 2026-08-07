@@ -38,9 +38,10 @@ type TemplateSpecV2 struct {
 				IsPublic bool   `json:"is_public"`
 			} `json:"expose"`
 			Resources []struct {
-				Type   string `json:"type"`
-				URL    string `json:"url"`
-				Target string `json:"target"`
+				Type   string   `json:"type"`
+				URL    string   `json:"url"`
+				Target string   `json:"target"`
+				Files  []string `json:"files,omitempty"`
 			} `json:"resources"`
 		} `json:"args"`
 	} `json:"containers"`
@@ -229,6 +230,7 @@ func ConvertTemplateSpecV2ToJobSpec(v2 *TemplateSpecV2) *JobSpec {
 				Type:   r.Type,
 				URL:    r.URL,
 				Target: r.Target,
+				Files:  r.Files,
 			})
 		}
 

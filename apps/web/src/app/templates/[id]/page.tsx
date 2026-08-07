@@ -78,7 +78,8 @@ export default function EditTemplatePage() {
               resources: (args.resources || []).map((r: any) => ({
                 type: r.type || "HF",
                 url: r.url || "",
-                target: r.target || ""
+                target: r.target || "",
+                filesFilter: (r.files || []).join(", ")
               }))
             };
           })
@@ -173,7 +174,8 @@ export default function EditTemplatePage() {
         const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
           type: r.type,
           url: r.url,
-          target: r.target
+          target: r.target,
+          files: (r.filesFilter || "").split(",").map((f: string) => f.trim()).filter((f: string) => f)
         }));
 
         const args: any = {

@@ -9,6 +9,7 @@ import { NodeVolumesConfig } from "@/components/templates/NodeVolumesConfig";
 import { ContainersConfig } from "@/components/templates/ContainersConfig";
 import { DiDocker } from "react-icons/di";
 import { FaDocker } from "react-icons/fa6";
+import { TemplateSummary } from "@/components/templates/TemplateSummary";
 
 export default function CreateDeploymentPage() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function CreateDeploymentPage() {
                     cmd: (args.cmd || []).join(" "),
                     entrypoint: (args.entrypoint || []).join(" "),
                     envVars: Object.entries(args.env || {}).map(([key, value]) => ({ key, value })),
-                    ports: (args.expose || []).map((p: any) => p?.port ? p.port.toString() : ""),
+                    ports: (args.expose || []).filter((p: any) => p?.port).map((p: any) => ({ port: p.port.toString(), is_public: p.is_public ?? true })),
                     mounts: (args.volume_mounts || []).map((m: any) => ({
                       volumeName: m.volume_name || "",
                       mountPath: m.mount_path || ""
@@ -76,7 +77,8 @@ export default function CreateDeploymentPage() {
                     resources: (args.resources || []).map((r: any) => ({
                       type: r.type || "HF",
                       url: r.url || "",
-                      target: r.target || ""
+                      target: r.target || "",
+                      filesFilter: (r.files || []).join(", ")
                     }))
                   };
                 })
@@ -101,7 +103,7 @@ export default function CreateDeploymentPage() {
             tag: m.tag || m.type,
             price: (m.usd_reward_per_hour || 0).toFixed(3),
             available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
-            vram_gb: 24 // Placeholder for deployment UI unless we compute it
+            vram_gb: m.vram
           }));
           setMarkets(mapped);
         }
@@ -154,7 +156,8 @@ export default function CreateDeploymentPage() {
           resources: (args.resources || []).map((r: any) => ({
             type: r.type || "HF",
             url: r.url || "",
-            target: r.target || ""
+            target: r.target || "",
+            filesFilter: (r.files || []).join(", ")
           }))
         };
       })
@@ -223,16 +226,17 @@ export default function CreateDeploymentPage() {
           mount_path: m.mountPath
         }));
 
-        const expose = (c.ports || []).filter((p: any) => parseInt(p)).map((p: any) => ({
-          port: parseInt(p),
+        const expose = (c.ports || []).filter((p: any) => parseInt(p.port)).map((p: any) => ({
+          port: parseInt(p.port),
           protocol: "tcp",
-          is_public: true
+          is_public: p.is_public ?? true
         }));
 
         const resources = (c.resources || []).filter((r: any) => r.url && r.target).map((r: any) => ({
           type: r.type,
           url: r.url,
-          target: r.target
+          target: r.target,
+          files: (r.filesFilter || "").split(",").map((f: string) => f.trim()).filter((f: string) => f)
         }));
 
         const args: any = {

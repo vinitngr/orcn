@@ -101,24 +101,6 @@ function estimateVramNeeded(modelId: string, modelDetails?: any) {
   return (paramsB * bytesPerParam) + overhead;
 }
 
-function getMarketVram(marketName: string) {
-  const name = marketName.toLowerCase();
-  let base = 12;
-  
-  if (name.includes('a100') || name.includes('h100')) base = 80;
-  else if (name.includes('a40')) base = 48;
-  else if (name.includes('3090') || name.includes('4090') || name.includes('pro 6000') || name.includes('a10') || name.includes('a5000')) base = 24;
-  else if (name.includes('4080') || name.includes('pro 5000') || name.includes('4000')) base = 16;
-  else if (name.includes('3060')) base = 12;
-  else if (name.includes('4060') || name.includes('3070')) base = 8;
-  
-  const match = name.match(/(\d+)x/);
-  if (match) {
-    return base * parseInt(match[1]);
-  }
-  return base;
-}
-
 export default function CreateDeploymentPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -216,7 +198,7 @@ export default function CreateDeploymentPage() {
               tag: m.tag || m.type,
               price: (m.usd_reward_per_hour || 0).toFixed(3),
               available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
-              vram_gb: getMarketVram(m.name)
+              vram_gb: m.vram
             }));
             setMarkets(mapped);
           }
@@ -642,7 +624,7 @@ export default function CreateDeploymentPage() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
                 {markets.map(m => {
-                  const hasEnoughVram = m.vram_gb >= requiredVram;
+                  const hasEnoughVram = m.vram_gb === undefined ? true : m.vram_gb >= requiredVram;
                   const isEligible = hasEnoughVram;
                   
                   let warning = "";
