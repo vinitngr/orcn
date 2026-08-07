@@ -9,11 +9,14 @@ import (
 	"strings"
 
 	"orcn/core/config"
+	"orcn/core/logger"
 	"orcn/models"
 	"orcn/services/gateway/health"
 
 	"gorm.io/gorm"
 )
+
+var apiLog = logger.New("API")
 
 type Server struct {
 	DB     *gorm.DB

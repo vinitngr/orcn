@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -14,8 +13,11 @@ import (
 
 	"orcn/core"
 	"orcn/core/config"
+	"orcn/core/logger"
 	"orcn/models"
 )
+
+var ingressLog = logger.New("INGRESS")
 
 type CachedNode struct {
 	ID        string
@@ -49,7 +51,7 @@ func New(apiURL string, cfg *config.Config) *Server {
 }
 
 func (s *Server) StartCacheSync() {
-	log.Println("[Ingress] Starting highly-optimized memory cache sync...")
+	ingressLog.Info("Starting highly-optimized memory cache sync...")
 	s.syncRoutes()
 	go func() {
 		for {
@@ -62,25 +64,25 @@ func (s *Server) StartCacheSync() {
 func (s *Server) syncRoutes() {
 	resp, err := http.Get(s.apiURL)
 	if err != nil {
-		log.Println("[Ingress] Error syncing routes from API:", err)
+		ingressLog.Error("Error syncing routes from API: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		log.Println("[Ingress] API returned non-200 status:", resp.StatusCode)
+		ingressLog.Error("API returned non-200 status: %d", resp.StatusCode)
 		return
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("[Ingress] Error reading API response:", err)
+		ingressLog.Error("Error reading API response: %v", err)
 		return
 	}
 
 	var deps []models.Deployment
 	if err := json.Unmarshal(body, &deps); err != nil {
-		log.Println("[Ingress] Error parsing API response:", err)
+		ingressLog.Error("Error parsing API response: %v", err)
 		return
 	}
 
@@ -167,7 +169,7 @@ func (s *Server) PenalizeNode(nodeID string) {
 	defer s.mu.Unlock()
 	
 	s.penalties[nodeID] = time.Now().Add(30 * time.Second)
-	log.Printf("[Ingress] 🔴 Node %s put in Penalty Box for 30s due to connection failure", nodeID)
+	ingressLog.Warn("Node %s put in Penalty Box for 30s due to connection failure", nodeID)
 }
 
 func (s *Server) Handler() http.Handler {
@@ -230,12 +232,12 @@ func (s *Server) Handler() http.Handler {
 			}
 			
 			proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
-				log.Printf("[Ingress] Proxy error for generic container %s (Node: %s): %v\n", routeKey, targetNode.ID, proxyErr)
+				ingressLog.Error("Proxy error for generic container %s (Node: %s): %v", routeKey, targetNode.ID, proxyErr)
 				
 				if len(route.Nodes) > 1 {
 					s.PenalizeNode(targetNode.ID)
 				} else {
-					log.Printf("[Ingress] ⚠️ Not penalizing Node %s because it is the only available replica for %s", targetNode.ID, routeKey)
+					ingressLog.Warn("Not penalizing Node %s because it is the only available replica for %s", targetNode.ID, routeKey)
 				}
 				
 				http.Error(w, "Bad Gateway: Node failed to respond", http.StatusBadGateway)

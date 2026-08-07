@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	"orcn/core"
 	"orcn/core/config"
+	"orcn/core/logger"
 	"orcn/models"
 	"orcn/providers/nosana"
 	"orcn/runtimes/ollama"
@@ -19,20 +19,21 @@ import (
 )
 
 func main() {
-	log.Println("Starting orcn Gateway...")
+	log := logger.New("GATEWAY")
+	log.Info("Starting orcn Gateway...")
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatal("Failed to load config: %v", err)
 	}
-	log.Printf("Loaded Config: Domain=%s, APIPort=%d, IngressPort=%d", cfg.AppDomain, cfg.APIPort, cfg.IngressPort)
+	log.Info("Loaded Config: Domain=%s, APIPort=%d, IngressPort=%d", cfg.AppDomain, cfg.APIPort, cfg.IngressPort)
 
 	// 1. Initialize DB
 	db, err := models.InitDB(cfg.DatabaseDSN)
 	if err != nil {
-		log.Fatalf("Failed to init database: %v", err)
+		log.Fatal("Failed to init database: %v", err)
 	}
-	log.Println("Database initialized successfully.")
+	log.Info("Database initialized successfully.")
 
 	// 2. Register Plugins
 	apiKey := os.Getenv("NOSANA_API_KEY")
@@ -46,7 +47,7 @@ func main() {
 	ollamaRT := ollama.New()
 	core.RegisterRuntime("ollama", ollamaRT)
 
-	log.Println("Plugins registered successfully.")
+	log.Info("Plugins registered successfully.")
 
 	// 3. Create shared services
 	healthChecker := health.New(db)
@@ -58,18 +59,18 @@ func main() {
 	// 5. Start the Admin API Server (Control Plane)
 	apiServer := api.New(db, healthChecker, cfg)
 	go func() {
-		log.Printf("Admin API listening on :%d\n", cfg.APIPort)
+		log.Info("Admin API listening on :%d", cfg.APIPort)
 		if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.APIPort), apiServer.Handler()); err != nil {
-			log.Fatalf("API Server failed: %v", err)
+			log.Fatal("API Server failed: %v", err)
 		}
 	}()
 
 	internalAPI := fmt.Sprintf("http://127.0.0.1:%d/api/v1/internal/routes", cfg.APIPort)
 	ingressServer := ingress.New(internalAPI, cfg)
 
-	log.Printf("Public AI Ingress listening on :%d\n", cfg.IngressPort)
+	log.Info("Public AI Ingress listening on :%d", cfg.IngressPort)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.IngressPort), ingressServer.Handler()); err != nil {
-		log.Fatalf("Ingress Server failed (did you forget sudo?): %v", err)
+		log.Fatal("Ingress Server failed (did you forget sudo?): %v", err)
 	}
 }
 

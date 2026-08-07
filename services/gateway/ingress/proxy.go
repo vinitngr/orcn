@@ -1,7 +1,6 @@
 package ingress
 
 import (
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -35,7 +34,7 @@ func NewReverseProxy(target *url.URL, originalHost, nodeID string, server *Serve
 	}
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
-		log.Printf("[Ingress] Proxy error for node %s: %v\n", nodeID, proxyErr)
+		ingressLog.Error("Proxy error for node %s: %v", nodeID, proxyErr)
 		
 		// Apply the Penalty!
 		server.PenalizeNode(nodeID)

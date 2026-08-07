@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -58,7 +57,7 @@ func (s *Server) handleChatRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Proxy the request
-	log.Printf("[Ingress] Routing %s request to %s -> %s\n", modelName, r.URL.Path, node.TargetURL.String())
+	ingressLog.Info("Routing %s request to %s -> %s", modelName, r.URL.Path, node.TargetURL.String())
 	proxy := NewReverseProxy(node.TargetURL, r.Host, node.ID, s)
 	proxy.ServeHTTP(w, r)
 }
