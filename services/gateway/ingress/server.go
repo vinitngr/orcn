@@ -16,6 +16,7 @@ import (
 	"orcn/core/config"
 	"orcn/core/logger"
 	"orcn/models"
+	"orcn/pkg/balancer"
 )
 
 var ingressLog = logger.New("INGRESS")
@@ -23,12 +24,14 @@ var ingressLog = logger.New("INGRESS")
 type CachedNode struct {
 	ID        string
 	TargetURL *url.URL
+	Active    int32
 }
 
 type CachedRoute struct {
 	Name        string
 	RealModelID string
 	Nodes       []*CachedNode
+	Balancer    balancer.LoadBalancer[*CachedNode]
 }
 
 type Server struct {
@@ -37,7 +40,6 @@ type Server struct {
 
 	mu        sync.RWMutex
 	routes    map[string]*CachedRoute
-	penalties map[string]time.Time
 }
 
 func New(apiURL string, cfg *config.Config) *Server {
@@ -45,7 +47,6 @@ func New(apiURL string, cfg *config.Config) *Server {
 		apiURL:    apiURL,
 		cfg:       cfg,
 		routes:    make(map[string]*CachedRoute),
-		penalties: make(map[string]time.Time),
 	}
 	s.StartCacheSync()
 	return s
@@ -53,8 +54,10 @@ func New(apiURL string, cfg *config.Config) *Server {
 
 func (s *Server) StartCacheSync() {
 	ingressLog.Info("Starting highly-optimized memory cache sync...")
-	s.syncRoutes()
 	go func() {
+		// Wait 1 second to let the Admin API finish booting and bind to its port
+		time.Sleep(1 * time.Second)
+		s.syncRoutes()
 		for {
 			time.Sleep(5 * time.Second)
 			s.syncRoutes()
@@ -93,9 +96,10 @@ func (s *Server) syncRoutes() {
 		routeKey := strings.ToLower(routeName)
 		if _, exists := newRoutes[routeKey]; !exists {
 			newRoutes[routeKey] = &CachedRoute{
-				Name:        routeKey, 
-				RealModelID: modelID, 
+				Name:        routeKey,
+				RealModelID: modelID,
 				Nodes:       []*CachedNode{},
+				Balancer:    balancer.New[*CachedNode](balancer.StrategyRoundRobin),
 			}
 		}
 		
@@ -165,14 +169,6 @@ func (s *Server) syncRoutes() {
 	s.mu.Unlock()
 }
 
-func (s *Server) PenalizeNode(nodeID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	
-	s.penalties[nodeID] = time.Now().Add(30 * time.Second)
-	ingressLog.Warn("Node %s put in Penalty Box for 30s due to connection failure", nodeID)
-}
-
 func (s *Server) Handler() http.Handler {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 
@@ -194,15 +190,9 @@ func (s *Server) Handler() http.Handler {
 				return
 			}
 			
-			// Find a healthy node (filter out those in the Penalty Box)
 			var healthyNodes []*CachedNode
 			s.mu.RLock()
 			for _, n := range route.Nodes {
-				if penalty, penalized := s.penalties[n.ID]; penalized {
-					if time.Now().Before(penalty) {
-						continue 
-					}
-				}
 				healthyNodes = append(healthyNodes, n)
 			}
 			s.mu.RUnlock()
@@ -249,13 +239,6 @@ func (s *Server) Handler() http.Handler {
 			
 			proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
 				ingressLog.Error("Proxy error for generic container %s (Node: %s): %v", routeKey, targetNode.ID, proxyErr)
-				
-				if len(route.Nodes) > 1 {
-					s.PenalizeNode(targetNode.ID)
-				} else {
-					ingressLog.Warn("Not penalizing Node %s because it is the only available replica for %s", targetNode.ID, routeKey)
-				}
-				
 				http.Error(w, "Bad Gateway: Node failed to respond", http.StatusBadGateway)
 			}
 			

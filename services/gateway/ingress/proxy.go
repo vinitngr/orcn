@@ -5,26 +5,36 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sync"
 	"time"
 )
 
-func NewReverseProxy(target *url.URL, originalHost, nodeID string, server *Server) *httputil.ReverseProxy {
+var (
+	llmTransport *http.Transport
+	transportOnce sync.Once
+)
+
+func getLLMTransport(maxConns int) *http.Transport {
+	transportOnce.Do(func() {
+		llmTransport = &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   60 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout:   60 * time.Second,
+			MaxIdleConns:          1000,
+			MaxIdleConnsPerHost:   100,
+			MaxConnsPerHost:       maxConns,
+		}
+	})
+	return llmTransport
+}
+
+func NewReverseProxy(target *url.URL, originalHost, nodeID string, route *CachedRoute, server *Server) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	// Short dial timeout to prevent stalling on dead nodes (Circuit Breaking)
-	transport := &http.Transport{
-		DialContext: (&net.Dialer{
-			Timeout:   15 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		TLSHandshakeTimeout:   15 * time.Second,
-		ResponseHeaderTimeout: 120 * time.Second,
-		MaxIdleConns:          1000,
-		MaxIdleConnsPerHost:   1000,
-	}
-	proxy.Transport = transport
+	proxy.Transport = getLLMTransport(server.cfg.MaxConnsPerHost)
 
-	//overriting the Director function to modify the request before it's sent to the target
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
@@ -33,12 +43,14 @@ func NewReverseProxy(target *url.URL, originalHost, nodeID string, server *Serve
 		req.Header.Set("X-Orcn-Proxy", "true")
 	}
 
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		resp.Header.Set("X-Node-ID", nodeID)
+		resp.Header.Set("X-Node-Target", target.String())
+		return nil
+	}
+
 	proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, proxyErr error) {
 		ingressLog.Error("Proxy error for node %s: %v", nodeID, proxyErr)
-		
-		// Apply the Penalty!
-		server.PenalizeNode(nodeID)
-		
 		http.Error(w, "Bad Gateway: Node failed to respond", http.StatusBadGateway)
 	}
 

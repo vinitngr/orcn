@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
-	"time"
+	"strings"
+	"sync/atomic"
 )
 
 func (s *Server) handleListModels(w http.ResponseWriter, _ *http.Request) {
@@ -32,33 +32,32 @@ func (s *Server) handleListModels(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) handleChatRequest(w http.ResponseWriter, r *http.Request) {
-	// 1. Extract the model name from the JSON body
 	modelName, payload, err := extractModelFromBody(r)
 	if err != nil {
 		http.Error(w, "Missing 'model' field in request body", http.StatusBadRequest)
 		return
 	}
 
-	// 2. Look up the cached route
 	route, err := s.lookupRoute(modelName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Model '%s' not found or deployment is offline", modelName), http.StatusNotFound)
 		return
 	}
 
-	// 3. Rewrite the body: replace friendly name with real HuggingFace model ID
 	rewriteRequestBody(r, payload, route.RealModelID)
 
-	// 4. Select a healthy, non-penalized node
-	node, err := s.selectReadyNode(route.Nodes)
+	node, err := s.selectReadyNode(route)
 	if err != nil {
-		http.Error(w, "No ready nodes available for this model right now.", http.StatusServiceUnavailable)
+		http.Error(w, "Cluster is at maximum capacity. Please try again in a few seconds.", http.StatusTooManyRequests)
 		return
 	}
 
-	// 5. Proxy the request
 	ingressLog.Info("Routing %s request to %s -> %s", modelName, r.URL.Path, node.TargetURL.String())
-	proxy := NewReverseProxy(node.TargetURL, r.Host, node.ID, s)
+	
+	atomic.AddInt32(&node.Active, 1)
+	defer atomic.AddInt32(&node.Active, -1)
+
+	proxy := NewReverseProxy(node.TargetURL, r.Host, node.ID, route, s)
 	proxy.ServeHTTP(w, r)
 }
 
@@ -90,7 +89,8 @@ func (s *Server) lookupRoute(name string) (*CachedRoute, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	route, ok := s.routes[name]
+	routeKey := strings.ToLower(name)
+	route, ok := s.routes[routeKey]
 	if !ok || len(route.Nodes) == 0 {
 		return nil, fmt.Errorf("route not found")
 	}
@@ -109,14 +109,13 @@ func rewriteRequestBody(r *http.Request, payload map[string]any, realModelID str
 	r.Header.Set("Content-Length", fmt.Sprintf("%d", len(newBodyBytes)))
 }
 
-func (s *Server) selectReadyNode(nodes []*CachedNode) (*CachedNode, error) {
+func (s *Server) selectReadyNode(route *CachedRoute) (*CachedNode, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var readyNodes []*CachedNode
-	now := time.Now()
-	for _, node := range nodes {
-		if penaltyTime, exists := s.penalties[node.ID]; exists && now.Before(penaltyTime) {
+	readyNodes := make([]*CachedNode, 0, len(route.Nodes))
+	for _, node := range route.Nodes {
+		if int(atomic.LoadInt32(&node.Active)) >= s.cfg.MaxActiveRequests {
 			continue
 		}
 		readyNodes = append(readyNodes, node)
@@ -126,6 +125,5 @@ func (s *Server) selectReadyNode(nodes []*CachedNode) (*CachedNode, error) {
 		return nil, fmt.Errorf("no ready nodes")
 	}
 
-	selected := readyNodes[rand.Intn(len(readyNodes))]
-	return selected, nil
+	return route.Balancer.Pick(readyNodes)
 }

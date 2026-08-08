@@ -72,13 +72,13 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, advancedConfig map[string]str
 		Type:    "container",
 		SystemRequirements: core.SystemRequirements{
 			MinVRAMGB:   16,
-			CUDAVersion: "12.0",
+			CUDAVersion: "12.9",
 		},
 		Containers: []core.ContainerSpec{
 			{
 				ID: "ai-master",
 				Args: core.ContainerArgs{
-					Image: "docker.io/vllm/vllm-openai:v0.22.1",
+					Image: "docker.io/vllm/vllm-openai:v0.26.0",
 					GPU:   true,
 					Entrypoint: []string{
 						"python3",

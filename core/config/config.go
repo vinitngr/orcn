@@ -15,6 +15,10 @@ type Config struct {
 	IngressPort  int
 	DatabaseDSN  string
 	AgentBaseURL string
+
+	// Gateway Tuning
+	MaxConnsPerHost   int
+	MaxActiveRequests int
 }
 
 func LoadConfig() (*Config, error) {
@@ -26,6 +30,9 @@ func LoadConfig() (*Config, error) {
 		IngressPort:  getEnvAsInt("INGRESS_PORT", 80),
 		DatabaseDSN:  getEnv("DATABASE_DSN", "orcn.db"),
 		AgentBaseURL: getEnv("AGENT_BASE_URL", "http://127.0.0.1:4000"),
+		
+		MaxConnsPerHost:   getEnvAsInt("GATEWAY_MAX_CONNS_PER_HOST", 20),
+		MaxActiveRequests: getEnvAsInt("GATEWAY_MAX_ACTIVE_REQUESTS", 100),
 	}
 
 	return cfg, nil

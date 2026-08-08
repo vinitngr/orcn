@@ -169,9 +169,13 @@ func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpe
 		sysReq["required_vram"] = spec.SystemRequirements.MinVRAMGB
 	}
 
-	if spec.SystemRequirements.CUDAVersion != "" {
+	if spec.SystemRequirements.CUDAVersion == "12.9" {
 		sysReq["required_cuda"] = []string{
-			"12.0", "12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7", "12.8", "12.9", "13.0", "13.1", "13.2",
+			"12.9", "13.0", "13.1", "13.2", "13.3", "13.4", "13.5",
+		}
+	} else if spec.SystemRequirements.CUDAVersion != "" {
+		sysReq["required_cuda"] = []string{
+			"12.0", "12.1", "12.2", "12.3", "12.4", "12.5", "12.6", "12.7", "12.8", "12.9", "13.0", "13.1", "13.2", "13.3",
 		}
 	}
 
