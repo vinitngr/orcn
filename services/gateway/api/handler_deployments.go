@@ -242,7 +242,7 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) handleGetInternalRoutes(w http.ResponseWriter, r *http.Request) {
 	var deps []models.Deployment
-	if err := s.DB.Preload("Nodes").Preload("Endpoints").Where("status IN ?", []string{models.DeploymentReady, models.DeploymentRunning}).Find(&deps).Error; err != nil {
+	if err := s.DB.Preload("Nodes").Where("status IN ?", []string{models.DeploymentReady, models.DeploymentRunning}).Find(&deps).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch internal routes")
 		return
 	}

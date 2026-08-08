@@ -59,7 +59,7 @@ func (s *Server) StartCacheSync() {
 		time.Sleep(1 * time.Second)
 		s.syncRoutes()
 		for {
-			time.Sleep(5 * time.Second)
+			time.Sleep(time.Duration(s.cfg.GatewaySyncIntervalSec) * time.Second)
 			s.syncRoutes()
 		}
 	}()

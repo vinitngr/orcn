@@ -14,14 +14,15 @@ var (
 	transportOnce sync.Once
 )
 
-func getLLMTransport(maxConns int) *http.Transport {
+func getLLMTransport(maxConns, maxTimeoutSec int) *http.Transport {
 	transportOnce.Do(func() {
+		timeout := time.Duration(maxTimeoutSec) * time.Second
 		llmTransport = &http.Transport{
 			DialContext: (&net.Dialer{
-				Timeout:   60 * time.Second,
+				Timeout:   timeout,
 				KeepAlive: 30 * time.Second,
 			}).DialContext,
-			TLSHandshakeTimeout:   60 * time.Second,
+			TLSHandshakeTimeout:   timeout,
 			MaxIdleConns:          1000,
 			MaxIdleConnsPerHost:   100,
 			MaxConnsPerHost:       maxConns,
@@ -33,7 +34,9 @@ func getLLMTransport(maxConns int) *http.Transport {
 func NewReverseProxy(target *url.URL, originalHost, nodeID string, route *CachedRoute, server *Server) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
-	proxy.Transport = getLLMTransport(server.cfg.MaxConnsPerHost)
+	// Use a global singleton Transport so that TCP connections are reused (Keep-Alives) 
+	// and MaxConnsPerHost can actually function as a global queue for the node.
+	proxy.Transport = getLLMTransport(server.cfg.MaxConnsPerHost, server.cfg.ProxyTimeoutSec)
 
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {

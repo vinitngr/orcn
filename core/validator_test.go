@@ -34,6 +34,12 @@ func TestValidateJobSpecStruct(t *testing.T) {
 								Protocol string `json:"protocol"`
 								IsPublic bool   `json:"is_public"`
 							} `json:"expose"`
+							Resources []struct {
+								Type   string   `json:"type"`
+								URL    string   `json:"url"`
+								Target string   `json:"target"`
+								Files  []string `json:"files,omitempty"`
+							} `json:"resources"`
 						} `json:"args"`
 					}{
 						{
@@ -53,6 +59,12 @@ func TestValidateJobSpecStruct(t *testing.T) {
 									Protocol string `json:"protocol"`
 									IsPublic bool   `json:"is_public"`
 								} `json:"expose"`
+								Resources []struct {
+									Type   string   `json:"type"`
+									URL    string   `json:"url"`
+									Target string   `json:"target"`
+									Files  []string `json:"files,omitempty"`
+								} `json:"resources"`
 							}{
 								Image: "ubuntu:latest",
 							},
@@ -105,6 +117,12 @@ func TestValidateJobSpecStruct(t *testing.T) {
 								Protocol string `json:"protocol"`
 								IsPublic bool   `json:"is_public"`
 							} `json:"expose"`
+							Resources []struct {
+								Type   string   `json:"type"`
+								URL    string   `json:"url"`
+								Target string   `json:"target"`
+								Files  []string `json:"files,omitempty"`
+							} `json:"resources"`
 						} `json:"args"`
 					}{
 						{
@@ -124,6 +142,12 @@ func TestValidateJobSpecStruct(t *testing.T) {
 									Protocol string `json:"protocol"`
 									IsPublic bool   `json:"is_public"`
 								} `json:"expose"`
+								Resources []struct {
+									Type   string   `json:"type"`
+									URL    string   `json:"url"`
+									Target string   `json:"target"`
+									Files  []string `json:"files,omitempty"`
+								} `json:"resources"`
 							}{
 								Image: "", // Missing image
 								VolumeMounts: []struct {

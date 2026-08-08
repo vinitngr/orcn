@@ -16,9 +16,14 @@ type Config struct {
 	DatabaseDSN  string
 	AgentBaseURL string
 
-	// Gateway Tuning
-	MaxConnsPerHost   int
-	MaxActiveRequests int
+	NosanaURL    string
+	NosanaAPIKey string
+
+	MaxConnsPerHost        int
+	MaxActiveRequests      int
+	GatewaySyncIntervalSec int
+	ControllerSyncInterval int
+	ProxyTimeoutSec        int
 }
 
 func LoadConfig() (*Config, error) {
@@ -30,9 +35,15 @@ func LoadConfig() (*Config, error) {
 		IngressPort:  getEnvAsInt("INGRESS_PORT", 80),
 		DatabaseDSN:  getEnv("DATABASE_DSN", "orcn.db"),
 		AgentBaseURL: getEnv("AGENT_BASE_URL", "http://127.0.0.1:4000"),
+
+		NosanaURL:    getEnv("NOSANA_URL", "https://dashboard.k8s.prd.nos.ci"),
+		NosanaAPIKey: getEnv("NOSANA_API_KEY", ""),
 		
-		MaxConnsPerHost:   getEnvAsInt("GATEWAY_MAX_CONNS_PER_HOST", 20),
-		MaxActiveRequests: getEnvAsInt("GATEWAY_MAX_ACTIVE_REQUESTS", 100),
+		MaxConnsPerHost:        getEnvAsInt("GATEWAY_MAX_CONNS_PER_HOST", 20),
+		MaxActiveRequests:      getEnvAsInt("GATEWAY_MAX_ACTIVE_REQUESTS", 100),
+		GatewaySyncIntervalSec: getEnvAsInt("GATEWAY_SYNC_INTERVAL_SEC", 5),
+		ControllerSyncInterval: getEnvAsInt("CONTROLLER_SYNC_INTERVAL_SEC", 15),
+		ProxyTimeoutSec:        getEnvAsInt("GATEWAY_PROXY_TIMEOUT_SEC", 60),
 	}
 
 	return cfg, nil

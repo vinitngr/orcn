@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 
 	"orcn/core"
 	"orcn/core/config"
@@ -36,9 +35,7 @@ func main() {
 	log.Info("Database initialized successfully.")
 
 	// 2. Register Plugins
-	apiKey := os.Getenv("NOSANA_API_KEY")
-
-	nosClient := nosana.New(apiKey)
+	nosClient := nosana.New(cfg.NosanaAPIKey, cfg.NosanaURL)
 	core.RegisterProvider("nosana", nosClient)
 
 	vllmRT := vllm.New()

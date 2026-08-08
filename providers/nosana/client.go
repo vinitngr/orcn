@@ -14,18 +14,23 @@ import (
 
 type Client struct {
 	APIKey     string
+	BaseURL    string
 	HTTPClient *http.Client
 }
 
-func New(apiKey string) *Client {
+func New(apiKey, baseURL string) *Client {
+	if baseURL == "" {
+		baseURL = "https://dashboard.k8s.prd.nos.ci"
+	}
 	return &Client{
 		APIKey:     apiKey,
+		BaseURL:    baseURL,
 		HTTPClient: &http.Client{},
 	}
 }
 
 func (c *Client) request(method, path string, body any) ([]byte, error) {
-	url := fmt.Sprintf("https://dashboard.k8s.prd.nos.ci/api%s", path)
+	url := fmt.Sprintf("%s/api%s", c.BaseURL, path)
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -102,7 +107,9 @@ func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpe
 			resources := make([]map[string]any, 0)
 			for _, r := range container.Args.Resources {
 				t := strings.ToUpper(r.Type)
-				if t == "HF" {
+
+				switch t {
+				case "HF":
 					resMap := map[string]any{
 						"type":   "HF",
 						"repo":   r.URL,
@@ -112,7 +119,8 @@ func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpe
 						resMap["files"] = r.Files
 					}
 					resources = append(resources, resMap)
-				} else if t == "S3" || t == "HTTP" {
+
+				case "S3":
 					resMap := map[string]any{
 						"type":   t,
 						"url":    r.URL,
