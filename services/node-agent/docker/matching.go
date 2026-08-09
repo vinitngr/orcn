@@ -3,6 +3,7 @@ package docker
 import (
 	"reflect"
 	"sort"
+	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
@@ -25,6 +26,9 @@ func Matches(existing containertypes.InspectResponse, desired ContainerConfig) b
 		return false
 	}
 	wantedConfig := containerConfig(desired)
+	if !sameLabels(existing.Config.Labels, wantedConfig.Labels) {
+		return false
+	}
 	if !samePortSet(existing.Config.ExposedPorts, wantedConfig.ExposedPorts) {
 		return false
 	}
@@ -33,6 +37,22 @@ func Matches(existing containertypes.InspectResponse, desired ContainerConfig) b
 	}
 	return samePortBindings(existing.HostConfig.PortBindings, hostConfig(desired).PortBindings) &&
 		reflect.DeepEqual(existing.HostConfig.DeviceRequests, hostConfig(desired).DeviceRequests)
+}
+
+func sameLabels(a, b map[string]string) bool {
+	for key, value := range b {
+		if a[key] != value {
+			return false
+		}
+	}
+	for key := range a {
+		if strings.HasPrefix(key, "orcn.resource.") {
+			if _, exists := b[key]; !exists {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func samePortSet(a, b nat.PortSet) bool {

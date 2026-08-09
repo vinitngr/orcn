@@ -47,6 +47,9 @@ func (c *Client) Inspect(ctx context.Context, id string) (containertypes.Inspect
 }
 
 func (c *Client) Pull(ctx context.Context, image string) error {
+	if _, _, err := c.api.ImageInspectWithRaw(ctx, image); err == nil {
+		return nil
+	}
 	var encodedAuth string
 	if c.registryAuth != nil {
 		if _, err := c.api.RegistryLogin(ctx, *c.registryAuth); err != nil {
@@ -105,6 +108,35 @@ func (c *Client) Remove(ctx context.Context, id string, force bool) error {
 		return fmt.Errorf("remove container: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) RemoveVolume(ctx context.Context, name string) error {
+	if err := c.api.VolumeRemove(ctx, name, true); err != nil {
+		return fmt.Errorf("remove volume: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) CopyToContainer(ctx context.Context, id, destination string, content io.Reader) error {
+	if err := c.api.CopyToContainer(ctx, id, destination, content, containertypes.CopyToContainerOptions{}); err != nil {
+		return fmt.Errorf("copy files into container: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) Wait(ctx context.Context, id string) (int64, error) {
+	status, errCh := c.api.ContainerWait(ctx, id, containertypes.WaitConditionNotRunning)
+	select {
+	case result := <-status:
+		if result.Error != nil {
+			return 0, fmt.Errorf("container wait: %s", result.Error.Message)
+		}
+		return result.StatusCode, nil
+	case err := <-errCh:
+		return 0, err
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	}
 }
 
 func (c *Client) Logs(ctx context.Context, id string, live bool, tail int, output io.Writer) error {

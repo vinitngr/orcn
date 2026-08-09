@@ -10,13 +10,15 @@ import (
 )
 
 type ContainerConfig struct {
-	ID          string            `json:"id"`
-	Image       string            `json:"image"`
-	GPU         bool              `json:"gpu,omitempty"`
-	Command     []string          `json:"command,omitempty"`
-	Entrypoint  []string          `json:"entrypoint,omitempty"`
-	Environment map[string]string `json:"environment,omitempty"`
-	Ports       []Port            `json:"ports,omitempty"`
+	ID           string              `json:"id"`
+	Image        string              `json:"image"`
+	GPU          bool                `json:"gpu,omitempty"`
+	Command      []string            `json:"command,omitempty"`
+	Entrypoint   []string            `json:"entrypoint,omitempty"`
+	Environment  map[string]string   `json:"environment,omitempty"`
+	Ports        []Port              `json:"ports,omitempty"`
+	Resources    []core.ResourceSpec `json:"resources,omitempty"`
+	VolumeMounts []core.VolumeMount  `json:"volume_mounts,omitempty"`
 }
 
 type Port struct {
@@ -29,12 +31,14 @@ type Port struct {
 
 func ContainerConfigFromJob(container core.ContainerSpec) ContainerConfig {
 	spec := ContainerConfig{
-		ID:          container.ID,
-		Image:       container.Args.Image,
-		GPU:         container.Args.GPU,
-		Command:     container.Args.Cmd,
-		Entrypoint:  container.Args.Entrypoint,
-		Environment: container.Args.Env,
+		ID:           container.ID,
+		Image:        container.Args.Image,
+		GPU:          container.Args.GPU,
+		Command:      container.Args.Cmd,
+		Entrypoint:   container.Args.Entrypoint,
+		Environment:  container.Args.Env,
+		Resources:    container.Args.Resources,
+		VolumeMounts: container.Args.VolumeMounts,
 	}
 
 	for _, exposed := range container.Args.Expose {
@@ -82,6 +86,11 @@ func containerConfig(spec ContainerConfig) *containertypes.Config {
 		exposedPorts[nat.Port(fmt.Sprintf("%d/%s", port.Container, protocol))] = struct{}{}
 	}
 
+	labels := map[string]string{"orcn.node-agent.managed": "true"}
+	for index, resource := range spec.Resources {
+		labels[fmt.Sprintf("orcn.resource.%d", index)] = resource.Type + "|" + resource.URL + "|" + resource.Target
+	}
+
 	return &containertypes.Config{
 		Image:        spec.Image,
 		Cmd:          spec.Command,
@@ -89,7 +98,7 @@ func containerConfig(spec ContainerConfig) *containertypes.Config {
 		Env:          environmentSlice(spec.Environment),
 		ExposedPorts: exposedPorts,
 		Healthcheck:  dockerHealthcheck(spec),
-		Labels:       map[string]string{"orcn.node-agent.managed": "true"},
+		Labels:       labels,
 	}
 }
 
@@ -106,6 +115,9 @@ func hostConfig(spec ContainerConfig) *containertypes.HostConfig {
 	}
 
 	host := &containertypes.HostConfig{PortBindings: bindings}
+	for _, mount := range spec.VolumeMounts {
+		host.Binds = append(host.Binds, mount.VolumeName+":"+mount.MountPath)
+	}
 	if spec.GPU {
 		host.DeviceRequests = []containertypes.DeviceRequest{{
 			Count:        -1,
@@ -136,6 +148,14 @@ func ValidateConfig(spec ContainerConfig) error {
 		}
 		if port.Protocol != "" && port.Protocol != "tcp" && port.Protocol != "udp" && port.Protocol != "http" {
 			return fmt.Errorf("invalid protocol %q", port.Protocol)
+		}
+	}
+	for _, resource := range spec.Resources {
+		if !strings.EqualFold(resource.Type, "http") {
+			return fmt.Errorf("unsupported resource type %q; only HTTP resources are supported", resource.Type)
+		}
+		if strings.TrimSpace(resource.URL) == "" || strings.TrimSpace(resource.Target) == "" {
+			return fmt.Errorf("resource URL and target are required")
 		}
 	}
 	return nil

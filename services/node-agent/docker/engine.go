@@ -11,15 +11,19 @@ import (
 	"orcn/core"
 	"orcn/services/node-agent/config"
 	"orcn/services/node-agent/events"
+	"orcn/services/node-agent/resources"
 
 	containertypes "github.com/docker/docker/api/types/container"
 )
 
 type Engine struct {
-	client    *Client
-	logs      int
-	eventSink events.Sink
-	locks     sync.Map
+	client          *Client
+	logs            int
+	eventSink       events.Sink
+	loaderImage     string
+	resourceManager *resources.Manager
+	resourceRuntime resources.Runtime
+	locks           sync.Map
 }
 
 func NewEngine(cfg config.Config, eventSink events.Sink) (*Engine, error) {
@@ -30,7 +34,11 @@ func NewEngine(cfg config.Config, eventSink events.Sink) (*Engine, error) {
 	if eventSink == nil {
 		eventSink = events.NopSink{}
 	}
-	return &Engine{client: dockerClient, logs: cfg.LogTailLimit, eventSink: eventSink}, nil
+	if cfg.ResourceLoaderImage == "" {
+		cfg.ResourceLoaderImage = "vinitngr/orcn-resource-loader:dev"
+	}
+	runtime := resourceRuntime{client: dockerClient}
+	return &Engine{client: dockerClient, logs: cfg.LogTailLimit, eventSink: eventSink, loaderImage: cfg.ResourceLoaderImage, resourceManager: resources.NewManager(cfg.ResourceLoaderImage), resourceRuntime: runtime}, nil
 }
 
 func (e *Engine) Close() error { return e.client.Close() }
@@ -42,6 +50,16 @@ func (e *Engine) Inspect(ctx context.Context, id string) (containertypes.Inspect
 }
 
 func (e *Engine) Ensure(ctx context.Context, spec ContainerConfig, force bool) (string, bool, error) {
+	return e.ensure(ctx, spec, force, true)
+}
+
+// EnsureStopped prepares a container and its resources without starting it.
+// Registration uses this to enforce a job-wide preparation barrier.
+func (e *Engine) EnsureStopped(ctx context.Context, spec ContainerConfig, force bool) (string, bool, error) {
+	return e.ensure(ctx, spec, force, false)
+}
+
+func (e *Engine) ensure(ctx context.Context, spec ContainerConfig, force, start bool) (string, bool, error) {
 	unlock := e.lock(spec.ID)
 	defer unlock()
 	if err := ValidateConfig(spec); err != nil {
@@ -61,7 +79,7 @@ func (e *Engine) Ensure(ctx context.Context, spec ContainerConfig, force bool) (
 				return "", false, err
 			}
 		} else {
-			if !isRunning(existing) {
+			if start && !isRunning(existing) {
 				e.emit(spec.ID, "starting", "starting existing stopped container")
 				if err := e.client.Start(ctx, existing.ID); err != nil {
 					e.emit(spec.ID, "error", err.Error())
@@ -78,10 +96,26 @@ func (e *Engine) Ensure(ctx context.Context, spec ContainerConfig, force bool) (
 	if err := e.pull(ctx, spec.ID, spec.Image); err != nil {
 		return "", false, err
 	}
+	preparedSpec := spec
+	if len(spec.Resources) > 0 {
+		emitResource := func(eventType, message, eventID string, metadata map[string]any) {
+			e.emitWithMetadata(spec.ID, eventType, message, eventID, metadata)
+		}
+		mounts, prepareErr := e.resourceManager.Prepare(ctx, spec.ID, spec.Resources, spec.VolumeMounts, e.resourceRuntime, emitResource)
+		if prepareErr != nil {
+			e.emit(spec.ID, "error", prepareErr.Error())
+			return "", false, prepareErr
+		}
+		preparedSpec.VolumeMounts = mounts
+	}
+	spec = preparedSpec
 	created, err := e.client.Create(ctx, spec)
 	if err != nil {
 		e.emit(spec.ID, "error", err.Error())
 		return "", false, err
+	}
+	if !start {
+		return created.ID, true, nil
 	}
 	if err := e.client.Start(ctx, created.ID); err != nil {
 		_ = e.client.Remove(ctx, created.ID, true)
@@ -98,6 +132,9 @@ func (e *Engine) ValidateJob(ctx context.Context, job core.JobSpec) error {
 	}
 	for _, container := range job.Containers {
 		spec := ContainerConfigFromJob(container)
+		if err := ValidateConfig(spec); err != nil {
+			return fmt.Errorf("invalid container %q: %w", spec.ID, err)
+		}
 		existing, err := e.client.Inspect(ctx, spec.ID)
 		if err != nil {
 			if isNotFound(err) {
@@ -188,7 +225,29 @@ func (e *Engine) Remove(ctx context.Context, id string) error {
 	if isRunning(container) {
 		return fmt.Errorf("container %q is running; stop it before removing", id)
 	}
-	return e.remove(ctx, id)
+	if err := e.remove(ctx, id); err != nil {
+		return err
+	}
+	for _, volume := range managedResourceVolumes(container) {
+		if err := e.client.RemoveVolume(ctx, volume); err != nil {
+			e.emit(id, "warning", fmt.Sprintf("cleanup volume %q: %v", volume, err))
+		}
+	}
+	return nil
+}
+
+func managedResourceVolumes(container containertypes.InspectResponse) []string {
+	if container.HostConfig == nil {
+		return nil
+	}
+	var volumes []string
+	for _, bind := range container.HostConfig.Binds {
+		parts := strings.SplitN(bind, ":", 3)
+		if len(parts) >= 2 && strings.HasPrefix(parts[0], "orcn-resource-") {
+			volumes = append(volumes, parts[0])
+		}
+	}
+	return volumes
 }
 
 func isRunning(container containertypes.InspectResponse) bool {
@@ -224,6 +283,10 @@ func (e *Engine) pull(ctx context.Context, id, image string) error {
 
 func (e *Engine) emit(id, eventType, message string) {
 	e.eventSink.Publish(events.Event{ContainerID: id, Type: eventType, Message: message})
+}
+
+func (e *Engine) emitWithMetadata(containerID, eventType, message, eventID string, metadata map[string]any) {
+	e.eventSink.Publish(events.Event{ID: eventID, ContainerID: containerID, Type: eventType, Message: message, Metadata: metadata})
 }
 
 func (e *Engine) lock(id string) func() {

@@ -69,13 +69,22 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
+	prepared := make([]string, 0, len(job.Containers))
 	for _, container := range job.Containers {
 		spec := docker.ContainerConfigFromJob(container)
-		if _, _, err := s.engine.Ensure(r.Context(), spec, false); err != nil {
+		id, _, err := s.engine.EnsureStopped(r.Context(), spec, false)
+		if err != nil {
 			writeError(w, http.StatusBadGateway, err.Error())
 			return
 		}
+		prepared = append(prepared, id)
 		s.routes.Set(spec)
+	}
+	for _, id := range prepared {
+		if err := s.engine.Start(r.Context(), id); err != nil {
+			writeError(w, http.StatusBadGateway, err.Error())
+			return
+		}
 	}
 	if err := s.state.Register(job); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -85,9 +94,6 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *AdminServer) events(w http.ResponseWriter, r *http.Request) {
-	if !s.requireRegistered(w) {
-		return
-	}
 	if r.URL.Query().Get("live") != "true" {
 		writeJSON(w, http.StatusOK, s.eventBuffer.Snapshot())
 		return

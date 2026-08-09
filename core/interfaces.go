@@ -40,6 +40,7 @@ type ContainerArgs struct {
 }
 
 type ResourceSpec struct {
+	ID     string   `json:"id,omitempty"`
 	Type   string   `json:"type"`            // HF, S3, HTTP, GIT
 	URL    string   `json:"url"`             // The URL or Repo ID
 	Target string   `json:"target"`          // Internal mount path inside container

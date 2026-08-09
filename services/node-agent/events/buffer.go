@@ -1,16 +1,20 @@
 package events
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
 
 type Event struct {
-	Timestamp   time.Time `json:"timestamp"`
-	ContainerID string    `json:"container_id,omitempty"`
-	Type        string    `json:"type"`
-	Message     string    `json:"message"`
-	Level       string    `json:"level"`
+	ID          string         `json:"id,omitempty"`
+	Timestamp   time.Time      `json:"timestamp"`
+	ContainerID string         `json:"container_id,omitempty"`
+	Category    string         `json:"category"`
+	Type        string         `json:"type"`
+	Message     string         `json:"message"`
+	Level       string         `json:"level"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
 type Sink interface {
@@ -38,6 +42,7 @@ func NewRecorder(buffer *Buffer, logger Logger) *Recorder {
 }
 
 func (r *Recorder) Publish(event Event) {
+	event = normalize(event)
 	if event.Level == "" {
 		event.Level = levelForType(event.Type)
 	}
@@ -59,14 +64,68 @@ func (r *Recorder) Publish(event Event) {
 
 func levelForType(eventType string) string {
 	switch eventType {
-	case "error":
+	case "operation_failed":
 		return "error"
-	case "configuration_mismatch":
+	case "configuration_mismatch", "cleanup_warning":
 		return "warn"
 	case "inspect", "container_reused":
 		return "debug"
 	default:
 		return "info"
+	}
+}
+
+func normalize(event Event) Event {
+	if event.Category == "" {
+		event.Category = categoryForType(event.Type)
+	}
+	switch event.Type {
+	case "started":
+		event.Type = "container_started"
+	case "starting":
+		event.Type = "container_starting"
+	case "restarted":
+		event.Type = "container_restarted"
+	case "restarting":
+		event.Type = "container_restarting"
+	case "stopped":
+		event.Type = "container_stopped"
+	case "stopping":
+		event.Type = "container_stopping"
+	case "removing":
+		event.Type = "container_removing"
+	case "removed":
+		event.Type = "container_removed"
+	case "image_pulling":
+		event.Type = "image_pull_started"
+	case "image_pulled":
+		event.Type = "image_pull_completed"
+	case "progress":
+		event.Type = "download_progress"
+	case "error":
+		event.Type = "operation_failed"
+	case "warning":
+		event.Type = "cleanup_warning"
+	}
+	return event
+}
+
+func categoryForType(eventType string) string {
+	switch eventType {
+	case "starting", "started", "restarting", "restarted", "stopping", "stopped", "removing", "removed":
+		return "lifecycle"
+	case "image_pulling", "image_pulled":
+		return "image"
+	case "progress", "download_progress", "resource_loader_pulling", "resource_installing", "resource_installed":
+		return "resource"
+	case "configuration_mismatch":
+		return "validation"
+	case "error", "operation_failed":
+		return "runtime"
+	case "warning", "cleanup_warning":
+		return "cleanup"
+	default:
+		return "runtime"
 	}
 }
 
@@ -89,9 +148,13 @@ func (b *Buffer) Publish(event Event) {
 		event.Timestamp = time.Now().UTC()
 	}
 	b.mu.Lock()
-	b.events = append(b.events, event)
-	if len(b.events) > b.limit {
-		b.events = b.events[len(b.events)-b.limit:]
+	// Progress is transient telemetry. It is delivered to live subscribers,
+	// but never retained in the snapshot buffer.
+	if !strings.EqualFold(event.Type, "progress") && !strings.EqualFold(event.Type, "download_progress") {
+		b.events = append(b.events, event)
+		if len(b.events) > b.limit {
+			b.events = b.events[len(b.events)-b.limit:]
+		}
 	}
 	for subscriber := range b.subs {
 		select {
@@ -105,6 +168,9 @@ func (b *Buffer) Publish(event Event) {
 func (b *Buffer) Snapshot() []Event {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
+	if len(b.events) == 0 {
+		return []Event{}
+	}
 	return append([]Event(nil), b.events...)
 }
 

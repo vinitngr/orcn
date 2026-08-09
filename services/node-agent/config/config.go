@@ -17,6 +17,7 @@ type Config struct {
 	RegistryUsername      string
 	RegistryCredential    string
 	RegistryServerAddress string
+	ResourceLoaderImage   string
 }
 
 func Load() Config {
@@ -32,6 +33,7 @@ func Load() Config {
 		RegistryUsername:      os.Getenv("DOCKER_REGISTRY_USERNAME"),
 		RegistryCredential:    os.Getenv("DOCKER_REGISTRY_CREDENTIAL"),
 		RegistryServerAddress: env("DOCKER_REGISTRY_SERVER", "https://index.docker.io/v1/"),
+		ResourceLoaderImage:   env("NODE_AGENT_RESOURCE_LOADER_IMAGE", "vinitngr/orcn-resource-loader:dev"),
 	}
 }
 
