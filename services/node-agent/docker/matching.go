@@ -21,11 +21,11 @@ func Matches(existing containertypes.InspectResponse, desired ContainerConfig) b
 	wantEnv := environmentSlice(desired.Environment)
 	haveEnv := append([]string(nil), existing.Config.Env...)
 	sort.Strings(haveEnv)
-	if !sameStrings(haveEnv, wantEnv) {
+	if !containsEnv(haveEnv, wantEnv) {
 		return false
 	}
 	wantedConfig := containerConfig(desired)
-	if !reflect.DeepEqual(existing.Config.ExposedPorts, wantedConfig.ExposedPorts) {
+	if !samePortSet(existing.Config.ExposedPorts, wantedConfig.ExposedPorts) {
 		return false
 	}
 	if !reflect.DeepEqual(existing.Config.Healthcheck, wantedConfig.Healthcheck) {
@@ -33,6 +33,26 @@ func Matches(existing containertypes.InspectResponse, desired ContainerConfig) b
 	}
 	return samePortBindings(existing.HostConfig.PortBindings, hostConfig(desired).PortBindings) &&
 		reflect.DeepEqual(existing.HostConfig.DeviceRequests, hostConfig(desired).DeviceRequests)
+}
+
+func samePortSet(a, b nat.PortSet) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+func containsEnv(have, want []string) bool {
+	set := make(map[string]struct{}, len(have))
+	for _, value := range have {
+		set[value] = struct{}{}
+	}
+	for _, value := range want {
+		if _, ok := set[value]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func environmentSlice(environment map[string]string) []string {

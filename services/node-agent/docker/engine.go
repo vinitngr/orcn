@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"orcn/core"
 	"orcn/services/node-agent/config"
@@ -150,8 +151,31 @@ func (e *Engine) Stop(ctx context.Context, id string) error {
 		e.emit(id, "error", err.Error())
 		return err
 	}
+	if err := e.waitStopped(ctx, id); err != nil {
+		e.emit(id, "error", err.Error())
+		return err
+	}
 	e.emit(id, "stopped", "container stopped")
 	return nil
+}
+
+func (e *Engine) waitStopped(ctx context.Context, id string) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	for {
+		container, err := e.client.Inspect(waitCtx, id)
+		if err != nil {
+			return fmt.Errorf("verify container %q stopped: %w", id, err)
+		}
+		if !isRunning(container) {
+			return nil
+		}
+		select {
+		case <-waitCtx.Done():
+			return fmt.Errorf("timed out waiting for container %q to stop", id)
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
 }
 
 func (e *Engine) Remove(ctx context.Context, id string) error {
