@@ -62,6 +62,54 @@ func ValidateJobSpecBytes(specJSON []byte) (bool, []string) {
 	return ValidateJobSpecStruct(&spec)
 }
 
+// ValidateJobSpec validates the canonical job specification used by
+// providers, controllers, and node agents.
+func ValidateJobSpec(spec *JobSpec) (bool, []string) {
+	var errors []string
+	if spec == nil {
+		return false, []string{"job specification is required"}
+	}
+	if spec.Version != "" && spec.Version != "v2" {
+		errors = append(errors, "Invalid version: expected 'v2'")
+	}
+	if spec.Type != "" && spec.Type != "container" {
+		errors = append(errors, "Unsupported type: expected 'container'")
+	}
+	if len(spec.Containers) == 0 {
+		errors = append(errors, "At least one container must be defined in 'containers'")
+	}
+
+	seen := make(map[string]bool, len(spec.Containers))
+	for _, container := range spec.Containers {
+		if container.ID == "" {
+			errors = append(errors, "Container is missing 'id'")
+		} else if seen[container.ID] {
+			errors = append(errors, fmt.Sprintf("Duplicate container id: '%s'", container.ID))
+		}
+		seen[container.ID] = true
+		if container.Args.Image == "" {
+			errors = append(errors, fmt.Sprintf("Container '%s' is missing required field 'args.image'", container.ID))
+		}
+		for _, exposed := range container.Args.Expose {
+			if exposed.Port <= 0 || exposed.Port > 65535 {
+				errors = append(errors, fmt.Sprintf("Container '%s' has invalid port %d", container.ID, exposed.Port))
+			}
+			if exposed.Protocol != "" && exposed.Protocol != "tcp" && exposed.Protocol != "udp" && exposed.Protocol != "http" {
+				errors = append(errors, fmt.Sprintf("Container '%s' has invalid protocol '%s'", container.ID, exposed.Protocol))
+			}
+			if exposed.HealthCheck != nil {
+				if exposed.HealthCheck.ExpectedStatus < 0 || exposed.HealthCheck.ExpectedStatus > 599 {
+					errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check status", container.ID))
+				}
+				if exposed.HealthCheck.TimeoutSeconds < 0 {
+					errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check timeout", container.ID))
+				}
+			}
+		}
+	}
+	return len(errors) == 0, errors
+}
+
 func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 	var errors []string
 
@@ -72,7 +120,7 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 	if spec.Name == "" {
 		errors = append(errors, "Missing required field: 'name'")
 	}
-	
+
 	// Allow empty defaults for type and computeType
 	if spec.Type != "" && spec.Type != "container" {
 		errors = append(errors, fmt.Sprintf("Unsupported type: expected 'container', got '%s'", spec.Type))
@@ -174,7 +222,7 @@ func ConvertTemplateSpecV2ToJobSpec(v2 *TemplateSpecV2) *JobSpec {
 		Version: "v2",
 		JobName: v2.Name,
 		Type:    v2.Type,
-		Meta:    make(map[string]string),
+		Meta:    make(map[string]any),
 	}
 
 	if job.Type == "" {

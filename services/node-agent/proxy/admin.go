@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"orcn/core"
 	"orcn/services/node-agent/docker"
 	"orcn/services/node-agent/events"
 )
@@ -51,13 +52,13 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, "valid registration API key required")
 		return
 	}
-	var job docker.JobSpec
+	var job core.JobSpec
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<20)).Decode(&job); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := docker.ValidateJobSpec(job); err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+	if valid, validationErrors := core.ValidateJobSpec(&job); !valid {
+		writeError(w, http.StatusBadRequest, strings.Join(validationErrors, "; "))
 		return
 	}
 	if _, registered := s.state.Job(); registered {
@@ -68,7 +69,8 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	for _, spec := range job.Containers {
+	for _, container := range job.Containers {
+		spec := docker.ContainerConfigFromJob(container)
 		if _, _, err := s.engine.Ensure(r.Context(), spec, false); err != nil {
 			writeError(w, http.StatusBadGateway, err.Error())
 			return
@@ -158,7 +160,7 @@ func (s *AdminServer) run(w http.ResponseWriter, r *http.Request) {
 	}
 	force, _ := strconv.ParseBool(r.URL.Query().Get("force"))
 	id, created, err := s.engine.Ensure(r.Context(), spec, force)
-	
+
 	if err != nil {
 		status := http.StatusBadRequest
 		if strings.Contains(err.Error(), "exists but does not match") {

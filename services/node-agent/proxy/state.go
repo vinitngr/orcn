@@ -2,22 +2,24 @@ package proxy
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
+	"orcn/core"
 	"orcn/services/node-agent/docker"
 )
 
 type RegistrationState struct {
 	mu         sync.RWMutex
 	registered bool
-	job        docker.JobSpec
+	job        core.JobSpec
 }
 
 func NewRegistrationState() *RegistrationState { return &RegistrationState{} }
 
-func (s *RegistrationState) Register(job docker.JobSpec) error {
-	if err := docker.ValidateJobSpec(job); err != nil {
-		return err
+func (s *RegistrationState) Register(job core.JobSpec) error {
+	if valid, errors := core.ValidateJobSpec(&job); !valid {
+		return fmt.Errorf("invalid job specification: %s", strings.Join(errors, "; "))
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -38,7 +40,7 @@ func (s *RegistrationState) RequireRegistered() error {
 	return nil
 }
 
-func (s *RegistrationState) Job() (docker.JobSpec, bool) {
+func (s *RegistrationState) Job() (core.JobSpec, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.job, s.registered
@@ -58,16 +60,16 @@ func (s *RegistrationState) Allows(id string) bool {
 	return false
 }
 
-func (s *RegistrationState) Spec(id string) (docker.ContainerSpec, bool) {
+func (s *RegistrationState) Spec(id string) (docker.ContainerConfig, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if !s.registered {
-		return docker.ContainerSpec{}, false
+		return docker.ContainerConfig{}, false
 	}
 	for _, container := range s.job.Containers {
 		if container.ID == id {
-			return container, true
+			return docker.ContainerConfigFromJob(container), true
 		}
 	}
-	return docker.ContainerSpec{}, false
+	return docker.ContainerConfig{}, false
 }

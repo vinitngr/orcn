@@ -4,7 +4,8 @@ type JobSpec struct {
 	Version            string             `json:"version"`
 	JobName            string             `json:"job_name"`
 	Type               string             `json:"type"`
-	Meta               map[string]string  `json:"meta,omitempty"`
+	NodeID             string             `json:"node_id,omitempty"`
+	Meta               map[string]any     `json:"meta,omitempty"`
 	SystemRequirements SystemRequirements `json:"system_requirements"`
 	Volumes            []VolumeSpec       `json:"volumes,omitempty"`
 	Containers         []ContainerSpec    `json:"containers"`
@@ -39,9 +40,9 @@ type ContainerArgs struct {
 }
 
 type ResourceSpec struct {
-	Type   string   `json:"type"`   // HF, S3, HTTP, GIT
-	URL    string   `json:"url"`    // The URL or Repo ID
-	Target string   `json:"target"` // Internal mount path inside container
+	Type   string   `json:"type"`            // HF, S3, HTTP, GIT
+	URL    string   `json:"url"`             // The URL or Repo ID
+	Target string   `json:"target"`          // Internal mount path inside container
 	Files  []string `json:"files,omitempty"` // Specific files to download
 }
 

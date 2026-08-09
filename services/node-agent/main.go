@@ -19,7 +19,7 @@ import (
 func main() {
 	cfg := config.Load()
 	corelogger.SetLevel(logLevel(cfg.LogLevel))
-	
+
 	terminalLogger := corelogger.New("NODE-AGENT")
 	eventBuffer := events.NewBuffer(500)
 
@@ -38,7 +38,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	
+
 	go func() {
 		if err := adminServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("node-agent admin server: %v", err)

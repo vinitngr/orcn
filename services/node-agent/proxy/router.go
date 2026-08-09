@@ -22,13 +22,18 @@ func NewRouteTable() *RouteTable {
 	return &RouteTable{routes: make(map[string]route)}
 }
 
-func (t *RouteTable) Set(spec docker.ContainerSpec) {
+func (t *RouteTable) Set(spec docker.ContainerConfig) {
 	if len(spec.Ports) == 0 {
 		return
 	}
 	ports := make(map[int]int, len(spec.Ports))
 	for _, port := range spec.Ports {
-		ports[port.Container] = port.Host
+		if port.Public {
+			ports[port.Container] = port.Host
+		}
+	}
+	if len(ports) == 0 {
+		return
 	}
 	t.mu.Lock()
 	t.routes[spec.ID] = route{ports: ports}
