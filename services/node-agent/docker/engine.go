@@ -62,6 +62,12 @@ func (e *Engine) EnsureStopped(ctx context.Context, spec ContainerConfig, force 
 func (e *Engine) ensure(ctx context.Context, spec ContainerConfig, force, start bool) (string, bool, error) {
 	unlock := e.lock(spec.ID)
 	defer unlock()
+	var err error
+	spec, err = e.resolveVolumes(ctx, spec, true)
+	if err != nil {
+		e.emit(spec.ID, "error", err.Error())
+		return "", false, err
+	}
 	if err := ValidateConfig(spec); err != nil {
 		e.emit(spec.ID, "error", err.Error())
 		return "", false, err
@@ -107,6 +113,11 @@ func (e *Engine) ensure(ctx context.Context, spec ContainerConfig, force, start 
 			return "", false, prepareErr
 		}
 		preparedSpec.VolumeMounts = mounts
+		preparedSpec, err = e.resolveVolumes(ctx, preparedSpec, true)
+		if err != nil {
+			e.emit(spec.ID, "error", err.Error())
+			return "", false, err
+		}
 	}
 	spec = preparedSpec
 	created, err := e.client.Create(ctx, spec)
@@ -131,7 +142,12 @@ func (e *Engine) ValidateJob(ctx context.Context, job core.JobSpec) error {
 		return fmt.Errorf("invalid job specification: %s", strings.Join(validationErrors, "; "))
 	}
 	for _, container := range job.Containers {
-		spec := ContainerConfigFromJob(container)
+		spec := ContainerConfigFromJobWithVolumes(container, job.Volumes)
+		var err error
+		spec, err = e.resolveVolumes(ctx, spec, false)
+		if err != nil {
+			return fmt.Errorf("invalid volumes for container %q: %w", spec.ID, err)
+		}
 		if err := ValidateConfig(spec); err != nil {
 			return fmt.Errorf("invalid container %q: %w", spec.ID, err)
 		}

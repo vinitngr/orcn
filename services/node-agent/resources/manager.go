@@ -52,7 +52,7 @@ func BuildPlan(specs []core.ResourceSpec) (Plan, error) {
 		plan.Resources = append(plan.Resources, Resource{
 			ID:          spec.ID,
 			Type:        strings.ToLower(spec.Type),
-			Config:      map[string]any{"url": spec.URL},
+			Config:      resourceConfig(spec),
 			Destination: spec.Target,
 		})
 	}
@@ -68,9 +68,14 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 		return nil, err
 	}
 	for index, resource := range specs {
-		directory := filepath.Dir(resource.Target)
+		target, targetErr := destination(resource, mounts)
+		if targetErr != nil {
+			return nil, targetErr
+		}
+		plan.Resources[index].Destination = target
+		directory := filepath.Dir(target)
 		if directory == "." || directory == "/" {
-			return nil, fmt.Errorf("resource target %q must be inside a mounted directory", resource.Target)
+			return nil, fmt.Errorf("resource target %q must be inside a mounted directory", target)
 		}
 		if !hasMount(mounts, directory) {
 			mounts = append(mounts, core.VolumeMount{VolumeName: fmt.Sprintf("orcn-resource-%s-%d", containerID, index), MountPath: directory})
@@ -119,6 +124,34 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 		emit("resource_installed", "resource loader completed", "", nil)
 	}
 	return mounts, nil
+}
+
+func resourceConfig(resource core.ResourceSpec) map[string]any {
+	if len(resource.Config) > 0 {
+		return resource.Config
+	}
+	if resource.URL != "" {
+		return map[string]any{"url": resource.URL}
+	}
+	return nil
+}
+
+func destination(resource core.ResourceSpec, mounts []core.VolumeMount) (string, error) {
+	if resource.VolumeName == "" {
+		if resource.Target == "" {
+			return "", fmt.Errorf("resource target is required")
+		}
+		return filepath.Clean(resource.Target), nil
+	}
+	if resource.Path == "" || filepath.IsAbs(resource.Path) || strings.Contains(resource.Path, "..") {
+		return "", fmt.Errorf("resource path must be relative and stay inside volume %q", resource.VolumeName)
+	}
+	for _, mount := range mounts {
+		if mount.VolumeName == resource.VolumeName {
+			return filepath.Join(mount.MountPath, resource.Path), nil
+		}
+	}
+	return "", fmt.Errorf("resource volume %q is not mounted", resource.VolumeName)
 }
 
 var progressPattern = regexp.MustCompile(`id=([^ ]+) downloaded_bytes=([0-9]+)(?: total_bytes=([0-9]+) percentage=([0-9.]+))?`)

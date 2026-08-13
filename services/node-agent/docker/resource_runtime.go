@@ -7,8 +7,8 @@ import (
 	"orcn/core"
 )
 
-type resourceRuntime struct{ 
-	client *Client 
+type resourceRuntime struct {
+	client *Client
 }
 
 func (r resourceRuntime) Pull(ctx context.Context, image string) error {
@@ -27,9 +27,9 @@ func (r resourceRuntime) CopyToContainer(ctx context.Context, id, destination st
 	return r.client.CopyToContainer(ctx, id, destination, content)
 }
 
-func (r resourceRuntime) Start(ctx context.Context, id string) error { 
-		return r.client.Start(ctx, id)
-	}
+func (r resourceRuntime) Start(ctx context.Context, id string) error {
+	return r.client.Start(ctx, id)
+}
 
 func (r resourceRuntime) Wait(ctx context.Context, id string) (int64, error) {
 	return r.client.Wait(ctx, id)

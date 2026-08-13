@@ -188,3 +188,42 @@ func TestValidateJobSpecStruct(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateJobSpecVolumes(t *testing.T) {
+	base := func(volumes []VolumeSpec, mounts []VolumeMount) *JobSpec {
+		return &JobSpec{
+			Version: "v2", Type: "container", Volumes: volumes,
+			Containers: []ContainerSpec{{ID: "worker", Args: ContainerArgs{
+				Image: "alpine:latest", VolumeMounts: mounts,
+			}}},
+		}
+	}
+	tests := []struct {
+		name  string
+		spec  *JobSpec
+		valid bool
+	}{
+		{"valid docker volume", base([]VolumeSpec{{Name: "cache", Type: "docker"}}, []VolumeMount{{VolumeName: "cache", MountPath: "/data"}}), true},
+		{"duplicate names", base([]VolumeSpec{{Name: "cache", Type: "docker"}, {Name: "cache", Type: "bind", Source: "/tmp/cache"}}, []VolumeMount{{VolumeName: "cache", MountPath: "/data"}}), false},
+		{"undefined mount", base(nil, []VolumeMount{{VolumeName: "missing", MountPath: "/data"}}), false},
+		{"unused volume", base([]VolumeSpec{{Name: "unused", Type: "docker"}}, nil), false},
+		{"bind requires source", base([]VolumeSpec{{Name: "data", Type: "bind"}}, []VolumeMount{{VolumeName: "data", MountPath: "/data"}}), false},
+		{"persisted default source", base([]VolumeSpec{{Name: "models", Type: "persisted"}}, []VolumeMount{{VolumeName: "models", MountPath: "/models"}}), true},
+		{"resource volume must be mounted", &JobSpec{
+			Version: "v2", Type: "container",
+			Volumes: []VolumeSpec{{Name: "models", Type: "docker"}},
+			Containers: []ContainerSpec{{ID: "worker", Args: ContainerArgs{
+				Image:     "alpine:latest",
+				Resources: []ResourceSpec{{Type: "http", URL: "https://example.com/model", VolumeName: "models", Path: "model.bin"}},
+			}}},
+		}, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			valid, errors := ValidateJobSpec(test.spec)
+			if valid != test.valid {
+				t.Fatalf("valid = %v, want %v; errors: %v", valid, test.valid, errors)
+			}
+		})
+	}
+}

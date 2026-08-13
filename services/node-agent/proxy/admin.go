@@ -71,7 +71,7 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	prepared := make([]string, 0, len(job.Containers))
 	for _, container := range job.Containers {
-		spec := docker.ContainerConfigFromJob(container)
+		spec := docker.ContainerConfigFromJobWithVolumes(container, job.Volumes)
 		id, _, err := s.engine.EnsureStopped(r.Context(), spec, false)
 		if err != nil {
 			writeError(w, http.StatusBadGateway, err.Error())

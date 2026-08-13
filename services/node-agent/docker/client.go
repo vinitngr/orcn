@@ -8,6 +8,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	imagetypes "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"orcn/services/node-agent/config"
@@ -113,6 +114,16 @@ func (c *Client) Remove(ctx context.Context, id string, force bool) error {
 func (c *Client) RemoveVolume(ctx context.Context, name string) error {
 	if err := c.api.VolumeRemove(ctx, name, true); err != nil {
 		return fmt.Errorf("remove volume: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) EnsureVolume(ctx context.Context, name string) error {
+	if _, err := c.api.VolumeInspect(ctx, name); err == nil {
+		return nil
+	}
+	if _, err := c.api.VolumeCreate(ctx, volumetypes.CreateOptions{Name: name, Labels: map[string]string{"orcn.node-agent.managed": "true"}}); err != nil {
+		return fmt.Errorf("create Docker volume %q: %w", name, err)
 	}
 	return nil
 }

@@ -19,8 +19,9 @@ type SystemRequirements struct {
 
 type VolumeSpec struct {
 	Name   string `json:"name"`
-	Type   string `json:"type"` // e.g., "persistent", "ephemeral"
-	SizeGB int    `json:"size_gb"`
+	Type   string `json:"type"` // persisted, bind, or docker
+	Source string `json:"source,omitempty"`
+	SizeGB int    `json:"size_gb"` // provider input; node agents do not provision it
 }
 
 type ContainerSpec struct {
@@ -40,16 +41,20 @@ type ContainerArgs struct {
 }
 
 type ResourceSpec struct {
-	ID     string   `json:"id,omitempty"`
-	Type   string   `json:"type"`            // HF, S3, HTTP, GIT
-	URL    string   `json:"url"`             // The URL or Repo ID
-	Target string   `json:"target"`          // Internal mount path inside container
-	Files  []string `json:"files,omitempty"` // Specific files to download
+	ID         string         `json:"id,omitempty"`
+	Type       string         `json:"type"`
+	URL        string         `json:"url,omitempty"`    // Legacy/provider shorthand
+	Target     string         `json:"target,omitempty"` // Legacy absolute target
+	VolumeName string         `json:"volume_name,omitempty"`
+	Path       string         `json:"path,omitempty"` // Relative path in the volume
+	Config     map[string]any `json:"config,omitempty"`
+	Files      []string       `json:"files,omitempty"`
 }
 
 type VolumeMount struct {
 	VolumeName string `json:"volume_name"`
 	MountPath  string `json:"mount_path"`
+	Source     string `json:"-"`
 }
 
 type ExposeSpec struct {

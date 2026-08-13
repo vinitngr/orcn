@@ -19,6 +19,7 @@ type ContainerConfig struct {
 	Ports        []Port              `json:"ports,omitempty"`
 	Resources    []core.ResourceSpec `json:"resources,omitempty"`
 	VolumeMounts []core.VolumeMount  `json:"volume_mounts,omitempty"`
+	Volumes      []core.VolumeSpec   `json:"volumes,omitempty"`
 }
 
 type Port struct {
@@ -30,6 +31,10 @@ type Port struct {
 }
 
 func ContainerConfigFromJob(container core.ContainerSpec) ContainerConfig {
+	return ContainerConfigFromJobWithVolumes(container, nil)
+}
+
+func ContainerConfigFromJobWithVolumes(container core.ContainerSpec, volumes []core.VolumeSpec) ContainerConfig {
 	spec := ContainerConfig{
 		ID:           container.ID,
 		Image:        container.Args.Image,
@@ -39,6 +44,7 @@ func ContainerConfigFromJob(container core.ContainerSpec) ContainerConfig {
 		Environment:  container.Args.Env,
 		Resources:    container.Args.Resources,
 		VolumeMounts: container.Args.VolumeMounts,
+		Volumes:      volumes,
 	}
 
 	for _, exposed := range container.Args.Expose {
@@ -88,7 +94,7 @@ func containerConfig(spec ContainerConfig) *containertypes.Config {
 
 	labels := map[string]string{"orcn.node-agent.managed": "true"}
 	for index, resource := range spec.Resources {
-		labels[fmt.Sprintf("orcn.resource.%d", index)] = resource.Type + "|" + resource.URL + "|" + resource.Target
+		labels[fmt.Sprintf("orcn.resource.%d", index)] = resource.Type + "|" + resource.URL + "|" + resource.Target + "|" + resource.VolumeName + "|" + resource.Path
 	}
 
 	return &containertypes.Config{
@@ -116,7 +122,11 @@ func hostConfig(spec ContainerConfig) *containertypes.HostConfig {
 
 	host := &containertypes.HostConfig{PortBindings: bindings}
 	for _, mount := range spec.VolumeMounts {
-		host.Binds = append(host.Binds, mount.VolumeName+":"+mount.MountPath)
+		source := mount.Source
+		if source == "" {
+			source = mount.VolumeName
+		}
+		host.Binds = append(host.Binds, source+":"+mount.MountPath)
 	}
 	if spec.GPU {
 		host.DeviceRequests = []containertypes.DeviceRequest{{
@@ -154,8 +164,16 @@ func ValidateConfig(spec ContainerConfig) error {
 		if !strings.EqualFold(resource.Type, "http") {
 			return fmt.Errorf("unsupported resource type %q; only HTTP resources are supported", resource.Type)
 		}
-		if strings.TrimSpace(resource.URL) == "" || strings.TrimSpace(resource.Target) == "" {
-			return fmt.Errorf("resource URL and target are required")
+		if strings.TrimSpace(resource.URL) == "" && len(resource.Config) == 0 {
+			return fmt.Errorf("resource URL or config is required")
+		}
+		if resource.VolumeName == "" && strings.TrimSpace(resource.Target) == "" {
+			return fmt.Errorf("resource target or volume_name/path is required")
+		}
+	}
+	for _, mount := range spec.VolumeMounts {
+		if strings.TrimSpace(mount.VolumeName) == "" || strings.TrimSpace(mount.MountPath) == "" {
+			return fmt.Errorf("volume name and mount path are required")
 		}
 	}
 	return nil

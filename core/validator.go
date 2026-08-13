@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -65,10 +66,19 @@ func ValidateJobSpecBytes(specJSON []byte) (bool, []string) {
 // ValidateJobSpec validates the canonical job specification used by
 // providers, controllers, and node agents.
 func ValidateJobSpec(spec *JobSpec) (bool, []string) {
-	var errors []string
 	if spec == nil {
 		return false, []string{"job specification is required"}
 	}
+	errors := validateJobRoot(spec)
+	volumes, volumeErrors := validateVolumeDefinitions(spec.Volumes, false)
+	errors = append(errors, volumeErrors...)
+	errors = append(errors, validateJobContainers(spec.Containers)...)
+	errors = append(errors, validateVolumeUsage(spec.Containers, volumes)...)
+	return len(errors) == 0, errors
+}
+
+func validateJobRoot(spec *JobSpec) []string {
+	var errors []string
 	if spec.Version != "" && spec.Version != "v2" {
 		errors = append(errors, "Invalid version: expected 'v2'")
 	}
@@ -78,9 +88,44 @@ func ValidateJobSpec(spec *JobSpec) (bool, []string) {
 	if len(spec.Containers) == 0 {
 		errors = append(errors, "At least one container must be defined in 'containers'")
 	}
+	return errors
+}
 
-	seen := make(map[string]bool, len(spec.Containers))
-	for _, container := range spec.Containers {
+func validateVolumeDefinitions(volumes []VolumeSpec, allowEmptyType bool) (map[string]VolumeSpec, []string) {
+	definitions := make(map[string]VolumeSpec, len(volumes))
+	var errors []string
+	for _, volume := range volumes {
+		name := strings.TrimSpace(volume.Name)
+		if name == "" {
+			errors = append(errors, "Volume is missing 'name'")
+			continue
+		}
+		if _, exists := definitions[name]; exists {
+			errors = append(errors, fmt.Sprintf("Duplicate volume name: '%s'", name))
+		}
+		volume.Name = name
+		volume.Type = strings.ToLower(strings.TrimSpace(volume.Type))
+		if volume.Type == "" && allowEmptyType {
+			volume.Type = "persisted"
+		}
+		if volume.Type != "persisted" && volume.Type != "bind" && volume.Type != "docker" {
+			errors = append(errors, fmt.Sprintf("Volume '%s' has unsupported type '%s'", name, volume.Type))
+		}
+		if volume.Type == "bind" && strings.TrimSpace(volume.Source) == "" {
+			errors = append(errors, fmt.Sprintf("Bind volume '%s' requires 'source'", name))
+		}
+		if (volume.Type == "bind" || volume.Type == "persisted") && volume.Source != "" && !filepath.IsAbs(filepath.Clean(volume.Source)) {
+			errors = append(errors, fmt.Sprintf("Volume '%s' source must be an absolute host path", name))
+		}
+		definitions[name] = volume
+	}
+	return definitions, errors
+}
+
+func validateJobContainers(containers []ContainerSpec) []string {
+	var errors []string
+	seen := make(map[string]bool, len(containers))
+	for _, container := range containers {
 		if container.ID == "" {
 			errors = append(errors, "Container is missing 'id'")
 		} else if seen[container.ID] {
@@ -90,24 +135,71 @@ func ValidateJobSpec(spec *JobSpec) (bool, []string) {
 		if container.Args.Image == "" {
 			errors = append(errors, fmt.Sprintf("Container '%s' is missing required field 'args.image'", container.ID))
 		}
-		for _, exposed := range container.Args.Expose {
-			if exposed.Port <= 0 || exposed.Port > 65535 {
-				errors = append(errors, fmt.Sprintf("Container '%s' has invalid port %d", container.ID, exposed.Port))
+		errors = append(errors, validateExposedPorts(container)...)
+	}
+	return errors
+}
+
+func validateExposedPorts(container ContainerSpec) []string {
+	var errors []string
+	for _, exposed := range container.Args.Expose {
+		if exposed.Port <= 0 || exposed.Port > 65535 {
+			errors = append(errors, fmt.Sprintf("Container '%s' has invalid port %d", container.ID, exposed.Port))
+		}
+		if exposed.Protocol != "" && exposed.Protocol != "tcp" && exposed.Protocol != "udp" && exposed.Protocol != "http" {
+			errors = append(errors, fmt.Sprintf("Container '%s' has invalid protocol '%s'", container.ID, exposed.Protocol))
+		}
+		if exposed.HealthCheck != nil {
+			if exposed.HealthCheck.ExpectedStatus < 0 || exposed.HealthCheck.ExpectedStatus > 599 {
+				errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check status", container.ID))
 			}
-			if exposed.Protocol != "" && exposed.Protocol != "tcp" && exposed.Protocol != "udp" && exposed.Protocol != "http" {
-				errors = append(errors, fmt.Sprintf("Container '%s' has invalid protocol '%s'", container.ID, exposed.Protocol))
-			}
-			if exposed.HealthCheck != nil {
-				if exposed.HealthCheck.ExpectedStatus < 0 || exposed.HealthCheck.ExpectedStatus > 599 {
-					errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check status", container.ID))
-				}
-				if exposed.HealthCheck.TimeoutSeconds < 0 {
-					errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check timeout", container.ID))
-				}
+			if exposed.HealthCheck.TimeoutSeconds < 0 {
+				errors = append(errors, fmt.Sprintf("Container '%s' has invalid health-check timeout", container.ID))
 			}
 		}
 	}
-	return len(errors) == 0, errors
+	return errors
+}
+
+func validateVolumeUsage(containers []ContainerSpec, volumes map[string]VolumeSpec) []string {
+	var errors []string
+	used := make(map[string]bool)
+	for _, container := range containers {
+		mounted := make(map[string]bool, len(container.Args.VolumeMounts))
+		for _, mount := range container.Args.VolumeMounts {
+			if _, exists := volumes[mount.VolumeName]; !exists {
+				errors = append(errors, fmt.Sprintf("Container '%s' references undefined volume '%s'", container.ID, mount.VolumeName))
+			} else {
+				used[mount.VolumeName] = true
+				mounted[mount.VolumeName] = true
+			}
+			if strings.TrimSpace(mount.MountPath) == "" || !strings.HasPrefix(mount.MountPath, "/") {
+				errors = append(errors, fmt.Sprintf("Container '%s' has invalid mount path for volume '%s'", container.ID, mount.VolumeName))
+			}
+		}
+		for _, resource := range container.Args.Resources {
+			if resource.VolumeName == "" {
+				continue
+			}
+			if !mounted[resource.VolumeName] {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource volume '%s' is not mounted", container.ID, resource.VolumeName))
+			}
+			if _, exists := volumes[resource.VolumeName]; !exists {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource references undefined volume '%s'", container.ID, resource.VolumeName))
+			} else {
+				used[resource.VolumeName] = true
+			}
+			if strings.TrimSpace(resource.Path) == "" || filepath.IsAbs(resource.Path) || strings.Contains(resource.Path, "..") {
+				errors = append(errors, fmt.Sprintf("Container '%s' resource has invalid relative path", container.ID))
+			}
+		}
+	}
+	for name := range volumes {
+		if !used[name] {
+			errors = append(errors, fmt.Sprintf("Volume '%s' is declared but not used", name))
+		}
+	}
+	return errors
 }
 
 func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
@@ -129,19 +221,13 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 		errors = append(errors, fmt.Sprintf("Invalid computeType: expected 'CPU' or 'GPU', got '%s'", spec.ComputeType))
 	}
 
-	// 2. Validate Volumes
-	volNames := make(map[string]bool)
-	for i, vol := range spec.Volumes {
-		if vol.Name == "" {
-			errors = append(errors, fmt.Sprintf("Volume at index %d is missing 'name'", i))
-		} else {
-			if volNames[vol.Name] {
-				errors = append(errors, fmt.Sprintf("Duplicate volume name found: '%s'", vol.Name))
-			}
-			volNames[vol.Name] = true
-		}
-		// Note: We don't strictly require vol.Type because it falls back to 'persistent' automatically
+	canonicalVolumes := make([]VolumeSpec, 0, len(spec.Volumes))
+	for _, volume := range spec.Volumes {
+		canonicalVolumes = append(canonicalVolumes, VolumeSpec{Name: volume.Name, Type: volume.Type, Source: volume.HostPath, SizeGB: volume.SizeGB})
 	}
+	validatedVolumes, volumeErrors := validateVolumeDefinitions(canonicalVolumes, true)
+	errors = append(errors, volumeErrors...)
+	usedVolumes := make(map[string]bool)
 
 	// 3. Validate Containers
 	if len(spec.Containers) == 0 {
@@ -161,8 +247,10 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 		for j, m := range c.Args.VolumeMounts {
 			if m.VolumeName == "" {
 				errors = append(errors, fmt.Sprintf("Container '%s' volume mount at index %d is missing 'volume_name'", c.ID, j))
-			} else if !volNames[m.VolumeName] {
+			} else if _, exists := validatedVolumes[m.VolumeName]; !exists {
 				errors = append(errors, fmt.Sprintf("Container '%s' references undefined volume: '%s'", c.ID, m.VolumeName))
+			} else {
+				usedVolumes[m.VolumeName] = true
 			}
 
 			if m.MountPath == "" {
@@ -213,6 +301,11 @@ func ValidateJobSpecStruct(spec *TemplateSpecV2) (bool, []string) {
 			}
 		}
 	}
+	for name := range validatedVolumes {
+		if !usedVolumes[name] {
+			errors = append(errors, fmt.Sprintf("Volume '%s' is declared but not used", name))
+		}
+	}
 
 	return len(errors) == 0, errors
 }
@@ -242,6 +335,7 @@ func ConvertTemplateSpecV2ToJobSpec(v2 *TemplateSpecV2) *JobSpec {
 		job.Volumes = append(job.Volumes, VolumeSpec{
 			Name:   v.Name,
 			Type:   v.Type,
+			Source: v.HostPath,
 			SizeGB: v.SizeGB,
 		})
 	}

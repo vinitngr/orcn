@@ -12,9 +12,63 @@ Implementation files:
 ```text
 resource-loader/
 ├── main.go       # plan parsing and installer dispatch
-├── plan.go       # loader-only plan types
 ├── http.go       # HTTP/HTTPS installer with atomic writes and progress logs
 └── Dockerfile    # separate loader image
+```
+
+## Build and run independently
+
+Build the loader image from the repository root:
+
+```bash
+docker build \
+  -f services/node-agent/resource-loader/Dockerfile \
+  -t vinitngr/orcn-resource-loader:dev .
+```
+
+Create a small loader plan:
+
+```bash
+printf '%s' '{
+  "version": 1,
+  "resources": [
+    {
+      "id": "post-one",
+      "type": "http",
+      "config": {
+        "url": "https://jsonplaceholder.typicode.com/posts/1"
+      },
+      "destination": "/data/post.json"
+    }
+  ]
+}' > /tmp/orcn-resource-plan.json
+```
+
+Run the loader with a Docker volume:
+
+```bash
+docker volume rm orcn-loader-test-volume 2>/dev/null || true
+
+docker run --rm \
+  --name orcn-resource-loader-test \
+  --mount type=volume,source=orcn-loader-test-volume,target=/data \
+  --mount type=bind,source=/tmp/orcn-resource-plan.json,target=/run/resource-plan.json,readonly \
+  vinitngr/orcn-resource-loader:dev
+```
+
+Verify the installed file:
+
+```bash
+docker run --rm \
+  --mount type=volume,source=orcn-loader-test-volume,target=/data \
+  alpine:latest cat /data/post.json
+```
+
+Clean up the standalone test:
+
+```bash
+docker volume rm orcn-loader-test-volume
+rm -f /tmp/orcn-resource-plan.json
 ```
 
 ```mermaid

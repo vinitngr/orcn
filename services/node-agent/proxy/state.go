@@ -68,7 +68,7 @@ func (s *RegistrationState) Spec(id string) (docker.ContainerConfig, bool) {
 	}
 	for _, container := range s.job.Containers {
 		if container.ID == id {
-			return docker.ContainerConfigFromJob(container), true
+			return docker.ContainerConfigFromJobWithVolumes(container, s.job.Volumes), true
 		}
 	}
 	return docker.ContainerConfig{}, false
