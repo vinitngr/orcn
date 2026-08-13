@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
-	"strings"
 
 	"orcn/services/node-agent/resources"
 )
@@ -27,6 +25,13 @@ func main() {
 	if plan.Version == 0 {
 		plan.Version = 1
 	}
+	registry := newInstallerRegistry()
+	if err := registry.Register("http", installHTTP); err != nil {
+		log.Fatalf("register HTTP resource installer: %v", err)
+	}
+	if err := registry.Register("https", installHTTP); err != nil {
+		log.Fatalf("register HTTPS resource installer: %v", err)
+	}
 	for _, resource := range plan.Resources {
 		id := resource.ID
 		if id == "" {
@@ -40,13 +45,7 @@ func main() {
 			}
 			log.Printf("resource progress id=%s downloaded_bytes=%d", id, done)
 		}
-		var err error
-		switch strings.ToLower(resource.Type) {
-		case "http", "https":
-			err = installHTTP(context.Background(), resource, progress)
-		default:
-			err = fmt.Errorf("unsupported resource type %q", resource.Type)
-		}
+		err = registry.Install(context.Background(), resource, progress)
 		if err != nil {
 			log.Printf("resource failed id=%s error=%v", id, err)
 			os.Exit(1)
