@@ -113,15 +113,18 @@ func (e *Engine) ensure(ctx context.Context, spec ContainerConfig, force, start 
 			return "", false, prepareErr
 		}
 		preparedSpec.VolumeMounts = mounts
-		preparedSpec, err = e.resolveVolumes(ctx, preparedSpec, true)
-		if err != nil {
-			e.emit(spec.ID, "error", err.Error())
-			return "", false, err
+		resolvedSpec, resolveErr := e.resolveVolumes(ctx, preparedSpec, true)
+		if resolveErr != nil {
+			e.removeManagedResourceVolumes(ctx, spec.ID, preparedSpec.VolumeMounts)
+			e.emit(spec.ID, "error", resolveErr.Error())
+			return "", false, resolveErr
 		}
+		preparedSpec = resolvedSpec
 	}
 	spec = preparedSpec
 	created, err := e.client.Create(ctx, spec)
 	if err != nil {
+		e.removeManagedResourceVolumes(ctx, spec.ID, spec.VolumeMounts)
 		e.emit(spec.ID, "error", err.Error())
 		return "", false, err
 	}
@@ -129,7 +132,7 @@ func (e *Engine) ensure(ctx context.Context, spec ContainerConfig, force, start 
 		return created.ID, true, nil
 	}
 	if err := e.client.Start(ctx, created.ID); err != nil {
-		_ = e.client.Remove(ctx, created.ID, true)
+		_ = e.removeCreated(ctx, created.ID)
 		e.emit(spec.ID, "error", err.Error())
 		return "", false, err
 	}
@@ -266,6 +269,26 @@ func managedResourceVolumes(container containertypes.InspectResponse) []string {
 	return volumes
 }
 
+func (e *Engine) removeManagedResourceVolumes(ctx context.Context, containerID string, mounts []core.VolumeMount) {
+	seen := make(map[string]struct{})
+	for _, mount := range mounts {
+		name := mount.Source
+		if name == "" {
+			name = mount.VolumeName
+		}
+		if !strings.HasPrefix(name, "orcn-resource-") {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		if err := e.client.RemoveVolume(ctx, name); err != nil {
+			e.emit(containerID, "warning", fmt.Sprintf("cleanup volume %q: %v", name, err))
+		}
+	}
+}
+
 func isRunning(container containertypes.InspectResponse) bool {
 	return container.State != nil && container.State.Running
 }
@@ -277,6 +300,23 @@ func (e *Engine) remove(ctx context.Context, id string) error {
 		return err
 	}
 	e.emit(id, "removed", "container removed")
+	return nil
+}
+
+func (e *Engine) removeCreated(ctx context.Context, id string) error {
+	container, err := e.client.Inspect(ctx, id)
+	removeErr := e.client.Remove(ctx, id, true)
+	if removeErr != nil {
+		return removeErr
+	}
+	if err != nil {
+		return nil
+	}
+	for _, volume := range managedResourceVolumes(container) {
+		if err := e.client.RemoveVolume(ctx, volume); err != nil {
+			e.emit(id, "warning", fmt.Sprintf("cleanup volume %q: %v", volume, err))
+		}
+	}
 	return nil
 }
 

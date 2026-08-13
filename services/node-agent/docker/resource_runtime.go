@@ -42,3 +42,7 @@ func (r resourceRuntime) Logs(ctx context.Context, id string, live bool, tail in
 func (r resourceRuntime) Remove(ctx context.Context, id string, force bool) error {
 	return r.client.Remove(ctx, id, force)
 }
+
+func (r resourceRuntime) RemoveVolume(ctx context.Context, name string) error {
+	return r.client.RemoveVolume(ctx, name)
+}

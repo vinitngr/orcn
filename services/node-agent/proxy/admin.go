@@ -69,24 +69,47 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	prepared := make([]string, 0, len(job.Containers))
+	type preparedContainer struct {
+		id         string
+		created    bool
+		wasRunning bool
+	}
+	prepared := make([]preparedContainer, 0, len(job.Containers))
+	cleanup := func() {
+		for _, container := range prepared {
+			if container.created || !container.wasRunning {
+				if inspected, err := s.engine.Inspect(context.Background(), container.id); err == nil {
+					if inspected.State != nil && inspected.State.Running {
+						_ = s.engine.Stop(context.Background(), container.id)
+					}
+				}
+				_ = s.engine.Remove(context.Background(), container.id)
+			}
+			s.routes.Delete(container.id)
+		}
+	}
 	for _, container := range job.Containers {
 		spec := docker.ContainerConfigFromJobWithVolumes(container, job.Volumes)
-		id, _, err := s.engine.EnsureStopped(r.Context(), spec, false)
+		existing, inspectErr := s.engine.Inspect(r.Context(), spec.ID)
+		wasRunning := inspectErr == nil && existing.State != nil && existing.State.Running
+		id, created, err := s.engine.EnsureStopped(r.Context(), spec, false)
 		if err != nil {
+			cleanup()
 			writeError(w, http.StatusBadGateway, err.Error())
 			return
 		}
-		prepared = append(prepared, id)
+		prepared = append(prepared, preparedContainer{id: id, created: created, wasRunning: wasRunning})
 		s.routes.Set(spec)
 	}
-	for _, id := range prepared {
-		if err := s.engine.Start(r.Context(), id); err != nil {
+	for index := range prepared {
+		if err := s.engine.Start(r.Context(), prepared[index].id); err != nil {
+			cleanup()
 			writeError(w, http.StatusBadGateway, err.Error())
 			return
 		}
 	}
 	if err := s.state.Register(job); err != nil {
+		cleanup()
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}

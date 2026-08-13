@@ -23,6 +23,7 @@ type Runtime interface {
 	Wait(context.Context, string) (int64, error)
 	Logs(context.Context, string, bool, int, io.Writer) error
 	Remove(context.Context, string, bool) error
+	RemoveVolume(context.Context, string) error
 }
 
 type EventFunc func(eventType, message, eventID string, metadata map[string]any)
@@ -67,6 +68,7 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 	if err != nil {
 		return nil, err
 	}
+	initialMounts := len(mounts)
 	for index, resource := range specs {
 		target, targetErr := destination(resource, mounts)
 		if targetErr != nil {
@@ -81,6 +83,10 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 			mounts = append(mounts, core.VolumeMount{VolumeName: fmt.Sprintf("orcn-resource-%s-%d", containerID, index), MountPath: directory})
 		}
 	}
+	resourceVolumes := make([]string, 0, len(mounts)-initialMounts)
+	for _, mount := range mounts[initialMounts:] {
+		resourceVolumes = append(resourceVolumes, mount.VolumeName)
+	}
 	loaderID := "orcn-loader-" + containerID
 	if emit != nil {
 		emit("resource_loader_pulling", "pulling resource loader image", "", nil)
@@ -88,16 +94,24 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 	if err := runtime.Pull(ctx, m.LoaderImage); err != nil {
 		return nil, fmt.Errorf("pull resource loader image: %w", err)
 	}
-	created, err := runtime.CreateLoader(ctx, loaderID, m.LoaderImage, mounts)
+	var created string
+	cleaned := false
+	cleanup := func() {
+		if !cleaned {
+			if created != "" {
+				_ = runtime.Remove(context.Background(), created, true)
+			}
+			for _, volume := range resourceVolumes {
+				_ = runtime.RemoveVolume(context.Background(), volume)
+			}
+			cleaned = true
+		}
+	}
+	defer cleanup()
+	created, err = runtime.CreateLoader(ctx, loaderID, m.LoaderImage, mounts)
 	if err != nil {
 		return nil, fmt.Errorf("create resource loader: %w", err)
 	}
-	cleanup := func() { _ = runtime.Remove(context.Background(), created, true) }
-	defer func() {
-		if err != nil {
-			cleanup()
-		}
-	}()
 	data, err := json.Marshal(plan)
 	if err != nil {
 		return nil, fmt.Errorf("encode resource plan: %w", err)
