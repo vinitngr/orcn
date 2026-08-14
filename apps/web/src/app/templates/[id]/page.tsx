@@ -145,7 +145,7 @@ export default function EditTemplatePage() {
       containers: (data.containers || []).map((c: any) => {
         const entrypoint = parseCommand((c.entrypoint || "").trim());
         
-        let cmd = [];
+        let cmd : string[] = [];
         const rawCmd = (c.cmd || "").trim();
         if (rawCmd) {
           if (entrypoint.includes("-c")) {

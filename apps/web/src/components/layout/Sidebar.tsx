@@ -78,7 +78,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
           <Boxes size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Create Workload</span>}
         </Link>
-        <Link href="/models/create" style={navItemStyle(pathname === '/models/create')}>
+        <Link href="/models/deploy" style={navItemStyle(pathname === '/models/deploy')}>
           <Zap size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Deploy AI Model</span>}
         </Link>

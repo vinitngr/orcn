@@ -106,7 +106,7 @@ export default function CreateDeploymentPage() {
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     name: "",
-    modality: "text-to-text",
+    modality: "text-generation",
     runtime: "vllm",
     timeout_minutes: 60,
     replicas: 1,
@@ -136,7 +136,7 @@ export default function CreateDeploymentPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/runtimes/schema?runtime=${data.runtime}`)
+    fetch(`/api/v1/runtimes/schema?runtime=${data.runtime}&task=${encodeURIComponent(data.modality)}`)
       .then(res => res.json())
       .then(json => {
         if (json.schema) {
@@ -149,12 +149,12 @@ export default function CreateDeploymentPage() {
         }
       })
       .catch(console.error);
-  }, [data.runtime]);
+  }, [data.runtime, data.modality]);
 
   useEffect(() => {
     if (data.model) {
       setModelDetails(null);
-      fetch(`/api/v1/models/details?runtime=${data.runtime}&model=${encodeURIComponent(data.model)}`)
+      fetch(`/api/v1/models/details?runtime=${data.runtime}&task=${encodeURIComponent(data.modality)}&model=${encodeURIComponent(data.model)}`)
         .then(res => res.json())
         .then(json => {
           if (json.details) {
@@ -163,12 +163,12 @@ export default function CreateDeploymentPage() {
         })
         .catch(console.error);
     }
-  }, [data.model, data.runtime]);
+  }, [data.model, data.runtime, data.modality]);
 
   // Apply detector output only after the schema is loaded. This avoids the
   // schema request overwriting the model detail request with its defaults.
   useEffect(() => {
-    if (!modelDetails || advancedSchema.length === 0) return;
+    if (data.modality !== 'text-generation' || !modelDetails || advancedSchema.length === 0) return;
 
     const metadata = modelDetails.metadata || {};
     const detected = {
@@ -184,7 +184,7 @@ export default function CreateDeploymentPage() {
     }
 
     setData(d => ({ ...d, advanced_config: nextConfig }));
-  }, [modelDetails, advancedSchema]);
+  }, [data.modality, modelDetails, advancedSchema]);
 
   useEffect(() => {
     if (step === 3) {
@@ -211,7 +211,7 @@ export default function CreateDeploymentPage() {
     if (!searchQuery) return;
     setIsSearching(true);
     try {
-      const res = await fetch(`/api/v1/models/search?runtime=${data.runtime}&q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(`/api/v1/models/search?runtime=${data.runtime}&task=${encodeURIComponent(data.modality)}&q=${encodeURIComponent(searchQuery)}`);
       const json = await res.json();
       if (json.results) {
         const mapped = json.results.map((r: any) => ({
@@ -242,6 +242,7 @@ export default function CreateDeploymentPage() {
           instance_type_id: data.market.id,
           instance_name: data.market.name,
           runtime_id: data.runtime,
+          task: data.modality,
           model_id: data.model,
           replicas: data.replicas,
           hf_token: data.hf_token,
@@ -355,9 +356,10 @@ export default function CreateDeploymentPage() {
                   <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Modality</label>
                   <Select 
                     value={data.modality} 
-                    onChange={(val: string) => setData({...data, modality: val, runtime: val === 'text-to-text' ? 'vllm' : 'diffusers'})} 
+                    onChange={(val: string) => { setSearchResults([]); setData({...data, modality: val, runtime: val === 'image-generation' ? 'diffusers' : 'vllm', model: '', advanced_config: {}}); }}
                     options={[
-                      { value: "text-to-text", label: "Text-to-Text (LLMs)" },
+                      { value: "text-generation", label: "Text Generation (LLMs)" },
+                      { value: "embedding", label: "Text Embeddings" },
                       { value: "image-generation", label: "Image Generation" }
                     ]}
                   />
@@ -369,10 +371,10 @@ export default function CreateDeploymentPage() {
                     value={data.runtime} 
                     onChange={(val: string) => setData({...data, runtime: val})} 
                     options={
-                      data.modality === 'text-to-text' 
+                      data.modality === 'text-generation' || data.modality === 'embedding'
                         ? [
                             { value: "vllm", label: "vLLM Inference Server" },
-                            { value: "ollama", label: "Ollama" }
+                            ...(data.modality === 'text-generation' ? [{ value: "ollama", label: "Ollama" }] : [])
                           ]
                         : [
                             { value: "diffusers", label: "Diffusers Pipeline" },
@@ -531,6 +533,21 @@ export default function CreateDeploymentPage() {
                         )}
                       </div>
 
+                      {modelDetails.metadata && Object.keys(modelDetails.metadata).some((key: string) => key !== 'tool_parser' && key !== 'reasoning_parser') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
+                          {Object.entries(modelDetails.metadata)
+                            .filter(([key]) => key !== 'tool_parser' && key !== 'reasoning_parser')
+                            .map(([key, value]) => (
+                              <div key={key} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', rowGap: '0.5rem', alignItems: 'center' }}>
+                                <span style={{ color: 'var(--text-muted)', width: '180px', flexShrink: 0, whiteSpace: 'nowrap' }}>{key}:</span>
+                                <span style={{ fontWeight: 500 }}>
+                                  {Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                         {modelDetails.pipeline_tag && (
                           <span style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--text-main)', border: '1px solid var(--text-main)', fontSize: '0.75rem', color: 'var(--bg-color)', fontWeight: 500 }}>
@@ -542,6 +559,11 @@ export default function CreateDeploymentPage() {
                             {modelDetails.library_name}
                           </span>
                         )}
+                        {modelDetails.tags && modelDetails.tags.filter((t: string) => t !== modelDetails.pipeline_tag && t !== modelDetails.library_name).slice(0, 10).map((t: string) => (
+                          <span key={t} style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-color)', border: '1px dashed var(--border)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            {t}
+                          </span>
+                        ))}
                         {modelDetails.private && (
                           <span style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-main)' }}>
                             Private
@@ -552,11 +574,6 @@ export default function CreateDeploymentPage() {
                             Disabled
                           </span>
                         )}
-                        {modelDetails.tags && modelDetails.tags.filter((t: string) => t !== modelDetails.pipeline_tag && t !== modelDetails.library_name).slice(0, 10).map((t: string) => (
-                          <span key={t} style={{ padding: '0.25rem 0.5rem', backgroundColor: 'var(--bg-color)', border: '1px dashed var(--border)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {t}
-                          </span>
-                        ))}
                       </div>
 
                       {modelDetails.gated && (

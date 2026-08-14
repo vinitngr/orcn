@@ -10,7 +10,7 @@ type Deployment struct {
 	ID               string `gorm:"primaryKey"`
 	Name             string `gorm:"not null;uniqueIndex"`
 	TemplateID       string `gorm:"index"`
-	Status           string `gorm:"default:'DRAFT'"`
+	Status            string `gorm:"default:'DRAFT'"`
 
 	ProviderID       string `gorm:"not null"`
 
@@ -18,6 +18,7 @@ type Deployment struct {
 	InstanceTypeID   string
 
 	RuntimeID        string
+	Task             string
 	ModelID          string
 	WorkloadType     string `gorm:"not null;default:'model_inference'"`
 	Replicas         int    `gorm:"default:1"`

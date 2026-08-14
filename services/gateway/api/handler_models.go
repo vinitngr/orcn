@@ -9,6 +9,7 @@ import (
 func (s *Server) handleSearchModels(w http.ResponseWriter, r *http.Request) {
 	runtimeID := r.URL.Query().Get("runtime")
 	query := r.URL.Query().Get("q")
+	task := core.NormalizeModelTask(core.ModelTask(r.URL.Query().Get("task")))
 
 	if runtimeID == "" || query == "" {
 		respondError(w, http.StatusBadRequest, "Missing runtime or q parameter")
@@ -21,7 +22,7 @@ func (s *Server) handleSearchModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := runtime.SearchModels(query)
+	results, err := runtime.SearchModels(query, task)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -36,6 +37,7 @@ func (s *Server) handleSearchModels(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetModelDetails(w http.ResponseWriter, r *http.Request) {
 	runtimeID := r.URL.Query().Get("runtime")
 	modelID := r.URL.Query().Get("model")
+	task := core.NormalizeModelTask(core.ModelTask(r.URL.Query().Get("task")))
 
 	if runtimeID == "" || modelID == "" {
 		respondError(w, http.StatusBadRequest, "Missing runtime or model parameter")
@@ -48,7 +50,7 @@ func (s *Server) handleGetModelDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	details, err := runtime.GetModelDetails(modelID)
+	details, err := runtime.GetModelDetails(modelID, task)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
 		return

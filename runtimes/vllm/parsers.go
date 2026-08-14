@@ -1,5 +1,11 @@
 package vllm
 
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+)
+
 import "regexp"
 
 type ParserProfile struct {
@@ -111,4 +117,70 @@ func DetectParser(chatTemplate string, profiles []ParserProfile) string {
 		}
 	}
 	return ""
+}
+
+func injectRecommendedParsers(modelID string, data map[string]interface{}) {
+	if template := chatTemplateFrom(data); template != "" {
+		setRecommendedParsers(data, template)
+		return
+	}
+
+	tokenizerURL := fmt.Sprintf("https://huggingface.co/%s/raw/main/tokenizer_config.json", modelID)
+	resp, err := http.Get(tokenizerURL)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		if resp != nil {
+			resp.Body.Close()
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	var tokenizerData map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenizerData); err == nil {
+		if template := chatTemplateFrom(tokenizerData); template != "" {
+			setRecommendedParsers(data, template)
+		}
+	}
+}
+
+func chatTemplateFrom(data map[string]interface{}) string {
+	if template, ok := data["chat_template"].(string); ok {
+		return template
+	}
+	if template, ok := data["chat_template_jinja"].(string); ok {
+		return template
+	}
+	if templates, ok := data["chat_template"].([]interface{}); ok {
+		for _, item := range templates {
+			if object, ok := item.(map[string]interface{}); ok {
+				if template, ok := object["template"].(string); ok {
+					return template
+				}
+			}
+		}
+	}
+	if config, ok := data["config"].(map[string]interface{}); ok {
+		if template := chatTemplateFrom(config); template != "" {
+			return template
+		}
+		if tokenizer, ok := config["tokenizer_config"].(map[string]interface{}); ok {
+			return chatTemplateFrom(tokenizer)
+		}
+	}
+	return ""
+}
+
+func setRecommendedParsers(data map[string]interface{}, template string) {
+	toolParser := DetectParser(template, ToolParsers)
+	reasoningParser := DetectParser(template, ReasoningParsers)
+	data["chat_template"] = template
+	data["recommended_tool_parser"] = toolParser
+	data["recommended_reasoning_parser"] = reasoningParser
+	metadata, _ := data["metadata"].(map[string]interface{})
+	if metadata == nil {
+		metadata = map[string]interface{}{}
+	}
+	metadata["tool_parser"] = toolParser
+	metadata["reasoning_parser"] = reasoningParser
+	data["metadata"] = metadata
 }

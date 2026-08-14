@@ -84,6 +84,21 @@ type ModelInfo struct {
 	Downloads    int      `json:"Downloads"`
 	PipelineTag  string   `json:"PipelineTag"`
 	Tags         []string `json:"Tags"`
+	Task         string   `json:"Task,omitempty"`
+}
+
+type ModelTask string
+
+const (
+	TaskTextGeneration ModelTask = "text-generation"
+	TaskEmbedding      ModelTask = "embedding"
+)
+
+func NormalizeModelTask(task ModelTask) ModelTask {
+	if task == "" || task == "text-to-text" {
+		return TaskTextGeneration
+	}
+	return task
 }
 
 type ConfigOption struct {
@@ -98,11 +113,11 @@ type ConfigOption struct {
 }
 
 type Runtime interface {
-	BuildJobSpec(modelID string, advancedConfig map[string]string) (*JobSpec, error)
+	BuildJobSpec(modelID string, task ModelTask, advancedConfig map[string]string) (*JobSpec, error)
 	GetWorkloadType() string
-	SearchModels(query string) ([]ModelInfo, error)
-	GetModelDetails(modelID string) (interface{}, error)
-	GetAdvancedConfigSchema() []ConfigOption
+	SearchModels(query string, task ModelTask) ([]ModelInfo, error)
+	GetModelDetails(modelID string, task ModelTask) (interface{}, error)
+	GetAdvancedConfigSchema(task ModelTask) []ConfigOption
 }
 
 type NodeInfo struct {

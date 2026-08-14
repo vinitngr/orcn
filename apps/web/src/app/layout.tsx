@@ -3,7 +3,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 
 export const metadata: Metadata = {
-  title: "Nosana | Deployments",
+  title: "ORCN | Deployments",
   description: "Configure and manage multiple job instances",
 };
 

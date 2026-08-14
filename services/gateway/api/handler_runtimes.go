@@ -8,6 +8,7 @@ import (
 
 func (s *Server) handleGetRuntimeSchema(w http.ResponseWriter, r *http.Request) {
 	runtimeID := r.URL.Query().Get("runtime")
+	task := core.NormalizeModelTask(core.ModelTask(r.URL.Query().Get("task")))
 	if runtimeID == "" {
 		respondError(w, http.StatusBadRequest, "Missing runtime parameter")
 		return
@@ -19,9 +20,10 @@ func (s *Server) handleGetRuntimeSchema(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	schema := runtime.GetAdvancedConfigSchema()
+	schema := runtime.GetAdvancedConfigSchema(task)
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"runtime": runtimeID,
+		"task":    task,
 		"schema":  schema,
 	})
 }

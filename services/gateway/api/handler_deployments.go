@@ -19,6 +19,7 @@ type createDeploymentRequest struct {
 	InstanceTypeID string            `json:"instance_type_id"`
 	InstanceName   string            `json:"instance_name"`
 	RuntimeID      string            `json:"runtime_id"`
+	Task           core.ModelTask    `json:"task,omitempty"`
 	ModelID        string            `json:"model_id"`
 	Replicas       int               `json:"replicas"`
 	HFToken        string            `json:"hf_token,omitempty"`
@@ -67,7 +68,8 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	spec, err := runtime.BuildJobSpec(req.ModelID, req.AdvancedConfig)
+	req.Task = core.NormalizeModelTask(req.Task)
+	spec, err := runtime.BuildJobSpec(req.ModelID, req.Task, req.AdvancedConfig)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to build job spec: "+err.Error())
 		return
@@ -100,6 +102,7 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		InstanceName:   req.InstanceName,
 		InstanceTypeID: req.InstanceTypeID,
 		RuntimeID:      req.RuntimeID,
+		Task:           string(req.Task),
 		ModelID:        req.ModelID,
 		Replicas:       req.Replicas,
 		JobSpecJSON:    specJSON,
@@ -367,7 +370,7 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 		respondError(w, http.StatusInternalServerError, "Failed to save deployment to db: "+err.Error())
 		return
 	}
-	
+
 	// 3.5 Generate Database Endpoints for UI to query
 	var ports []int
 	for _, c := range internalSpec.Containers {
@@ -400,7 +403,7 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		createdNodeIDs = append(createdNodeIDs, providerJobID)
-		
+
 		s.generateNodeEndpoints(dbDeployment.ID, providerJobID, ports)
 	}
 

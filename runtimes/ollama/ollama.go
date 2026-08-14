@@ -58,7 +58,10 @@ func (v *OllamaRuntime) GetWorkloadType() string {
 	return "model_inference"
 }
 
-func (v *OllamaRuntime) BuildJobSpec(modelID string, advancedConfig map[string]string) (*core.JobSpec, error) {
+func (v *OllamaRuntime) BuildJobSpec(modelID string, task core.ModelTask, advancedConfig map[string]string) (*core.JobSpec, error) {
+	if task = core.NormalizeModelTask(task); task != core.TaskTextGeneration {
+		return nil, errors.New("ollama supports only text-generation models")
+	}
 	numParallel := "4"
 	if val, ok := advancedConfig["num_parallel"]; ok && val != "" {
 		numParallel = val
@@ -104,7 +107,10 @@ func (v *OllamaRuntime) BuildJobSpec(modelID string, advancedConfig map[string]s
 	}, nil
 }
 
-func (v *OllamaRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
+func (v *OllamaRuntime) SearchModels(query string, task core.ModelTask) ([]core.ModelInfo, error) {
+	if task = core.NormalizeModelTask(task); task != core.TaskTextGeneration {
+		return nil, errors.New("ollama supports only text-generation models")
+	}
 	var results []core.ModelInfo
 	q := strings.ToLower(query)
 
@@ -115,7 +121,7 @@ func (v *OllamaRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 			if m.Quantization != nil {
 				tags = append(tags, *m.Quantization)
 			}
-			
+
 			results = append(results, core.ModelInfo{
 				ID:           m.Name,
 				Name:         m.Name,
@@ -123,6 +129,7 @@ func (v *OllamaRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 				Architecture: m.Family,
 				PipelineTag:  "text-generation",
 				Tags:         tags,
+				Task:         string(core.TaskTextGeneration),
 			})
 			count++
 			if count > 50 {
@@ -134,11 +141,11 @@ func (v *OllamaRuntime) SearchModels(query string) ([]core.ModelInfo, error) {
 	return results, nil
 }
 
-func (v *OllamaRuntime) GetModelDetails(modelID string) (interface{}, error) {
+func (v *OllamaRuntime) GetModelDetails(modelID string, _ core.ModelTask) (interface{}, error) {
 	if details, ok := v.modelMap[modelID]; ok {
 		return details, nil
 	}
-	
+
 	if modelID == "" || modelID == "all" {
 		return v.families, nil
 	}
@@ -146,7 +153,7 @@ func (v *OllamaRuntime) GetModelDetails(modelID string) (interface{}, error) {
 	return nil, errors.New("model not found in ollama registry")
 }
 
-func (v *OllamaRuntime) GetAdvancedConfigSchema() []core.ConfigOption {
+func (v *OllamaRuntime) GetAdvancedConfigSchema(task core.ModelTask) []core.ConfigOption {
 	return []core.ConfigOption{
 		{
 			Key:         "num_parallel",

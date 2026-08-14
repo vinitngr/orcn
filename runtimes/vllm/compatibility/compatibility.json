@@ -1,0 +1,614 @@
+{
+  "version": 1,
+  "architectures": {
+    "AfmoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "ApertusForCausalLM": {
+      "text_generation": "native"
+    },
+    "ArceeForCausalLM": {
+      "text_generation": "native"
+    },
+    "ArcticForCausalLM": {
+      "text_generation": "native"
+    },
+    "AXK1ForCausalLM": {
+      "text_generation": "native"
+    },
+    "BailingMoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "BailingMoeV2_5ForCausalLM": {
+      "text_generation": "native"
+    },
+    "BailingMoeV2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "BertEmbeddingModel": {
+      "embedding": "native"
+    },
+    "BertForMaskedLM": {
+      "embedding": "native"
+    },
+    "BertForSequenceClassification": {
+      "classification": "native"
+    },
+    "BertForTokenClassification": {
+      "token_classification": "native"
+    },
+    "BertModel": {
+      "embedding": "native"
+    },
+    "BertSpladeSparseEmbeddingModel": {
+      "embedding": "native"
+    },
+    "BgeM3EmbeddingModel": {
+      "embedding": "native"
+    },
+    "BloomForCausalLM": {
+      "text_generation": "native"
+    },
+    "ChatGLMForConditionalGeneration": {
+      "text_generation": "native"
+    },
+    "ChatGLMModel": {
+      "text_generation": "native"
+    },
+    "CLIPEmbeddingModel": {
+      "embedding": "native"
+    },
+    "CLIPModel": {
+      "embedding": "native"
+    },
+    "Cohere2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Cohere2MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "CohereForCausalLM": {
+      "text_generation": "native"
+    },
+    "ColBERTJinaRobertaModel": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColBERTLfm2Model": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColBERTModernBertModel": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColModernVBertForRetrieval": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColPaliForRetrieval": {
+      "embedding": "native",
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColPaliModel": {
+      "embedding": "native",
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColQwen3": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "ColQwen3_5": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "CwmForCausalLM": {
+      "text_generation": "native"
+    },
+    "DbrxForCausalLM": {
+      "text_generation": "native"
+    },
+    "DeciLMForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "DeepseekForCausalLM": {
+      "text_generation": "native"
+    },
+    "DeepseekV2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "DeepseekV32ForCausalLM": {
+      "text_generation": "native"
+    },
+    "DeepseekV3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "DeepseekV4ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Ernie4_5_MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "Ernie4_5ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Exaone4ForCausalLM": {
+      "text_generation": "native"
+    },
+    "ExaoneForCausalLM": {
+      "text_generation": "native"
+    },
+    "ExaoneMoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "Fairseq2LlamaForCausalLM": {
+      "text_generation": "native"
+    },
+    "FalconForCausalLM": {
+      "text_generation": "native"
+    },
+    "FalconH1ForCausalLM": {
+      "text_generation": "native"
+    },
+    "FalconMambaForCausalLM": {
+      "text_generation": "native"
+    },
+    "FlexOlmoForCausalLM": {
+      "text_generation": "native"
+    },
+    "Gemma2ForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "Gemma2Model": {
+      "embedding": "native"
+    },
+    "Gemma3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Gemma3Model": {
+      "embedding": "native"
+    },
+    "Gemma3nForCausalLM": {
+      "text_generation": "native"
+    },
+    "Gemma3TextModel": {
+      "embedding": "native"
+    },
+    "Gemma4ForCausalLM": {
+      "text_generation": "native"
+    },
+    "GemmaForCausalLM": {
+      "text_generation": "native"
+    },
+    "Glm4ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Glm4MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "Glm4MoeLiteForCausalLM": {
+      "text_generation": "native"
+    },
+    "GlmForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "GlmMoeDsaForCausalLM": {
+      "text_generation": "native"
+    },
+    "GPT2ForSequenceClassification": {
+      "classification": "native"
+    },
+    "GPT2LMHeadModel": {
+      "text_generation": "native"
+    },
+    "GPTJForCausalLM": {
+      "text_generation": "native"
+    },
+    "GPTNeoXForCausalLM": {
+      "text_generation": "native"
+    },
+    "GptOssForCausalLM": {
+      "text_generation": "native"
+    },
+    "GraniteForCausalLM": {
+      "text_generation": "native"
+    },
+    "GraniteMoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "GraniteMoeHybridForCausalLM": {
+      "text_generation": "native"
+    },
+    "GraniteMoeSharedForCausalLM": {
+      "text_generation": "native"
+    },
+    "GritLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "GteModel": {
+      "embedding": "native"
+    },
+    "GteNewForSequenceClassification": {
+      "classification": "native"
+    },
+    "GteNewModel": {
+      "embedding": "native"
+    },
+    "HF_ColBERT": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "HrmTextForCausalLM": {
+      "text_generation": "native"
+    },
+    "HunYuanDenseV1ForCausalLM": {
+      "text_generation": "native"
+    },
+    "HunYuanMoEV1ForCausalLM": {
+      "text_generation": "native"
+    },
+    "HyperCLOVAXForCausalLM": {
+      "text_generation": "native"
+    },
+    "HYV3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "InklingForCausalLM": {
+      "text_generation": "native"
+    },
+    "InklingForConditionalGeneration": {
+      "text_generation": "native"
+    },
+    "InternLM2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "InternLM2ForRewardModel": {
+      "classification": "native"
+    },
+    "InternLM3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "IQuestCoderForCausalLM": {
+      "text_generation": "native"
+    },
+    "IQuestLoopCoderForCausalLM": {
+      "text_generation": "native"
+    },
+    "Jais2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "JambaForCausalLM": {
+      "text_generation": "native"
+    },
+    "JambaForSequenceClassification": {
+      "classification": "native"
+    },
+    "JinaEmbeddingsV5Model": {
+      "embedding": "native"
+    },
+    "JinaForRanking": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "JinaVLForRanking": {
+      "classification": "native"
+    },
+    "KimiLinearForCausalLM": {
+      "text_generation": "native"
+    },
+    "LagunaForCausalLM": {
+      "text_generation": "native"
+    },
+    "Lfm2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Lfm2MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "Llama4ForCausalLM": {
+      "text_generation": "native"
+    },
+    "LlamaBidirectionalForSequenceClassification": {
+      "classification": "native"
+    },
+    "LlamaBidirectionalModel": {
+      "embedding": "native"
+    },
+    "LlamaForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "LLaMAForCausalLM": {
+      "text_generation": "native"
+    },
+    "LlamaModel": {
+      "embedding": "native"
+    },
+    "LlamaNemotronVLForEmbedding": {
+      "embedding": "native"
+    },
+    "LlamaNemotronVLForSequenceClassification": {
+      "classification": "native"
+    },
+    "LlamaNemotronVLModel": {
+      "embedding": "native"
+    },
+    "LlavaNextForConditionalGeneration": {
+      "embedding": "native"
+    },
+    "LongcatFlashForCausalLM": {
+      "text_generation": "native"
+    },
+    "LongcatFlashNgramForCausalLM": {
+      "text_generation": "native"
+    },
+    "Mamba2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MambaForCausalLM": {
+      "text_generation": "native"
+    },
+    "MellumForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiMoForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiMoV2FlashForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiMoV2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiniCPM3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiniCPMForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiniMaxM2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MiniMaxM3SparseForCausalLM": {
+      "text_generation": "native"
+    },
+    "Ministral3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MistralForCausalLM": {
+      "text_generation": "native"
+    },
+    "MistralLarge3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "MistralModel": {
+      "embedding": "native"
+    },
+    "MixtralForCausalLM": {
+      "text_generation": "native"
+    },
+    "ModernBertForSequenceClassification": {
+      "classification": "native"
+    },
+    "ModernBertForTokenClassification": {
+      "token_classification": "native"
+    },
+    "ModernBertModel": {
+      "embedding": "native"
+    },
+    "MptForCausalLM": {
+      "text_generation": "native"
+    },
+    "MPTForCausalLM": {
+      "text_generation": "native"
+    },
+    "NemotronForCausalLM": {
+      "text_generation": "native"
+    },
+    "NemotronHForCausalLM": {
+      "text_generation": "native"
+    },
+    "NemotronHPuzzleForCausalLM": {
+      "text_generation": "native"
+    },
+    "NomicBertModel": {
+      "embedding": "native"
+    },
+    "Olmo3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "OlmoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "OlmoHybridForCausalLM": {
+      "text_generation": "native"
+    },
+    "OpenAIPrivacyFilterForTokenClassification": {
+      "token_classification": "native"
+    },
+    "OpsColQwen3Model": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "OPTForCausalLM": {
+      "text_generation": "native"
+    },
+    "OrionForCausalLM": {
+      "text_generation": "native"
+    },
+    "PanguEmbeddedForCausalLM": {
+      "text_generation": "native"
+    },
+    "PanguProMoEV2ForCausalLM": {
+      "text_generation": "native"
+    },
+    "PanguUltraMoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "Param2MoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "Phi3ForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "Phi3VForCausalLM": {
+      "embedding": "native"
+    },
+    "PhiForCausalLM": {
+      "text_generation": "native"
+    },
+    "PhiMoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "Plamo3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "PrithviGeoSpatialMAE": {
+      "embedding": "native"
+    },
+    "Qwen2ForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "Qwen2ForProcessRewardModel": {
+      "classification": "native"
+    },
+    "Qwen2ForRewardModel": {
+      "classification": "native"
+    },
+    "Qwen2Model": {
+      "embedding": "native"
+    },
+    "Qwen2MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "Qwen2VLForConditionalGeneration": {
+      "embedding": "native"
+    },
+    "Qwen3ASRForcedAlignerForTokenClassification": {
+      "token_classification": "native"
+    },
+    "Qwen3ForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "Qwen3MoeForCausalLM": {
+      "text_generation": "native"
+    },
+    "Qwen3NextForCausalLM": {
+      "text_generation": "native"
+    },
+    "Qwen3VLNemotronEmbedModel": {
+      "token_embed": "native",
+      "score": "native",
+      "rerank": "native"
+    },
+    "RobertaEmbeddingModel": {
+      "embedding": "native"
+    },
+    "RobertaForMaskedLM": {
+      "embedding": "native"
+    },
+    "RobertaForSequenceClassification": {
+      "classification": "native"
+    },
+    "RobertaForTokenClassification": {
+      "token_classification": "native"
+    },
+    "RobertaModel": {
+      "embedding": "native"
+    },
+    "RWForCausalLM": {
+      "text_generation": "native"
+    },
+    "SarvamMLAForCausalLM": {
+      "text_generation": "native"
+    },
+    "SarvamMoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "SeedOssForCausalLM": {
+      "text_generation": "native"
+    },
+    "SiglipEmbeddingModel": {
+      "embedding": "native"
+    },
+    "SiglipModel": {
+      "embedding": "native"
+    },
+    "SnowflakeGteNewModel": {
+      "embedding": "native"
+    },
+    "SolarForCausalLM": {
+      "text_generation": "native"
+    },
+    "StableLMEpochForCausalLM": {
+      "text_generation": "native"
+    },
+    "StableLmForCausalLM": {
+      "text_generation": "native"
+    },
+    "Step1ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Step3p5ForCausalLM": {
+      "text_generation": "native"
+    },
+    "Step3TextForCausalLM": {
+      "text_generation": "native"
+    },
+    "TeleChat2ForCausalLM": {
+      "text_generation": "native",
+      "embedding": "converted"
+    },
+    "TeleChat3ForCausalLM": {
+      "text_generation": "native"
+    },
+    "TeleFLMForCausalLM": {
+      "text_generation": "native"
+    },
+    "Terratorch": {
+      "embedding": "native"
+    },
+    "TransformersForCausalLM": {
+      "text_generation": "native"
+    },
+    "TransformersMoEForCausalLM": {
+      "text_generation": "native"
+    },
+    "VoyageQwen3BidirectionalEmbedModel": {
+      "embedding": "native"
+    },
+    "XLMRobertaForSequenceClassification": {
+      "classification": "native"
+    },
+    "XLMRobertaForTokenClassification": {
+      "token_classification": "native"
+    },
+    "XLMRobertaModel": {
+      "embedding": "native"
+    },
+    "Zamba2ForCausalLM": {
+      "text_generation": "native"
+    }
+  }
+}
+
