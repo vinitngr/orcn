@@ -10,6 +10,7 @@ import { ContainersConfig } from "@/components/templates/ContainersConfig";
 import { DiDocker } from "react-icons/di";
 import { FaDocker } from "react-icons/fa6";
 import { TemplateSummary } from "@/components/templates/TemplateSummary";
+import { WorkloadSummary } from "@/components/create/WorkloadSummary";
 
 export default function CreateDeploymentPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function CreateDeploymentPage() {
   const [markets, setMarkets] = useState<any[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templateTab, setTemplateTab] = useState('my-templates');
+  const [showJSON, setShowJSON] = useState(false);
   
   const [formData, setFormData] = useState<any>({
     workloadName: "",
@@ -148,7 +150,7 @@ export default function CreateDeploymentPage() {
           cmd: (args.cmd || []).join(" "),
           entrypoint: (args.entrypoint || []).join(" "),
           envVars: Object.entries(args.env || {}).map(([key, value]) => ({ key, value })),
-          ports: (args.expose || []).map((p: any) => p?.port ? p.port.toString() : ""),
+          ports: (args.expose || []).filter((p: any) => p?.port).map((p: any) => ({ port: p.port.toString(), is_public: p.is_public ?? true })),
           mounts: (args.volume_mounts || []).map((m: any) => ({
             volumeName: m.volume_name || "",
             mountPath: m.mount_path || ""
@@ -168,10 +170,7 @@ export default function CreateDeploymentPage() {
     setFormData({ ...formData, ...newData });
   };
 
-  const handleDeploy = async () => {
-    if (!formData.workloadName || !formData.templateId || !formData.market) return;
-    setIsDeploying(true);
-    
+  const generateFinalSpec = () => {
     const parseCommand = (str: string) => {
       if (!str) return [];
       const matches = str.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
@@ -196,7 +195,7 @@ export default function CreateDeploymentPage() {
       ...(s.type === 'bind' && s.hostPath ? { host_path: s.hostPath } : {})
     }));
 
-    const finalSpec: any = {
+    return {
       name: formData.workloadName,
       computeType: originalData.computeType || "CPU",
       version: "v2",
@@ -257,6 +256,13 @@ export default function CreateDeploymentPage() {
         };
       })
     };
+  };
+
+  const handleDeploy = async () => {
+    if (!formData.workloadName || !formData.templateId || !formData.market) return;
+    setIsDeploying(true);
+    
+    const finalSpec = generateFinalSpec();
 
     try {
       const payload = {
@@ -348,7 +354,7 @@ export default function CreateDeploymentPage() {
                     type="text" 
                     placeholder="e.g. prod-backend-api"
                     value={formData.workloadName}
-                    onChange={e => setFormData({...formData, workloadName: e.target.value})}
+                    onChange={e => setFormData({...formData, workloadName: e.target.value.replace(/\//g, "-")})}
                     style={InputStyle} 
                   />
                 </div>
@@ -450,67 +456,13 @@ export default function CreateDeploymentPage() {
         </div>
 
         {/* Right Side Summary Panel */}
-        <div style={{ position: 'sticky', top: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ backgroundColor: 'var(--text-main)', color: 'var(--bg-color)', border: '1px solid var(--text-main)', borderRadius: '0', padding: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '0.75rem' }}>
-              Deployment Summary
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.875rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Workload</span>
-                <span style={{ fontWeight: 500 }}>{formData.workloadName || '-'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Template</span>
-                <span style={{ fontWeight: 500 }}>{templates.find(t => t.id === formData.templateId)?.name || '-'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Replicas</span>
-                <span style={{ fontWeight: 500 }}>{formData.replicas}</span>
-              </div>
-              
-              <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.15)', margin: '0.5rem 0' }} />
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Provider</span>
-                <span style={{ fontWeight: 500, textTransform: 'capitalize' }}>{formData.provider}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Instance</span>
-                <span style={{ fontWeight: 500 }}>{formData.market?.name || '-'}</span>
-              </div>
-              
-              <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.15)', margin: '0.5rem 0' }} />
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Volumes</span>
-                <span style={{ fontWeight: 500 }}>{formData.volumes.length} Configured</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'rgba(255,255,255,0.6)' }}>Containers</span>
-                <span style={{ fontWeight: 500 }}>{formData.containers.length} Configured</span>
-              </div>
-            </div>
-
-            <Button 
-              size="sm" 
-              style={{ 
-                width: '100%', 
-                marginTop: '2rem', 
-                borderRadius: '0', 
-                backgroundColor: 'var(--primary)',
-                color: '#000',
-                fontWeight: 600,
-                border: 'none'
-              }}
-              disabled={!formData.workloadName || !formData.templateId || !formData.market || isDeploying}
-              onClick={handleDeploy}
-            >
-              {isDeploying ? 'Deploying...' : 'Deploy Workload'}
-            </Button>
-          </div>
-        </div>
+        <WorkloadSummary
+          formData={formData} 
+          templates={templates} 
+          isDeploying={isDeploying} 
+          handleDeploy={handleDeploy} 
+          generateFinalSpec={generateFinalSpec} 
+        />
       </div>
       
       {isTemplateModalOpen && (

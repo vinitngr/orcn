@@ -42,7 +42,7 @@ export function BasicConfig({ data, updateData }: any) {
         <input 
           type="text" 
           value={data.name || ''} 
-          onChange={(e) => updateData({ name: e.target.value })}
+          onChange={(e) => updateData({ name: e.target.value.replace(/\//g, "-") })}
           style={{ width: '100%', padding: '0.75rem 1rem', background: 'var(--bg-color)', border: '1px solid var(--border)', color: 'var(--text-main)', borderRadius: '0' }}
           placeholder="e.g. Ubuntu 22.04 Setup"
         />
