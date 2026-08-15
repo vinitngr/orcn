@@ -45,6 +45,11 @@ func taskSearchConfig(task core.ModelTask) ([]string, map[string]bool, error) {
 	case core.TaskEmbedding:
 		pipelineTags = []string{"feature-extraction", "sentence-similarity"}
 		architectures = append(registry.Embedding, registry.TextGeneration...)
+	case core.TaskScore:
+		pipelineTags = []string{"text-classification", "text-ranking"}
+		architectures = append(registry.SequenceClassification, registry.Reward...)
+		architectures = append(architectures, registry.LateInteraction...)
+		architectures = append(architectures, registry.TextGeneration...)
 	default:
 		return nil, nil, fmt.Errorf("vLLM does not support task %q", task)
 	}
@@ -76,3 +81,7 @@ func embeddingMode(architectures []string) string {
 	}
 	return "converted"
 }
+
+
+
+

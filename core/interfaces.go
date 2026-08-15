@@ -92,6 +92,7 @@ type ModelTask string
 const (
 	TaskTextGeneration ModelTask = "text-generation"
 	TaskEmbedding      ModelTask = "embedding"
+	TaskScore          ModelTask = "score"
 )
 
 func NormalizeModelTask(task ModelTask) ModelTask {

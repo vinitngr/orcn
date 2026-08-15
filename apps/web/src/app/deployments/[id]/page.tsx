@@ -182,12 +182,12 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
               <InfoRow label="Deployment ID" value={deployment.ID} monospace />
               <InfoRow label="Status" value={<Badge variant={statusVariant(deployment.Status)}>{deployment.Status}</Badge>} />
               <InfoRow label="Type" value={deployment.WorkloadType || "model_inference"} />
+              {deployment.Task && <InfoRow label="Task" value={deployment.Task} />}
               <InfoRow label="Model" value={deployment.ModelID || "-"} />
               <InfoRow label="Runtime" value={deployment.RuntimeID || "-"} />
               <InfoRow label="Provider" value={deployment.ProviderID || "-"} />
               <InfoRow label="Instance" value={deployment.InstanceName || "-"} />
               <InfoRow label="Nodes (Active / Desired)" value={`${nodes.length} / ${deployment.Replicas}`} />
-              <InfoRow label="Estimated Cost" value="-" />
               <InfoRow label="Created At" value={createdAt} />
             </div>
             <div style={{ paddingBottom: '1.5rem' }} />
@@ -260,7 +260,9 @@ export default function DeploymentDetailPage(props: { params: Promise<{ id: stri
                   </div>
                   <div>
                     <div style={{ fontSize: '0.875rem', color: 'var(--text-main)' }}>ORCN PROXY (Model Inference)</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>http://llm.localhost/v1/chat/completions</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>
+                      {deployment.Task === 'embedding' ? 'http://llm.localhost/v1/embeddings' : deployment.Task === 'score' ? 'http://llm.localhost/v1/score' : 'http://llm.localhost/v1/chat/completions'}
+                    </div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>Use this in your OpenAI client (Model: {deployment.Name})</div>
                   </div>
                 </div>

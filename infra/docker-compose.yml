@@ -1,0 +1,37 @@
+services:
+  # gateway:
+  #   build:
+  #     context: ..
+  #     dockerfile: infra/gateway.Dockerfile
+  #   container_name: orcn-gateway
+  #   volumes:
+  #     - ../:/app
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   ports:
+  #     - "8080:8080" # API / Ingress Gateway Port
+  #     - "80:80"     # Primary proxy port
+  #   environment:
+  #     - DB_PATH=/app/orcn.db
+  #   networks:
+  #     - orcn-net
+
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    container_name: orcn-web
+    volumes:
+      - ../:/app
+      - /app/apps/web/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    networks:
+      - orcn-net
+    # depends_on:
+    #   - gateway
+
+networks:
+  orcn-net:
+    driver: bridge

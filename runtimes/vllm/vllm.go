@@ -23,6 +23,8 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config m
 		return v.buildTextGenerationJobSpec(modelID, config)
 	case core.TaskEmbedding:
 		return v.buildEmbeddingJobSpec(modelID, config)
+	case core.TaskScore:
+		return v.buildScoreJobSpec(modelID, config)
 	default:
 		return nil, fmt.Errorf("vLLM does not support task %q", task)
 	}
@@ -34,6 +36,8 @@ func (v *VLLMRuntime) GetAdvancedConfigSchema(task core.ModelTask) []core.Config
 		return v.textGenerationSchema()
 	case core.TaskEmbedding:
 		return v.embeddingSchema()
+	case core.TaskScore:
+		return v.scoreSchema()
 	default:
 		return nil
 	}
@@ -56,7 +60,7 @@ func (v *VLLMRuntime) buildJobSpec(_ string, command []string, healthPath string
 			CUDAVersion: vllmCUDAVersion,
 		},
 		Containers: []core.ContainerSpec{{
-			ID: "ai-master",
+			ID: "vllm-inference-server",
 			Args: core.ContainerArgs{
 				Image:      vllmImage,
 				GPU:        true,
@@ -110,7 +114,7 @@ type hfModelSearchResult struct {
 
 type modelRuntimeConfig struct {
 	Architectures []string
-	Config        map[string]interface{}
+	Config        map[string]any
 }
 
 func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
@@ -124,14 +128,14 @@ func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
 	}
 
 	var model struct {
-		Config map[string]interface{} `json:"config"`
+		Config map[string]any `json:"config"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&model); err != nil {
 		return nil, err
 	}
 
 	architectures := []string{}
-	if values, ok := model.Config["architectures"].([]interface{}); ok {
+	if values, ok := model.Config["architectures"].([]any); ok {
 		for _, value := range values {
 			if architecture, ok := value.(string); ok {
 				architectures = append(architectures, architecture)
@@ -141,7 +145,7 @@ func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
 	return &modelRuntimeConfig{Architectures: architectures, Config: model.Config}, nil
 }
 
-func modelMaxLength(config map[string]interface{}) int {
+func modelMaxLength(config map[string]any) int {
 	value, ok := firstModelValue(config, "max_position_embeddings", "max_seq_length", "max_sequence_length")
 	if !ok {
 		return 0
@@ -250,7 +254,7 @@ func IsVLLMCompatible(id string) bool {
 	return true
 }
 
-func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (interface{}, error) {
+func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (any, error) {
 	modelURL := fmt.Sprintf("https://huggingface.co/api/models/%s", modelID)
 	resp, err := http.Get(modelURL)
 	if err != nil {
@@ -261,12 +265,12 @@ func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (inte
 		return nil, fmt.Errorf("model not found")
 	}
 
-	var data map[string]interface{}
+	var data map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		return nil, err
 	}
 	normalizedTask := normalizeTask(task)
-	if normalizedTask == core.TaskEmbedding || normalizedTask == core.TaskTextGeneration {
+	if normalizedTask == core.TaskEmbedding || normalizedTask == core.TaskTextGeneration || normalizedTask == core.TaskScore {
 		enrichModelConfig(modelID, data, normalizedTask)
 	}
 	if metadata := modelMetadata(data, normalizedTask); len(metadata) > 0 {
@@ -276,24 +280,26 @@ func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (inte
 	return data, nil
 }
 
-func modelMetadata(data map[string]interface{}, task core.ModelTask) map[string]interface{} {
+func modelMetadata(data map[string]any, task core.ModelTask) map[string]any {
 	switch task {
 	case core.TaskTextGeneration:
 		return textGenerationMetadata(data)
 	case core.TaskEmbedding:
 		return embeddingMetadata(data)
+	case core.TaskScore:
+		return scoreMetadata(data)
 	default:
 		return nil
 	}
 }
 
-func enrichModelConfig(modelID string, data map[string]interface{}, task core.ModelTask) {
-	config := map[string]interface{}{}
-	if existing, ok := data["config"].(map[string]interface{}); ok {
+func enrichModelConfig(modelID string, data map[string]any, task core.ModelTask) {
+	config := map[string]any{}
+	if existing, ok := data["config"].(map[string]any); ok {
 		config = existing
 	}
 
-	loadJSON := func(path string) map[string]interface{} {
+	loadJSON := func(path string) map[string]any {
 		resp, err := http.Get(fmt.Sprintf("https://huggingface.co/%s/raw/main/%s", modelID, path))
 		if err != nil || resp.StatusCode != http.StatusOK {
 			if resp != nil {
@@ -302,7 +308,7 @@ func enrichModelConfig(modelID string, data map[string]interface{}, task core.Mo
 			return nil
 		}
 		defer resp.Body.Close()
-		var value map[string]interface{}
+		var value map[string]any
 		if err := json.NewDecoder(resp.Body).Decode(&value); err != nil {
 			return nil
 		}
@@ -328,12 +334,12 @@ func enrichModelConfig(modelID string, data map[string]interface{}, task core.Mo
 	}
 }
 
-func hasModelValue(config map[string]interface{}, keys ...string) bool {
+func hasModelValue(config map[string]any, keys ...string) bool {
 	_, ok := firstModelValue(config, keys...)
 	return ok
 }
 
-func firstModelValue(config map[string]interface{}, keys ...string) (interface{}, bool) {
+func firstModelValue(config map[string]any, keys ...string) (any, bool) {
 	for _, key := range keys {
 		if value, ok := nestedModelValue(config, key); ok {
 			return value, true
@@ -342,12 +348,12 @@ func firstModelValue(config map[string]interface{}, keys ...string) (interface{}
 	return nil, false
 }
 
-func nestedModelValue(config map[string]interface{}, key string) (interface{}, bool) {
+func nestedModelValue(config map[string]any, key string) (any, bool) {
 	if value, ok := config[key]; ok {
 		return value, true
 	}
 	for _, nestedKey := range []string{"text_config", "sentence_transformers_config", "pooling_config"} {
-		if nested, ok := config[nestedKey].(map[string]interface{}); ok {
+		if nested, ok := config[nestedKey].(map[string]any); ok {
 			if value, exists := nested[key]; exists {
 				return value, true
 			}

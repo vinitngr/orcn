@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"orcn/core"
@@ -35,6 +36,9 @@ func validateDeploymentName(name string, db *gorm.DB) error {
 	reservedNames := map[string]bool{"llm": true, "embedding": true}
 	if reservedNames[name] {
 		return fmt.Errorf("the deployment name '%s' is reserved for system use", name)
+	}
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("deployment name cannot contain '/'")
 	}
 	var count int64
 	db.Model(&models.Deployment{}).Where("name = ?", name).Count(&count)

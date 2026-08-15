@@ -7,13 +7,15 @@ import (
 	"orcn/core"
 )
 
-func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]string) (*core.JobSpec, error) {
+func (v *VLLMRuntime) buildScoreJobSpec(modelID string, config map[string]string) (*core.JobSpec, error) {
 	command := commonModelArgs(modelID, config)
 	command = append(command,
 		"--dtype", configValue(config, "dtype", "auto"),
 		"--runner", "pooling",
 	)
+	
 	runtimeConfig, runtimeConfigErr := fetchModelRuntimeConfig(modelID)
+	
 	if tensorParallel := configValue(config, "tensor_parallel", "0"); tensorParallel != "0" {
 		command = append(command, "--tensor-parallel-size", tensorParallel)
 	}
@@ -38,13 +40,6 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 	if maxBatchedTokens := configValue(config, "max_num_batched_tokens", ""); maxBatchedTokens != "" {
 		command = append(command, "--max-num-batched-tokens", maxBatchedTokens)
 	}
-	mode := "converted"
-	if runtimeConfigErr == nil {
-		mode = embeddingMode(runtimeConfig.Architectures)
-	}
-	if mode == "converted" {
-		command = append(command, "--convert", "embed")
-	}
 	if configValue(config, "cuda_graphs", "true") == "false" {
 		command = append(command, "--enforce-eager")
 	}
@@ -52,7 +47,7 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 	return v.buildJobSpec(modelID, command, vllmHealthPath), nil
 }
 
-func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {
+func (v *VLLMRuntime) scoreSchema() []core.ConfigOption {
 	return []core.ConfigOption{
 		{
 			Key: "cuda_graphs", Name: "Enable CUDA Graphs",
@@ -60,7 +55,7 @@ func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {
 		},
 		{
 			Key: "gpu_memory_utilization", Name: "GPU Memory Utilization",
-			Description: "Fraction of GPU VRAM to allocate to the embedding model.", Type: "number", Default: "0.80",
+			Description: "Fraction of GPU VRAM to allocate to the model.", Type: "number", Default: "0.80",
 			Min: floatPtr(0.1), Max: floatPtr(1.0),
 		},
 		{
@@ -75,12 +70,12 @@ func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {
 		},
 		{
 			Key: "tensor_parallel", Name: "Tensor Parallel Size",
-			Description: "Number of GPUs used for the embedding model (0=automatic).", Type: "select", Default: "0",
+			Description: "Number of GPUs used for the model (0=automatic).", Type: "select", Default: "0",
 			Options: []string{"0", "2", "4", "8"},
 		},
 		{
 			Key: "max_num_seqs", Name: "Maximum Concurrent Sequences",
-			Description: "Maximum number of embedding requests processed concurrently.", Type: "number", Default: "",
+			Description: "Maximum number of requests processed concurrently.", Type: "number", Default: "",
 		},
 		{
 			Key: "max_num_batched_tokens", Name: "Maximum Batched Tokens",
@@ -93,24 +88,15 @@ func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {
 	}
 }
 
-func embeddingMetadata(data map[string]interface{}) map[string]interface{} {
-	metadata := map[string]interface{}{}
-	config, _ := data["config"].(map[string]interface{})
+func scoreMetadata(data map[string]any) map[string]any {
+	metadata := map[string]any{}
+	config, _ := data["config"].(map[string]any)
 
-	hiddenSize, ok := firstModelValue(config,
-		"hidden_size",
-		"embedding_dimension",
-		"sentence_embedding_dimension",
-		"word_embedding_dimension",
-	)
-	if ok {
-		metadata["Embedding Dimension"] = hiddenSize
-	}
 	maxLength, ok := firstModelValue(config, "max_position_embeddings", "max_seq_length", "max_sequence_length")
 	if ok {
 		metadata["Max Sequence Length"] = maxLength
 	}
-	metadata["Task"] = string(core.TaskEmbedding)
+	metadata["Task"] = string(core.TaskScore)
 
 	return metadata
 }

@@ -330,7 +330,7 @@ export default function CreateDeploymentPage() {
                   type="text" 
                   placeholder="e.g. prod-llama-inference"
                   value={data.name}
-                  onChange={e => setData({...data, name: e.target.value})}
+                  onChange={e => setData({...data, name: e.target.value.replace(/\//g, '')})}
                   style={InputStyle} 
                 />
               </div>
@@ -360,6 +360,7 @@ export default function CreateDeploymentPage() {
                     options={[
                       { value: "text-generation", label: "Text Generation (LLMs)" },
                       { value: "embedding", label: "Text Embeddings" },
+                      { value: "score", label: "Scoring / Rerankers" },
                       { value: "image-generation", label: "Image Generation" }
                     ]}
                   />
@@ -371,7 +372,7 @@ export default function CreateDeploymentPage() {
                     value={data.runtime} 
                     onChange={(val: string) => setData({...data, runtime: val})} 
                     options={
-                      data.modality === 'text-generation' || data.modality === 'embedding'
+                      data.modality === 'text-generation' || data.modality === 'embedding' || data.modality === 'score'
                         ? [
                             { value: "vllm", label: "vLLM Inference Server" },
                             ...(data.modality === 'text-generation' ? [{ value: "ollama", label: "Ollama" }] : [])
