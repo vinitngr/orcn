@@ -356,12 +356,11 @@ export default function CreateDeploymentPage() {
                   <label style={{ display: 'block', fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Modality</label>
                   <Select 
                     value={data.modality} 
-                    onChange={(val: string) => { setSearchResults([]); setData({...data, modality: val, runtime: val === 'image-generation' ? 'diffusers' : 'vllm', model: '', advanced_config: {}}); }}
+                    onChange={(val: string) => { setSearchResults([]); setData({...data, modality: val, runtime: 'vllm', model: '', advanced_config: {}}); }}
                     options={[
                       { value: "text-generation", label: "Text Generation (LLMs)" },
                       { value: "embedding", label: "Text Embeddings" },
-                      { value: "score", label: "Scoring / Rerankers" },
-                      { value: "image-generation", label: "Image Generation" }
+                      { value: "score", label: "Scoring / Rerankers" }
                     ]}
                   />
                 </div>
@@ -371,17 +370,22 @@ export default function CreateDeploymentPage() {
                   <Select 
                     value={data.runtime} 
                     onChange={(val: string) => setData({...data, runtime: val})} 
-                    options={
-                      data.modality === 'text-generation' || data.modality === 'embedding' || data.modality === 'score'
-                        ? [
+                    options={(() => {
+                      switch (data.modality) {
+                        case 'text-generation':
+                          return [
                             { value: "vllm", label: "vLLM Inference Server" },
-                            ...(data.modality === 'text-generation' ? [{ value: "ollama", label: "Ollama" }] : [])
-                          ]
-                        : [
-                            { value: "diffusers", label: "Diffusers Pipeline" },
-                            { value: "comfyui", label: "ComfyUI (Coming Soon)" }
-                          ]
-                    }
+                            { value: "ollama", label: "Ollama" }
+                          ];
+                        case 'embedding':
+                        case 'score':
+                          return [
+                            { value: "vllm", label: "vLLM Inference Server" }
+                          ];
+                        default:
+                          return [];
+                      }
+                    })()}
                   />
                 </div>
               </div>
