@@ -168,7 +168,7 @@ export default function CreateDeploymentPage() {
   // Apply detector output only after the schema is loaded. This avoids the
   // schema request overwriting the model detail request with its defaults.
   useEffect(() => {
-    if (data.modality !== 'text-generation' || !modelDetails || advancedSchema.length === 0) return;
+    if ((data.modality !== 'text-generation' && data.modality !== 'multimodal') || !modelDetails || advancedSchema.length === 0) return;
 
     const metadata = modelDetails.metadata || {};
     const detected = {
@@ -219,7 +219,8 @@ export default function CreateDeploymentPage() {
           name: r.ID.split('/').pop(),
           org: r.Author,
           downloads: r.Downloads,
-          tags: r.Tags
+          tags: r.Tags,
+          pipelineTag: r.PipelineTag
         }));
         setSearchResults(mapped);
       }
@@ -359,6 +360,7 @@ export default function CreateDeploymentPage() {
                     onChange={(val: string) => { setSearchResults([]); setData({...data, modality: val, runtime: 'vllm', model: '', advanced_config: {}}); }}
                     options={[
                       { value: "text-generation", label: "Text Generation (LLMs)" },
+                      { value: "multimodal", label: "Multimodal (Vision/Audio)" },
                       { value: "embedding", label: "Text Embeddings" },
                       { value: "score", label: "Scoring / Rerankers" }
                     ]}
@@ -373,6 +375,7 @@ export default function CreateDeploymentPage() {
                     options={(() => {
                       switch (data.modality) {
                         case 'text-generation':
+                        case 'multimodal':
                           return [
                             { value: "vllm", label: "vLLM Inference Server" },
                             { value: "ollama", label: "Ollama" }
@@ -430,9 +433,9 @@ export default function CreateDeploymentPage() {
                         </div>
                         <div style={{ overflow: 'hidden', minWidth: 0, flex: 1, position: 'relative' }}>
                           <div style={{ fontWeight: 500, fontSize: '0.875rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', paddingRight: '4rem' }} title={m.name}>{m.name}</div>
-                          {m.tags && m.tags.length > 0 && (
-                            <div style={{ position: 'absolute', top: 0, right: 0, fontSize: '0.65rem', backgroundColor: 'var(--surface)', padding: '0.1rem 0.4rem', border: '1px solid var(--border)', color: 'var(--text-main)' }}>
-                              {m.tags[0]}
+                          {m.pipelineTag && (
+                            <div style={{ position: 'absolute', top: 0, right: 0, fontSize: '0.65rem', backgroundColor: 'var(--surface)', padding: '0.1rem 0.4rem', border: '1px solid var(--border)', color: 'var(--text-main)', textTransform: 'capitalize' }}>
+                              {m.pipelineTag}
                             </div>
                           )}
                           {m.id !== m.name && (

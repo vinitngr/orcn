@@ -93,6 +93,7 @@ const (
 	TaskTextGeneration ModelTask = "text-generation"
 	TaskEmbedding      ModelTask = "embedding"
 	TaskScore          ModelTask = "score"
+	TaskMultimodal     ModelTask = "multimodal"
 )
 
 func NormalizeModelTask(task ModelTask) ModelTask {

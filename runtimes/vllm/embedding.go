@@ -49,7 +49,7 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, command, vllmHealthPath), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath), nil
 }
 
 func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {

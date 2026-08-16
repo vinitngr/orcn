@@ -19,7 +19,7 @@ func (v *VLLMRuntime) GetWorkloadType() string { return "model_inference" }
 
 func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config map[string]string) (*core.JobSpec, error) {
 	switch normalizeTask(task) {
-	case core.TaskTextGeneration:
+	case core.TaskTextGeneration, core.TaskMultimodal:
 		return v.buildTextGenerationJobSpec(modelID, config)
 	case core.TaskEmbedding:
 		return v.buildEmbeddingJobSpec(modelID, config)
@@ -32,7 +32,7 @@ func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config m
 
 func (v *VLLMRuntime) GetAdvancedConfigSchema(task core.ModelTask) []core.ConfigOption {
 	switch normalizeTask(task) {
-	case core.TaskTextGeneration:
+	case core.TaskTextGeneration, core.TaskMultimodal:
 		return v.textGenerationSchema()
 	case core.TaskEmbedding:
 		return v.embeddingSchema()
@@ -51,7 +51,7 @@ const (
 	vllmCUDAVersion = "12.9"
 )
 
-func (v *VLLMRuntime) buildJobSpec(_ string, command []string, healthPath string) *core.JobSpec {
+func (v *VLLMRuntime) buildJobSpec(_ string, entrypoint []string, command []string, healthPath string) *core.JobSpec {
 	return &core.JobSpec{
 		Version: "v2",
 		Type:    "container",
@@ -64,7 +64,7 @@ func (v *VLLMRuntime) buildJobSpec(_ string, command []string, healthPath string
 			Args: core.ContainerArgs{
 				Image:      vllmImage,
 				GPU:        true,
-				Entrypoint: []string{"python3", "-m", "vllm.entrypoints.openai.api_server"},
+				Entrypoint: entrypoint,
 				Cmd:        command,
 				Env: map[string]string{
 					"CUDA_MODULE_LOADING":     "LAZY",
@@ -83,6 +83,20 @@ func (v *VLLMRuntime) buildJobSpec(_ string, command []string, healthPath string
 			},
 		}},
 	}
+}
+
+func resolveEntrypoint(modelID string) []string {
+	if config, err := fetchModelRuntimeConfig(modelID); err == nil {
+		if config.PipelineTag == "audio-text-to-text" || config.PipelineTag == "automatic-speech-recognition" {
+			return []string{
+				"/bin/bash",
+				"-c",
+				"pip install \"vllm[audio]\" && exec python3 -m vllm.entrypoints.openai.api_server \"$@\"",
+				"--",
+			}
+		}
+	}
+	return []string{"python3", "-m", "vllm.entrypoints.openai.api_server"}
 }
 
 func commonModelArgs(modelID string, config map[string]string) []string {
@@ -114,6 +128,7 @@ type hfModelSearchResult struct {
 
 type modelRuntimeConfig struct {
 	Architectures []string
+	PipelineTag   string
 	Config        map[string]any
 }
 
@@ -128,7 +143,8 @@ func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
 	}
 
 	var model struct {
-		Config map[string]any `json:"config"`
+		Config      map[string]any `json:"config"`
+		PipelineTag string         `json:"pipeline_tag"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&model); err != nil {
 		return nil, err
@@ -142,7 +158,7 @@ func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
 			}
 		}
 	}
-	return &modelRuntimeConfig{Architectures: architectures, Config: model.Config}, nil
+	return &modelRuntimeConfig{Architectures: architectures, PipelineTag: model.PipelineTag, Config: model.Config}, nil
 }
 
 func modelMaxLength(config map[string]any) int {
@@ -270,7 +286,7 @@ func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (any,
 		return nil, err
 	}
 	normalizedTask := normalizeTask(task)
-	if normalizedTask == core.TaskEmbedding || normalizedTask == core.TaskTextGeneration || normalizedTask == core.TaskScore {
+	if normalizedTask == core.TaskEmbedding || normalizedTask == core.TaskTextGeneration || normalizedTask == core.TaskScore || normalizedTask == core.TaskMultimodal {
 		enrichModelConfig(modelID, data, normalizedTask)
 	}
 	if metadata := modelMetadata(data, normalizedTask); len(metadata) > 0 {
@@ -282,8 +298,8 @@ func (v *VLLMRuntime) GetModelDetails(modelID string, task core.ModelTask) (any,
 
 func modelMetadata(data map[string]any, task core.ModelTask) map[string]any {
 	switch task {
-	case core.TaskTextGeneration:
-		return textGenerationMetadata(data)
+	case core.TaskTextGeneration, core.TaskMultimodal:
+		return textGenerationMetadata(data, task)
 	case core.TaskEmbedding:
 		return embeddingMetadata(data)
 	case core.TaskScore:

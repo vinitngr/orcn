@@ -34,7 +34,7 @@ func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[stri
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, command, vllmHealthPath), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath), nil
 }
 
 func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {
@@ -98,9 +98,13 @@ func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {
 }
 
 
-func textGenerationMetadata(data map[string]interface{}) map[string]interface{} {
+func textGenerationMetadata(data map[string]interface{}, task core.ModelTask) map[string]interface{} {
 	config, _ := data["config"].(map[string]interface{})
-	metadata := map[string]interface{}{"Task": string(core.TaskTextGeneration)}
+	metadata := map[string]interface{}{"Task": string(task)}
+
+	if pipeline, ok := data["pipeline_tag"].(string); ok && pipeline != "" {
+		metadata["Pipeline"] = pipeline
+	}
 
 	if value, ok := firstModelValue(config, "max_position_embeddings", "max_seq_length", "max_sequence_length"); ok {
 		metadata["Context Length"] = value

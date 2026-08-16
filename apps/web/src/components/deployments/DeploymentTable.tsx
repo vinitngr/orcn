@@ -25,7 +25,7 @@ export function DeploymentTable() {
             nodes: d.Nodes ? d.Nodes.length : 0,
             updated: new Date(d.UpdatedAt).toLocaleString(),
             instance: d.InstanceName || d.ModelID || 'Unknown Instance'
-          })));
+          })).reverse());
         }
       })
       .catch(console.error)

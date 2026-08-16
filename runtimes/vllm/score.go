@@ -44,7 +44,7 @@ func (v *VLLMRuntime) buildScoreJobSpec(modelID string, config map[string]string
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, command, vllmHealthPath), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath), nil
 }
 
 func (v *VLLMRuntime) scoreSchema() []core.ConfigOption {

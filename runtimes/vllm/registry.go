@@ -50,6 +50,9 @@ func taskSearchConfig(task core.ModelTask) ([]string, map[string]bool, error) {
 		architectures = append(registry.SequenceClassification, registry.Reward...)
 		architectures = append(architectures, registry.LateInteraction...)
 		architectures = append(architectures, registry.TextGeneration...)
+	case core.TaskMultimodal:
+		pipelineTags = []string{"image-text-to-text", "video-text-to-text", "audio-text-to-text"}
+		architectures = registry.Multimodal
 	default:
 		return nil, nil, fmt.Errorf("vLLM does not support task %q", task)
 	}
