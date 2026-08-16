@@ -1,4 +1,4 @@
-package proxy
+package rest
 
 import (
 	"context"
@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"orcn/core"
-	"orcn/services/node-agent/docker"
+	"orcn/services/node-agent/agent"
+	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
 )
 
 type AdminServer struct {
-	engine          *docker.Engine
+	engine          agent.Engine
 	routes          *RouteTable
 	state           *RegistrationState
 	token           string
@@ -21,7 +22,7 @@ type AdminServer struct {
 	eventBuffer     *events.Buffer
 }
 
-func NewAdminServer(engine *docker.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, token, registrationKey string) *AdminServer {
+func NewAdminServer(engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, token, registrationKey string) *AdminServer {
 	return &AdminServer{engine: engine, routes: routes, state: state, eventBuffer: eventBuffer, token: token, registrationKey: registrationKey}
 }
 

@@ -16,9 +16,9 @@ import (
 
 	"orcn/core"
 	"orcn/services/node-agent/config"
-	"orcn/services/node-agent/docker"
+	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
-	"orcn/services/node-agent/proxy"
+	restinterface "orcn/services/node-agent/interfaces/rest"
 )
 
 const integrationRegistrationKey = "integration-registration-key"
@@ -45,15 +45,15 @@ func TestNodeAgentDockerIntegration(t *testing.T) {
 
 	job := integrationJob(image)
 	removeIntegrationContainers(t, engine, job)
-	routes := proxy.NewRouteTable()
-	state := proxy.NewRegistrationState()
-	admin := httptest.NewServer(proxy.NewAdminServer(engine, routes, state, eventBuffer, "", integrationRegistrationKey).Handler())
+	routes := restinterface.NewRouteTable()
+	state := restinterface.NewRegistrationState()
+	admin := httptest.NewServer(restinterface.NewAdminServer(engine, routes, state, eventBuffer, "", integrationRegistrationKey).Handler())
 	defer admin.Close()
 	proxyHost := os.Getenv("NODE_AGENT_TEST_PROXY_HOST")
 	if proxyHost == "" {
 		proxyHost = "127.0.0.1"
 	}
-	forwarder := httptest.NewServer(proxy.NewRouter(routes, state, proxyHost).Handler())
+	forwarder := httptest.NewServer(restinterface.NewRouter(routes, state, proxyHost).Handler())
 	defer forwarder.Close()
 
 	client := admin.Client()
@@ -90,7 +90,7 @@ func TestNodeAgentDockerIntegration(t *testing.T) {
 		response := request(t, client, http.MethodGet, admin.URL+"/events", "", "")
 		assertStatus(t, response, http.StatusOK)
 		body := readBody(t, response)
-		if !strings.Contains(body, "image_pulling") || !strings.Contains(body, "started") {
+		if !strings.Contains(body, "image_pull_started") || !strings.Contains(body, "started") {
 			t.Fatalf("expected lifecycle events, got %s", body)
 		}
 	})

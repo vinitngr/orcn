@@ -1,4 +1,4 @@
-package proxy
+package rest
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"orcn/core"
-	"orcn/services/node-agent/docker"
+	"orcn/services/node-agent/engines/docker"
 )
 
 type RegistrationState struct {
