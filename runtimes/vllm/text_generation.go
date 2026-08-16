@@ -8,9 +8,12 @@ func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[stri
 	command := commonModelArgs(modelID, config)
 	command = append(command,
 		"--dtype", "auto",
-		"--max-model-len", configValue(config, "max_model_len", "4096"),
 		"--cpu-offload-gb", configValue(config, "cpu_offload_gb", "0"),
 	)
+
+	if maxLen := configValue(config, "max_model_len", ""); maxLen != "" {
+		command = append(command, "--max-model-len", maxLen)
+	}
 
 	if tensorParallel := configValue(config, "tensor_parallel", "0"); tensorParallel != "0" {
 		command = append(command, "--tensor-parallel-size", tensorParallel)
@@ -55,7 +58,7 @@ func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {
 		},
 		{
 			Key: "max_model_len", Name: "Max Context Length",
-			Description: "Maximum sequence length (prompt + output). Lower values save VRAM.", Type: "number", Default: "4096",
+			Description: "Maximum sequence length. Leave empty to let vLLM automatically use the model's default maximum.", Type: "number", Default: "",
 			Min: floatPtr(512),
 		},
 		{
