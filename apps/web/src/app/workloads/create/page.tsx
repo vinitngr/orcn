@@ -11,6 +11,7 @@ import { DiDocker } from "react-icons/di";
 import { FaDocker } from "react-icons/fa6";
 import { TemplateSummary } from "@/components/templates/TemplateSummary";
 import { WorkloadSummary } from "@/components/create/WorkloadSummary";
+import { mapMarket } from "@/components/create/market-utils";
 
 export default function CreateDeploymentPage() {
   const router = useRouter();
@@ -99,14 +100,7 @@ export default function CreateDeploymentPage() {
       .then(res => res.json())
       .then(json => {
         if (json.markets && Array.isArray(json.markets)) {
-          const mapped = json.markets.map((m: any) => ({
-            id: m.address,
-            name: m.name,
-            tag: m.tag || m.type,
-            price: (m.usd_reward_per_hour || 0).toFixed(3),
-            available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
-            vram_gb: m.vram
-          }));
+          const mapped = json.markets.map(mapMarket);
           setMarkets(mapped);
         }
       })

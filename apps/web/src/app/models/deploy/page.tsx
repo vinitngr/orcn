@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { MarketCard } from "@/components/create/MarketCard";
 import { DeploymentSummary } from "@/components/create/DeploymentSummary";
 import { AdvancedConfiguration } from "@/components/create/AdvancedConfiguration";
+import { mapMarket } from "@/components/create/market-utils";
 
 import { Logo } from "@/components/ui/Logos";
 import { Select } from "@/components/ui/Select";
@@ -192,14 +193,7 @@ export default function CreateDeploymentPage() {
         .then(res => res.json())
         .then(json => {
           if (json.markets && Array.isArray(json.markets)) {
-            const mapped = json.markets.map((m: any) => ({
-              id: m.address,
-              name: m.name,
-              tag: m.tag || m.type,
-              price: (m.usd_reward_per_hour || 0).toFixed(3),
-              available: (m.nodes && m.nodes.length > 0) ? m.nodes.length : 0,
-              vram_gb: m.vram
-            }));
+            const mapped = json.markets.map(mapMarket);
             setMarkets(mapped);
           }
         })

@@ -36,9 +36,9 @@ func LoadConfig() (*Config, error) {
 		DatabaseDSN:  getEnv("DATABASE_DSN", "orcn.db"),
 		AgentBaseURL: getEnv("AGENT_BASE_URL", "http://127.0.0.1:4000"),
 
-		NosanaURL:    getEnv("NOSANA_URL", "https://dashboard.k8s.prd.nos.ci"),
+		NosanaURL:    getEnv("NOSANA_URL", "https://api.nosana.com"),
 		NosanaAPIKey: getEnv("NOSANA_API_KEY", ""),
-		
+
 		MaxConnsPerHost:        getEnvAsInt("GATEWAY_MAX_CONNS_PER_HOST", 20),
 		MaxActiveRequests:      getEnvAsInt("GATEWAY_MAX_ACTIVE_REQUESTS", 100),
 		GatewaySyncIntervalSec: getEnvAsInt("GATEWAY_SYNC_INTERVAL_SEC", 5),

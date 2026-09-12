@@ -20,7 +20,7 @@ type Client struct {
 
 func New(apiKey, baseURL string) *Client {
 	if baseURL == "" {
-		baseURL = "https://dashboard.k8s.prd.nos.ci"
+		baseURL = "https://api.nosana.com"
 	}
 	return &Client{
 		APIKey:     apiKey,
@@ -30,7 +30,7 @@ func New(apiKey, baseURL string) *Client {
 }
 
 func (c *Client) request(method, path string, body any) ([]byte, error) {
-	url := fmt.Sprintf("%s/api%s", c.BaseURL, path)
+	url := fmt.Sprintf("%s%s", strings.TrimRight(c.BaseURL, "/"), path)
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
