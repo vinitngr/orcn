@@ -1,0 +1,39 @@
+name: Build Gateway
+
+on:
+  push:
+    paths:
+      - "core/**"
+      - "models/**"
+      - "providers/**"
+      - "runtimes/**"
+      - "services/gateway/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/build-gateway.yml"
+  pull_request:
+    paths:
+      - "core/**"
+      - "models/**"
+      - "providers/**"
+      - "runtimes/**"
+      - "services/gateway/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/build-gateway.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build gateway
+        run: go build ./services/gateway/...

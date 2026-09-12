@@ -32,6 +32,8 @@ func main() {
 	if err := registry.Register("https", installHTTP); err != nil {
 		log.Fatalf("register HTTPS resource installer: %v", err)
 	}
+
+	//TODO : parallelize resource installation
 	for _, resource := range plan.Resources {
 		id := resource.ID
 		if id == "" {
