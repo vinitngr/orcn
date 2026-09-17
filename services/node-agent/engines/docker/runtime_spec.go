@@ -109,18 +109,10 @@ func containerConfig(spec ContainerConfig) *containertypes.Config {
 }
 
 func hostConfig(spec ContainerConfig) *containertypes.HostConfig {
-	bindings := make(nat.PortMap)
-	for _, port := range spec.Ports {
-		if !port.Public {
-			continue
-		}
-		bindings[nat.Port(fmt.Sprintf("%d/tcp", port.Container))] = []nat.PortBinding{{
-			HostIP:   "127.0.0.1",
-			HostPort: fmt.Sprintf("%d", port.Host),
-		}}
-	}
-
-	host := &containertypes.HostConfig{PortBindings: bindings}
+	// Workload ports are reached through the node-agent proxy. Do not publish
+	// them on the host: the gateway and other workloads may already use those
+	// host ports. The proxy routes directly to the container's Docker-network IP.
+	host := &containertypes.HostConfig{}
 	for _, mount := range spec.VolumeMounts {
 		source := mount.Source
 		if source == "" {

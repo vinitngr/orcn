@@ -95,19 +95,20 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 		return nil, fmt.Errorf("pull resource loader image: %w", err)
 	}
 	var created string
-	cleaned := false
-	cleanup := func() {
-		if !cleaned {
-			if created != "" {
-				_ = runtime.Remove(context.Background(), created, true)
-			}
-			for _, volume := range resourceVolumes {
-				_ = runtime.RemoveVolume(context.Background(), volume)
-			}
-			cleaned = true
+	completed := false
+	cleanupFailedPreparation := func() {
+		if created != "" {
+			_ = runtime.Remove(context.Background(), created, true)
+		}
+		for _, volume := range resourceVolumes {
+			_ = runtime.RemoveVolume(context.Background(), volume)
 		}
 	}
-	defer cleanup()
+	defer func() {
+		if !completed {
+			cleanupFailedPreparation()
+		}
+	}()
 	created, err = runtime.CreateLoader(ctx, loaderID, m.LoaderImage, mounts)
 	if err != nil {
 		return nil, fmt.Errorf("create resource loader: %w", err)
@@ -133,7 +134,11 @@ func (m *Manager) Prepare(ctx context.Context, containerID string, specs []core.
 	if status != 0 {
 		return nil, fmt.Errorf("resource loader exited with status %d", status)
 	}
-	cleanup()
+	if err := runtime.Remove(context.Background(), created, true); err != nil {
+		return nil, fmt.Errorf("remove resource loader: %w", err)
+	}
+	created = ""
+	completed = true
 	if emit != nil {
 		emit("resource_installed", "resource loader completed", "", nil)
 	}

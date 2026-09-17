@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"orcn/services/node-agent/agent"
+	"orcn/services/node-agent/capabilities"
 	"orcn/services/node-agent/config"
 	"orcn/services/node-agent/events"
 )
@@ -21,8 +22,8 @@ func NewServer(cfg config.Config, engine agent.Engine, eventBuffer *events.Buffe
 	routes := NewRouteTable()
 	state := NewRegistrationState()
 
-	adminHandler := NewAdminServer(engine, routes, state, eventBuffer, cfg.AdminToken, cfg.RegistrationAPIKey).Handler()
-	proxyHandler := NewRouter(routes, state, cfg.ProxyTargetHost).Handler()
+	adminHandler := NewAdminServer(engine, routes, state, eventBuffer, capabilities.New(engine.Ping), cfg.AdminToken, cfg.RegistrationAPIKey).Handler()
+	proxyHandler := NewRouter(routes, state, engine, cfg.ProxyTargetHost).Handler()
 
 	return &Plugin{
 		adminServer: &http.Server{Addr: cfg.AdminAddress, Handler: adminHandler},

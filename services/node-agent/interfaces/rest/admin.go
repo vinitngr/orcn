@@ -9,6 +9,7 @@ import (
 
 	"orcn/core"
 	"orcn/services/node-agent/agent"
+	"orcn/services/node-agent/capabilities"
 	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
 )
@@ -20,15 +21,19 @@ type AdminServer struct {
 	token           string
 	registrationKey string
 	eventBuffer     *events.Buffer
+	capabilities    *capabilities.Collector
 }
 
-func NewAdminServer(engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, token, registrationKey string) *AdminServer {
-	return &AdminServer{engine: engine, routes: routes, state: state, eventBuffer: eventBuffer, token: token, registrationKey: registrationKey}
+func NewAdminServer(engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, machineCapabilities *capabilities.Collector, token, registrationKey string) *AdminServer {
+	return &AdminServer{engine: engine, routes: routes, state: state, eventBuffer: eventBuffer, capabilities: machineCapabilities, token: token, registrationKey: registrationKey}
 }
 
 func (s *AdminServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /registration", s.registration)
+	mux.HandleFunc("GET /capabilities", s.machineCapabilities)
+	mux.HandleFunc("POST /capabilities/refresh", s.refreshMachineCapabilities)
 	mux.HandleFunc("POST /register", s.register)
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("POST /containers", s.run)
@@ -38,6 +43,14 @@ func (s *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("DELETE /containers/{id}", s.remove)
 	mux.HandleFunc("GET /containers/{id}/logs", s.logs)
 	return s.auth(mux)
+}
+
+func (s *AdminServer) machineCapabilities(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.capabilities.Get(r.Context(), false))
+}
+
+func (s *AdminServer) refreshMachineCapabilities(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.capabilities.Get(r.Context(), true))
 }
 
 func (s *AdminServer) requireRegistered(w http.ResponseWriter) bool {
@@ -170,6 +183,14 @@ func (s *AdminServer) health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "server": "admin"})
+}
+
+func (s *AdminServer) registration(w http.ResponseWriter, r *http.Request) {
+	if !s.requireRegistered(w) {
+		return
+	}
+	job, _ := s.state.Job()
+	writeJSON(w, http.StatusOK, job)
 }
 
 func (s *AdminServer) run(w http.ResponseWriter, r *http.Request) {

@@ -49,11 +49,7 @@ func TestNodeAgentDockerIntegration(t *testing.T) {
 	state := restinterface.NewRegistrationState()
 	admin := httptest.NewServer(restinterface.NewAdminServer(engine, routes, state, eventBuffer, "", integrationRegistrationKey).Handler())
 	defer admin.Close()
-	proxyHost := os.Getenv("NODE_AGENT_TEST_PROXY_HOST")
-	if proxyHost == "" {
-		proxyHost = "127.0.0.1"
-	}
-	forwarder := httptest.NewServer(restinterface.NewRouter(routes, state, proxyHost).Handler())
+	forwarder := httptest.NewServer(restinterface.NewRouter(routes, state, engine, "").Handler())
 	defer forwarder.Close()
 
 	client := admin.Client()

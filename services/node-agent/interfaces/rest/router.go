@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"orcn/services/node-agent/agent"
 	"orcn/services/node-agent/engines/docker"
 )
 
@@ -56,14 +57,12 @@ func (t *RouteTable) Get(id string) (route, bool) {
 type Router struct {
 	routes     *RouteTable
 	state      *RegistrationState
+	engine     agent.Engine
 	targetHost string
 }
 
-func NewRouter(routes *RouteTable, state *RegistrationState, targetHost string) *Router {
-	if targetHost == "" {
-		targetHost = "127.0.0.1"
-	}
-	return &Router{routes: routes, state: state, targetHost: targetHost}
+func NewRouter(routes *RouteTable, state *RegistrationState, engine agent.Engine, targetHost string) *Router {
+	return &Router{routes: routes, state: state, engine: engine, targetHost: targetHost}
 }
 
 func (p *Router) Handler() http.Handler {
@@ -103,10 +102,10 @@ func (p *Router) forward(w http.ResponseWriter, r *http.Request) {
 	if value := r.Header.Get("X-Orcn-Port"); value != "" {
 		requestedPort, _ = strconv.Atoi(value)
 	}
-	hostPort, ok := configured.ports[requestedPort]
+	containerPort, ok := configured.ports[requestedPort]
 	if requestedPort == 0 && len(configured.ports) == 1 {
-		for _, value := range configured.ports {
-			hostPort = value
+		for port := range configured.ports {
+			containerPort = port
 		}
 		ok = true
 	}
@@ -115,7 +114,25 @@ func (p *Router) forward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target, err := url.Parse("http://" + p.targetHost + ":" + strconv.Itoa(hostPort))
+	targetHost := p.targetHost
+	if targetHost == "" {
+		inspection, inspectErr := p.engine.Inspect(r.Context(), id)
+		if inspectErr != nil || inspection.NetworkSettings == nil {
+			http.Error(w, "container network is unavailable", http.StatusBadGateway)
+			return
+		}
+		for _, network := range inspection.NetworkSettings.Networks {
+			if network.IPAddress != "" {
+				targetHost = network.IPAddress
+				break
+			}
+		}
+		if targetHost == "" {
+			http.Error(w, "container has no reachable network address", http.StatusBadGateway)
+			return
+		}
+	}
+	target, err := url.Parse("http://" + targetHost + ":" + strconv.Itoa(containerPort))
 	if err != nil {
 		http.Error(w, "invalid route", http.StatusInternalServerError)
 		return
