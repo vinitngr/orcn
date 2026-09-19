@@ -18,6 +18,8 @@ type Config struct {
 	RegistryCredential    string
 	RegistryServerAddress string
 	ResourceLoaderImage   string
+	AgentMode             string // "exclusive" or "shared"
+	MaxWorkloadCount      int    // 0 means unlimited (shared mode only)
 }
 
 func Load() Config {
@@ -34,6 +36,8 @@ func Load() Config {
 		RegistryCredential:    os.Getenv("DOCKER_REGISTRY_CREDENTIAL"),
 		RegistryServerAddress: env("DOCKER_REGISTRY_SERVER", "https://index.docker.io/v1/"),
 		ResourceLoaderImage:   env("NODE_AGENT_RESOURCE_LOADER_IMAGE", "vinitngr/orcn-resource-loader:dev"),
+		AgentMode:             env("AGENT_MODE", "exclusive"),
+		MaxWorkloadCount:      envInt("MAX_WORKLOAD_COUNT", 0),
 	}
 }
 

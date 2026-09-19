@@ -32,6 +32,8 @@ docker run -d --name orcn-node-agent \
   -e NODE_AGENT_PROXY_ADDRESS=0.0.0.0:8080 \
   -e NODE_AGENT_REGISTRATION_API_KEY=dev-registration-key \
   -e NODE_AGENT_RESOURCE_LOADER_IMAGE=vinitngr/orcn-resource-loader:dev \
+  -e AGENT_MODE=shared \
+  -e MAX_WORKLOAD_COUNT=5 \
   vinitngr/orcn-agent:dev
 ```
 
@@ -47,7 +49,14 @@ If `NODE_AGENT_ADMIN_TOKEN` is set, send
 Registration additionally requires
 `X-Registration-Key: dev-registration-key`.
 
-## Registration
+## Agent Modes (Multi-Workload vs Exclusive)
+
+The Node Agent supports two operating modes controlled via `AGENT_MODE` environment variable:
+
+- `AGENT_MODE=exclusive` (default): Single-tenant / locked mode. Once a workload is registered, further `/register` calls return `409 Conflict`.
+- `AGENT_MODE=shared`: Multi-workload mode. Allows multiple concurrent workloads up to `MAX_WORKLOAD_COUNT` (default `0` = unlimited).
+
+## Registration & Workload Lifecycle
 
 `POST /register` accepts the canonical `core.JobSpec`. All resources for all
 containers are prepared before any workload container starts.
@@ -77,13 +86,45 @@ curl --max-time 1200 -i -X POST http://127.0.0.1:9090/register \
   }'
 ```
 
-Success:
+Success response:
 
 ```json
-{"status":"registered","node_id":"local-resource-node","containers":1}
+{"status":"registered","node_id":"local-resource-node","job_name":"mobilebert-resource-test","mode":"shared","containers":1}
 ```
 
-The process accepts one registration. Restart the agent to register a new job.
+### Inspect Registrations
+
+- `GET /registration` — Returns the first registered job spec.
+- `GET /registrations` — Returns all active registered workloads, mode, and total count.
+
+```bash
+curl -i http://127.0.0.1:9090/registrations
+```
+
+Response:
+```json
+{
+  "mode": "shared",
+  "count": 1,
+  "workloads": {
+    "mobilebert-resource-test": { ...job_spec... }
+  }
+}
+```
+
+### Unregister Workload
+
+- `DELETE /register/{jobName}` — Unregisters a specific workload, stopping and removing all associated containers and deleting routes.
+
+```bash
+curl -i -X DELETE http://127.0.0.1:9090/register/mobilebert-resource-test \
+  -H 'X-Registration-Key: dev-registration-key'
+```
+
+Response:
+```json
+{"status":"unregistered","job_name":"mobilebert-resource-test"}
+```
 
 ## Health
 
@@ -95,7 +136,7 @@ curl -i http://127.0.0.1:8080/healthz
 Responses:
 
 ```json
-{"status":"ok","server":"admin"}
+{"status":"ok","server":"admin","mode":"shared","workloads":1,"registered":true}
 {"status":"ok","server":"proxy"}
 ```
 

@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,9 +33,11 @@ func (s *AdminServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /registration", s.registration)
+	mux.HandleFunc("GET /registrations", s.registrations)
 	mux.HandleFunc("GET /capabilities", s.machineCapabilities)
 	mux.HandleFunc("POST /capabilities/refresh", s.refreshMachineCapabilities)
 	mux.HandleFunc("POST /register", s.register)
+	mux.HandleFunc("DELETE /register/{jobName}", s.unregister)
 	mux.HandleFunc("GET /events", s.events)
 	mux.HandleFunc("POST /containers", s.run)
 	mux.HandleFunc("POST /containers/{id}/restart", s.restart)
@@ -73,10 +76,6 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	if valid, validationErrors := core.ValidateJobSpec(&job); !valid {
 		writeError(w, http.StatusBadRequest, strings.Join(validationErrors, "; "))
-		return
-	}
-	if _, registered := s.state.Job(); registered {
-		writeError(w, http.StatusConflict, "agent is already registered")
 		return
 	}
 	if err := s.engine.ValidateJob(r.Context(), job); err != nil {
@@ -124,10 +123,16 @@ func (s *AdminServer) register(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.state.Register(job); err != nil {
 		cleanup()
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusConflict, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"status": "registered", "node_id": job.NodeID, "containers": len(job.Containers)})
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":     "registered",
+		"node_id":    job.NodeID,
+		"job_name":   job.JobName,
+		"mode":       s.state.Mode(),
+		"containers": len(job.Containers),
+	})
 }
 
 func (s *AdminServer) events(w http.ResponseWriter, r *http.Request) {
@@ -175,14 +180,18 @@ func (s *AdminServer) auth(next http.Handler) http.Handler {
 }
 
 func (s *AdminServer) health(w http.ResponseWriter, r *http.Request) {
-	if !s.requireRegistered(w) {
-		return
-	}
 	if err := s.engine.Ping(r.Context()); err != nil {
 		writeError(w, http.StatusServiceUnavailable, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "server": "admin"})
+	jobs := s.state.Jobs()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":     "ok",
+		"server":     "admin",
+		"mode":       s.state.Mode(),
+		"workloads":  len(jobs),
+		"registered": len(jobs) > 0,
+	})
 }
 
 func (s *AdminServer) registration(w http.ResponseWriter, r *http.Request) {
@@ -191,6 +200,52 @@ func (s *AdminServer) registration(w http.ResponseWriter, r *http.Request) {
 	}
 	job, _ := s.state.Job()
 	writeJSON(w, http.StatusOK, job)
+}
+
+func (s *AdminServer) registrations(w http.ResponseWriter, r *http.Request) {
+	jobs := s.state.Jobs()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"mode":      s.state.Mode(),
+		"workloads": jobs,
+		"count":     len(jobs),
+	})
+}
+
+func (s *AdminServer) unregister(w http.ResponseWriter, r *http.Request) {
+	if s.registrationKey == "" || r.Header.Get("X-Registration-Key") != s.registrationKey {
+		writeError(w, http.StatusUnauthorized, "valid registration API key required")
+		return
+	}
+	jobName := r.PathValue("jobName")
+	if jobName == "" {
+		writeError(w, http.StatusBadRequest, "job name is required")
+		return
+	}
+
+	// Get the job before unregistering so we can clean up containers
+	jobs := s.state.Jobs()
+	job, exists := jobs[jobName]
+	if !exists {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("workload %q is not registered", jobName))
+		return
+	}
+
+	// Stop and remove containers belonging to this job
+	for _, container := range job.Containers {
+		if inspected, err := s.engine.Inspect(r.Context(), container.ID); err == nil {
+			if inspected.State != nil && inspected.State.Running {
+				_ = s.engine.Stop(r.Context(), container.ID)
+			}
+			_ = s.engine.Remove(r.Context(), container.ID)
+		}
+		s.routes.Delete(container.ID)
+	}
+
+	if err := s.state.Unregister(jobName); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "unregistered", "job_name": jobName})
 }
 
 func (s *AdminServer) run(w http.ResponseWriter, r *http.Request) {

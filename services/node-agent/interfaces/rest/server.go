@@ -20,7 +20,7 @@ type Plugin struct {
 // NewServer initializes the HTTP Plugin that wraps Admin and Proxy servers.
 func NewServer(cfg config.Config, engine agent.Engine, eventBuffer *events.Buffer) *Plugin {
 	routes := NewRouteTable()
-	state := NewRegistrationState()
+	state := NewRegistrationState(cfg.AgentMode, cfg.MaxWorkloadCount)
 
 	adminHandler := NewAdminServer(engine, routes, state, eventBuffer, capabilities.New(engine.Ping), cfg.AdminToken, cfg.RegistrationAPIKey).Handler()
 	proxyHandler := NewRouter(routes, state, engine, cfg.ProxyTargetHost).Handler()

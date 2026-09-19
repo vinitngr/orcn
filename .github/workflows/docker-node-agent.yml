@@ -1,0 +1,46 @@
+name: Publish Node Agent & Resource Loader
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - "services/node-agent/**"
+      - "core/**"
+      - ".github/workflows/docker-node-agent.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Node Agent
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/node-agent/Dockerfile
+          push: true
+          tags: |
+            vinitngr/orcn-agent:latest
+            vinitngr/orcn-agent:dev
+
+      - name: Build and push Resource Loader
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/node-agent/resource-loader/Dockerfile
+          push: true
+          tags: |
+            vinitngr/orcn-resource-loader:latest
+            vinitngr/orcn-resource-loader:dev
