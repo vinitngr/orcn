@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Zap, Blocks, KeyRound, ChevronLeft, Boxes } from 'lucide-react';
+import { LayoutGrid, Zap, Blocks, ChevronLeft, Boxes } from 'lucide-react';
 
 export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
   const pathname = usePathname();
@@ -70,7 +70,7 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
           <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Deploy</span>
         </div>
 
-        <Link href="/" style={navItemStyle(pathname === '/' || pathname.startsWith('/deployments') || pathname.startsWith('/workloads'))}>
+        <Link href="/deployments" style={navItemStyle(pathname.startsWith('/deployments') || pathname === '/' || pathname.startsWith('/workloads'))}>
           <LayoutGrid size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Deployments</span>}
         </Link>
@@ -90,10 +90,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
         <Link href="/templates" style={navItemStyle(pathname.startsWith('/templates'))}>
           <Blocks size={18} strokeWidth={2.2} />
           {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Templates</span>}
-        </Link>
-        <Link href="/secrets" style={navItemStyle(pathname.startsWith('/secrets'))}>
-          <KeyRound size={18} strokeWidth={2.2} />
-          {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>Secrets</span>}
         </Link>
       </nav>
     </div>

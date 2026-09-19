@@ -80,7 +80,7 @@ export default function TemplatesPage() {
                     </span>
                   </td>
                   <td style={{ padding: '1rem 1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                    {new Date(tpl.CreatedAt || Date.now()).toLocaleDateString()}
+                    {tpl.CreatedAt ? new Date(tpl.CreatedAt).toLocaleDateString() : '-'}
                   </td>
                   <td style={{ padding: '1rem 1.5rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', alignItems: 'center', height: '72px' }}>
                     <Button variant="secondary" size="sm" onClick={(e) => { e.stopPropagation(); router.push(`/workloads/create?template=${tpl.id}`); }}>Deploy</Button>

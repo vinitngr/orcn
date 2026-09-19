@@ -76,7 +76,7 @@ export function NetworkConfig({ data, updateData }: any) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <div>
             <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '0.875rem', fontWeight: 500 }}>Environment Variables</label>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>Configure environment variables. Use <code style={{ color: 'var(--primary)', background: 'var(--surface-hover)', padding: '0.1rem 0.3rem' }}>%Secrets.SECRET_NAME%</code> to inject values securely from the Secrets tab.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>Configure environment variables.</p>
           </div>
           <Button variant="outline" size="sm" onClick={addEnv}>+ Add Variable</Button>
         </div>
