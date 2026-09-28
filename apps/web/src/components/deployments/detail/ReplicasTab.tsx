@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useRouter } from "next/navigation";
 import { Cpu, Database, Map, RefreshCw, Search, Server, Wifi, HardDrive } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Logo } from "@/components/ui/Logos";
@@ -17,7 +18,8 @@ function Stat({ label, value, detail, icon: Icon }: { label: string; value: stri
   );
 }
 
-export function ReplicasTab({ nodes = [], statusVariant }: { nodes: any[]; deployment?: any; statusVariant?: any }) {
+export function ReplicasTab({ nodes = [], deployment, statusVariant }: { nodes: any[]; deployment?: any; statusVariant?: any }) {
+  const router = useRouter();
   const readyNodes = nodes.filter((n) => ["READY", "RUNNING", "HEALTHY"].includes(String(n.InfraStatus).toUpperCase())).length;
 
   return (
@@ -128,9 +130,13 @@ export function ReplicasTab({ nodes = [], statusVariant }: { nodes: any[]; deplo
                   const badgeVariant = statusVariant ? statusVariant(nodeStatus) : "default";
 
                   return (
-                    <tr key={node.ID || idx} className="transition-colors duration-150 hover:bg-[var(--surface-hover)]">
+                    <tr
+                      key={node.ID || idx}
+                      onClick={() => deployment?.ID && router.push(`/deployments/${deployment.ID}/nodes/${node.ID}`)}
+                      className="group cursor-pointer border-b border-[var(--border)] transition-colors duration-150 last:border-0 hover:bg-[var(--surface-hover)]"
+                    >
                       <td className="px-4 py-3 font-mono font-medium text-[var(--text-main)]">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                           <span className="size-1.5 rounded-full bg-emerald-500" />
                           <span>{node.ID}</span>
                           <CopyButton value={node.ID} size={12} />

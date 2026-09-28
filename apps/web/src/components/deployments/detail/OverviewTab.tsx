@@ -109,7 +109,7 @@ export function OverviewTab({ deployment, nodes, onOpenTab, statusVariant }: Ove
   const specPorts = buildSpecPorts(deployment);
   const nodeEndpoints = buildNodeEndpoints(nodes);
   const baseUrl = String(deployment.GatewayURL || deployment.Endpoint || deployment.URL || "").replace(/\/+$/, "");
-  const host = typeof window !== "undefined" ? window.location.host : "localhost";
+  const host = typeof window !== "undefined" ? window.location.hostname : "localhost";
   const slug = String(deployment.Name || deployment.ID || "deployment")
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, "-");
