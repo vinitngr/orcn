@@ -442,9 +442,6 @@ export default function DeployAIModelPage() {
                 apiKey={data.api_key}
                 onApiKeyChange={(val) => setData((d) => ({ ...d, api_key: val }))}
                 selectedModel={data.model}
-                onDeploy={handleDeploy}
-                isDeploying={isDeploying}
-                canDeploy={canNext}
               />
             </div>
           )}

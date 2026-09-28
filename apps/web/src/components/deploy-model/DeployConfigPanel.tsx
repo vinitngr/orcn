@@ -22,9 +22,6 @@ interface DeployConfigPanelProps {
   apiKey: string;
   onApiKeyChange: (val: string) => void;
   selectedModel: string;
-  onDeploy: () => void;
-  isDeploying: boolean;
-  canDeploy: boolean;
 }
 
 export function DeployConfigPanel({
@@ -39,9 +36,6 @@ export function DeployConfigPanel({
   apiKey,
   onApiKeyChange,
   selectedModel,
-  onDeploy,
-  isDeploying,
-  canDeploy,
 }: DeployConfigPanelProps) {
   const [requireAuth, setRequireAuth] = useState(!!apiKey);
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([]);
@@ -272,18 +266,6 @@ export function DeployConfigPanel({
             ))}
           </div>
         )}
-      </div>
-
-      {/* Direct Deploy CTA button */}
-      <div className="pt-2">
-        <button
-          type="button"
-          onClick={onDeploy}
-          disabled={!canDeploy || isDeploying}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isDeploying ? "Deploying Workload..." : "Launch Deployment Now"}
-        </button>
       </div>
     </div>
   );

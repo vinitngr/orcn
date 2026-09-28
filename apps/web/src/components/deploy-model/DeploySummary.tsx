@@ -1,7 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { Box, ChevronRight, Info, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logos";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { ComputeInstance } from "@/components/create/instance-utils";
 import { ModelDetails } from "./model-types";
 
@@ -38,6 +47,7 @@ export function DeploySummary({
   onNext,
   canNext,
 }: DeploySummaryProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const modelId = data.model;
   const modelName = modelId ? modelId.split("/").pop() : "";
   const modelOrg = modelDetails?.author || (modelId ? modelId.split("/")[0] : "");
@@ -213,7 +223,7 @@ export function DeploySummary({
         {isFinalStep ? (
           <button
             type="button"
-            onClick={onDeploy}
+            onClick={() => setConfirmOpen(true)}
             disabled={isDeploying || !canNext}
             className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -237,6 +247,69 @@ export function DeploySummary({
           </button>
         )}
       </div>
+
+      {/* Launch Confirmation */}
+      <Dialog open={confirmOpen} onOpenChange={(open: boolean) => setConfirmOpen(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Launch deployment?</DialogTitle>
+            <DialogDescription>
+              Nodes will be provisioned on the provider network and your endpoint allocated. Billing starts as soon as
+              the instance is up.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Model</span>
+              <span className="max-w-[220px] truncate font-medium text-zinc-200">{data.model || "-"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Compute</span>
+              <span className="font-medium text-zinc-200">
+                {data.instance ? data.instance.name : "-"}
+                {data.instance?.vram_gb ? ` • ${data.instance.vram_gb} GB` : ""}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Replicas</span>
+              <span className="font-medium text-zinc-200">{data.replicas || 1}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500">Est. Cost</span>
+              <span className="font-medium text-zinc-200">
+                {data.instance ? `$${data.instance.price}/h` : "-"}
+              </span>
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              className="flex h-9 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-800/90 px-4 text-xs font-semibold text-zinc-200 transition hover:bg-zinc-700 hover:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmOpen(false);
+                onDeploy();
+              }}
+              disabled={isDeploying || !canNext}
+              className="flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isDeploying ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  <span>Launching...</span>
+                </>
+              ) : (
+                <span>Launch now</span>
+              )}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }

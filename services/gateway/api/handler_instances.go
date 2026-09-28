@@ -62,7 +62,7 @@ func (s *Server) handleListProviders(w http.ResponseWriter, r *http.Request) {
 			HasVolumeSupport: false,
 			RequiresRegions:  false,
 			RequiresVPC:      false,
-			Features:         []string{"On-demand GPUs", "Competitive Pricing", "Pay-as-you-go"},
+			Features:         []string{"Decentralized GPUs", "Cheap pricing", "Pay-as-you-go"},
 			Schema:           []ProviderConfigField{},
 		},
 		{
