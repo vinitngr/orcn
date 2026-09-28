@@ -150,7 +150,7 @@ export default function DeployAIModelPage() {
       .catch(console.error);
   }, [data.model, data.runtime, data.modality]);
 
-  // Auto-detect tool_parser / reasoning_parser
+  // Auto‑detect tool_parser / reasoning_parser – only run when a valid modality is selected
   useEffect(() => {
     if (!["text-generation", "multimodal"].includes(data.modality) || !modelDetails || advancedSchema.length === 0) return;
     const metadata = modelDetails.metadata || {};
@@ -169,7 +169,7 @@ export default function DeployAIModelPage() {
     setData((d) => ({ ...d, advanced_config: nextConfig }));
   }, [data.modality, modelDetails, advancedSchema]);
 
-  // Load markets for active provider
+  // Load markets for active provider – make sure we have a provider selected (nosana is default)
   useEffect(() => {
     fetch(`/api/v1/markets?provider=${data.provider}`)
       .then((r) => r.json())
@@ -184,7 +184,7 @@ export default function DeployAIModelPage() {
   }, [data.provider]);
 
   const handleSearch = async () => {
-    if (!searchQuery || !data.runtime) return;
+    if (!searchQuery || !data.runtime || !data.modality) return;
     setIsSearching(true);
     try {
       const res = await fetch(
