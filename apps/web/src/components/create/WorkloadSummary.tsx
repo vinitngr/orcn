@@ -53,7 +53,7 @@ export function WorkloadSummary({
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'rgba(255,255,255,0.6)' }}>Instance</span>
-                <span style={{ fontWeight: 500 }}>{formData.market?.name || '-'}</span>
+                <span style={{ fontWeight: 500 }}>{formData.instance?.name || '-'}</span>
               </div>
               
               <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.15)', margin: '0.5rem 0' }} />
@@ -81,7 +81,7 @@ export function WorkloadSummary({
             fontWeight: 600,
             border: 'none'
           }}
-          disabled={!formData.workloadName || !formData.templateId || !formData.market || isDeploying}
+          disabled={!formData.workloadName || !formData.templateId || !formData.instance || isDeploying}
           onClick={handleDeploy}
         >
           {isDeploying ? 'Deploying...' : 'Deploy Workload'}

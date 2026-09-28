@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { MarketCard } from "@/components/create/MarketCard";
+import { InstanceCard } from "@/components/create/InstanceCard";
 
 import { NodeVolumesConfig } from "@/components/templates/NodeVolumesConfig";
 import { ContainersConfig } from "@/components/templates/ContainersConfig";
@@ -11,13 +11,13 @@ import { DiDocker } from "react-icons/di";
 import { FaDocker } from "react-icons/fa6";
 import { TemplateSummary } from "@/components/templates/TemplateSummary";
 import { WorkloadSummary } from "@/components/create/WorkloadSummary";
-import { mapMarket } from "@/components/create/market-utils";
+import { mapInstance } from "@/components/create/instance-utils";
 
 export default function CreateDeploymentPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<any[]>([]);
-  const [markets, setMarkets] = useState<any[]>([]);
+  const [instances, setInstances] = useState<any[]>([]);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [templateTab, setTemplateTab] = useState('my-templates');
   const [showJSON, setShowJSON] = useState(false);
@@ -27,7 +27,7 @@ export default function CreateDeploymentPage() {
     replicas: 1,
     templateId: "",
     provider: "nosana",
-    market: null as any,
+    instance: null as any,
     volumes: [],
     containers: []
   });
@@ -96,12 +96,14 @@ export default function CreateDeploymentPage() {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/v1/markets?provider=${formData.provider}`)
+    fetch(`/api/v1/instances?provider=${formData.provider}`)
       .then(res => res.json())
       .then(json => {
-        if (json.markets && Array.isArray(json.markets)) {
-          const mapped = json.markets.map(mapMarket);
-          setMarkets(mapped);
+        if (json.instances && Array.isArray(json.instances)) {
+          const mapped = json.instances.map(mapInstance);
+          setInstances(mapped);
+        } else {
+          setInstances([]);
         }
       })
       .catch(console.error);
@@ -253,7 +255,7 @@ export default function CreateDeploymentPage() {
   };
 
   const handleDeploy = async () => {
-    if (!formData.workloadName || !formData.templateId || !formData.market) return;
+    if (!formData.workloadName || !formData.templateId || !formData.instance) return;
     setIsDeploying(true);
     
     const finalSpec = generateFinalSpec();
@@ -263,8 +265,8 @@ export default function CreateDeploymentPage() {
         name: formData.workloadName,
         template_id: formData.templateId,
         provider_id: formData.provider,
-        instance_type_id: formData.market.id,
-        instance_name: formData.market.name,
+        instance_type_id: formData.instance.id,
+        instance_name: formData.instance.name,
         replicas: formData.replicas,
         spec: finalSpec
       };
@@ -402,24 +404,24 @@ export default function CreateDeploymentPage() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                  {markets.map(m => (
-                    <MarketCard 
+                  {instances.map(m => (
+                    <InstanceCard 
                       key={m.id} 
                       {...m} 
-                      selected={formData.market?.id === m.id}
-                      onClick={() => setFormData({...formData, market: m})}
+                      selected={formData.instance?.id === m.id}
+                      onClick={() => setFormData({...formData, instance: m})}
                     />
                   ))}
-                  {markets.length === 0 && (
+                  {instances.length === 0 && (
                     <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                      Loading markets...
+                      Loading instances...
                     </div>
                   )}
                 </div>
               </div>
 
               <div style={{ marginTop: '1rem' }}>
-                <Button size="sm" variant="primary" style={{ borderRadius: '0' }} onClick={() => setStep(2)} disabled={!formData.workloadName || !formData.templateId || !formData.market}>
+                <Button size="sm" variant="primary" style={{ borderRadius: '0' }} onClick={() => setStep(2)} disabled={!formData.workloadName || !formData.templateId || !formData.instance}>
                   Continue to Containers
                 </Button>
               </div>

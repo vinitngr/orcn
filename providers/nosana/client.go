@@ -61,7 +61,7 @@ func (c *Client) request(method, path string, body any) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (c *Client) GetMarkets() (any, error) {
+func (c *Client) GetInstanceTypes() (any, error) {
 	b, err := c.request("GET", "/markets", nil)
 	if err != nil {
 		return nil, err

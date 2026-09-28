@@ -2,10 +2,11 @@
 
 import { ExternalLink, KeyRound, Tag } from "lucide-react";
 import { Logo } from "@/components/ui/Logos";
+import { ModelDetails } from "./model-types";
 
 interface ModelDetailCardProps {
   modelId: string;
-  modelDetails: any;
+  modelDetails: ModelDetails | null;
   taskLabel?: string;
   requiredVram: number;
   hfToken: string;

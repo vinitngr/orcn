@@ -1,4 +1,4 @@
-export function MarketCard({ name, price, vram_gb, available, tag, selected, disabled, warning, onClick }: any) {
+export function InstanceCard({ name, price, vram_gb, available, tag, selected, disabled, warning, onClick }: any) {
   const isAvailable = !disabled;
   return (
     <div 

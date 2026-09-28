@@ -17,7 +17,7 @@ export function DeploymentSummary({ data, onDeploy, isDeploying }: any) {
         <div>
           <div style={{ color: '#737373', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Estimated Cost</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 500, letterSpacing: '-0.025em', color: '#fff' }}>
-            {data.market ? `$${data.market.price}/h` : '-'}
+            {data.instance ? `$${data.instance.price}/h` : '-'}
           </div>
         </div>
 
@@ -41,7 +41,7 @@ export function DeploymentSummary({ data, onDeploy, isDeploying }: any) {
 
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#737373' }}>Instance</span>
-              <span style={{ fontWeight: 400, textAlign: 'right' }}>{data.market?.name || '-'}</span>
+              <span style={{ fontWeight: 400, textAlign: 'right' }}>{data.instance?.name || '-'}</span>
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -55,7 +55,7 @@ export function DeploymentSummary({ data, onDeploy, isDeploying }: any) {
           variant="primary" 
           size="sm" 
           style={{ width: '100%', marginTop: '1rem', borderRadius: '0', backgroundColor: '#fff', color: '#000', fontWeight: 600 }}
-          disabled={!data.name || !data.model || !data.market || isDeploying}
+          disabled={!data.name || !data.model || !data.instance || isDeploying}
           onClick={onDeploy}
         >
           {isDeploying ? 'Deploying...' : 'Deploy Model'}

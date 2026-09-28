@@ -165,7 +165,7 @@ type NodeInfo struct {
 }
 
 type Provider interface {
-	GetMarkets() (interface{}, error)
+	GetInstanceTypes() (interface{}, error)
 	CreateDeployment(name string, instanceTypeID string, spec *JobSpec) (string, error)
 	StartDeployment(deploymentID string) error
 	StopDeployment(deploymentID string) error

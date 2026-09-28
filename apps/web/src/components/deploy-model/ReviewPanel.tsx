@@ -2,6 +2,8 @@
 
 import { Logo } from "@/components/ui/Logos";
 import { Info } from "lucide-react";
+import { ComputeInstance } from "@/components/create/instance-utils";
+import { ModelDetails } from "./model-types";
 
 interface ReviewPanelProps {
   data: {
@@ -11,9 +13,9 @@ interface ReviewPanelProps {
     runtime: string;
     replicas: number;
     provider: string;
-    market: any;
+    instance: ComputeInstance | null;
   };
-  modelDetails: any;
+  modelDetails: ModelDetails | null;
   requiredVram: number;
 }
 
@@ -65,14 +67,14 @@ export function ReviewPanel({ data, modelDetails, requiredVram }: ReviewPanelPro
         <div className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
           Compute
         </div>
-        {data.market ? (
+        {data.instance ? (
           <div className="divide-y divide-zinc-800/80">
-            <ReviewRow label="Instance" value={data.market.name} />
+            <ReviewRow label="Instance" value={data.instance.name} />
             <ReviewRow
               label="VRAM"
-              value={data.market.vram_gb ? `${data.market.vram_gb} GB` : "—"}
+              value={data.instance.vram_gb ? `${data.instance.vram_gb} GB` : "—"}
             />
-            <ReviewRow label="Price" value={`$${data.market.price}/h`} />
+            <ReviewRow label="Price" value={`$${data.instance.price}/h`} />
             <ReviewRow label="Network" value="Nosana" />
           </div>
         ) : (

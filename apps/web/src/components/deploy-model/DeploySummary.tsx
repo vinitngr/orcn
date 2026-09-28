@@ -2,6 +2,8 @@
 
 import { Box, ChevronRight, Info, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logos";
+import { ComputeInstance } from "@/components/create/instance-utils";
+import { ModelDetails } from "./model-types";
 
 interface DeploySummaryProps {
   data: {
@@ -11,11 +13,11 @@ interface DeploySummaryProps {
     runtime: string;
     replicas: number;
     provider: string;
-    market: any;
+    instance: ComputeInstance | null;
     timeoutMinutes?: number;
     strategy?: string;
   };
-  modelDetails: any;
+  modelDetails: ModelDetails | null;
   taskLabel?: string;
   requiredVram: number;
   currentStep: number;
@@ -156,11 +158,11 @@ export function DeploySummary({
               </div>
               <div>
                 <div className="text-xs font-medium text-zinc-200">
-                  {data.market ? data.market.name : "Not selected"}
+                  {data.instance ? data.instance.name : "Not selected"}
                 </div>
                 <div className="text-[10px] text-zinc-500">
-                  {data.provider === "local" ? "Local Node" : "Nosana Network"}
-                  {data.market?.vram_gb && ` • ${data.market.vram_gb} GB VRAM`}
+                  {data.provider ? data.provider.charAt(0).toUpperCase() + data.provider.slice(1) : "-"}
+                  {data.instance?.vram_gb && ` • ${data.instance.vram_gb} GB VRAM`}
                 </div>
               </div>
             </div>
@@ -187,7 +189,7 @@ export function DeploySummary({
             <div className="flex items-center justify-between">
               <span className="text-zinc-500">Estimated Cost</span>
               <span className="font-medium text-zinc-200">
-                {data.market ? `$${data.market.price}/h` : "-"}
+                {data.instance ? `$${data.instance.price}/h` : "-"}
               </span>
             </div>
           </div>

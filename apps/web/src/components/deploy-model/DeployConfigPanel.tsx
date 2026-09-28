@@ -145,7 +145,7 @@ export function DeployConfigPanel({
             <RotateCcw className="size-3.5 text-zinc-400" />
             <span>Restart & Recovery Strategy</span>
           </div>
-          <Select value={strategy} onValueChange={(val: any) => val && onStrategyChange(val)}>
+          <Select value={strategy} onValueChange={(val: string | null) => val && onStrategyChange(val)}>
             <SelectTrigger className="h-9 w-full border-zinc-800 bg-[#0e0e12] text-xs text-zinc-200">
               <SelectValue placeholder="Strategy" />
             </SelectTrigger>
@@ -174,7 +174,7 @@ export function DeployConfigPanel({
         </p>
         <Select
           value={String(timeoutMinutes)}
-          onValueChange={(val: any) => val && onTimeoutMinutesChange(parseInt(val, 10))}
+          onValueChange={(val: string | null) => val && onTimeoutMinutesChange(parseInt(val, 10))}
         >
           <SelectTrigger className="h-9 w-full border-zinc-800 bg-[#0e0e12] text-xs text-zinc-200">
             <SelectValue />

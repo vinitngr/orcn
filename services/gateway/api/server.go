@@ -123,7 +123,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/v1/models/search", s.handleSearchModels)
 	s.mux.HandleFunc("GET /api/v1/models/details", s.handleGetModelDetails)
 
-	s.mux.HandleFunc("GET /api/v1/markets", s.handleGetMarkets)
+	s.mux.HandleFunc("GET /api/v1/instances", s.handleListInstances)
 	s.mux.HandleFunc("GET /api/v1/providers", s.handleListProviders)
 
 	s.mux.HandleFunc("GET /api/v1/runtimes", s.handleListRuntimes)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, HelpCircle, BookOpen } from "lucide-react";
@@ -14,9 +14,48 @@ import {
 import { ComputePanel } from "@/components/deploy-model/ComputePanel";
 import { DeployConfigPanel } from "@/components/deploy-model/DeployConfigPanel";
 import { DeploySummary } from "@/components/deploy-model/DeploySummary";
-import { mapMarket } from "@/components/create/market-utils";
+import { ConfigOption } from "@/components/deploy-model/AdvancedConfigSection";
+import { ModelItem } from "@/components/deploy-model/ModelCard";
+import {
+  ModelDetails,
+  ModelSearchApiResult,
+} from "@/components/deploy-model/model-types";
+import { mapInstance, ComputeInstance } from "@/components/create/instance-utils";
 
-function estimateVramNeeded(modelId: string, modelDetails?: any): number {
+function applyDetectedParsers(
+  config: Record<string, string>,
+  modality: string,
+  modelDetails: ModelDetails | null,
+  schema: ConfigOption[]
+): Record<string, string> {
+  if (
+    !["text-generation", "multimodal"].includes(modality) ||
+    !modelDetails ||
+    schema.length === 0
+  ) {
+    return config;
+  }
+  const metadata = modelDetails.metadata || {};
+  const detected = {
+    tool_parser: metadata.tool_parser ?? modelDetails.recommended_tool_parser ?? "",
+    reasoning_parser:
+      metadata.reasoning_parser ?? modelDetails.recommended_reasoning_parser ?? "",
+  };
+  const nextConfig = { ...config };
+  for (const key of ["tool_parser", "reasoning_parser"] as const) {
+    const option = schema.find((opt) => opt.key === key);
+    const value = detected[key];
+    if (!option?.options?.includes(value)) continue;
+    const current = nextConfig[key];
+    // Only auto-fill when unset or still at the schema default so user edits stick.
+    if (!current || current === option.default) {
+      nextConfig[key] = value;
+    }
+  }
+  return nextConfig;
+}
+
+function estimateVramNeeded(modelId: string, modelDetails?: ModelDetails | null): number {
   let paramsB = 0;
   let regexParams = 0;
   const match = modelId.match(/(\d+(?:\.\d+)?)b/i);
@@ -39,7 +78,7 @@ function estimateVramNeeded(modelId: string, modelDetails?: any): number {
       bits = quantConfig.config_groups.group_0.weights.num_bits;
     if (bits === 4) bytesPerParam = 0.5;
     else if (bits === 8) bytesPerParam = 1;
-    else if (["awq", "gptq", "exl2"].includes(quantConfig.quant_method))
+    else if (["awq", "gptq", "exl2"].includes(quantConfig.quant_method ?? ""))
       bytesPerParam = modelId.toLowerCase().includes("8bit") ? 1 : 0.5;
   } else if (modelDetails?.config?.torch_dtype) {
     const dtype = modelDetails.config.torch_dtype.toLowerCase();
@@ -75,9 +114,9 @@ export default function DeployAIModelPage() {
     modality: "",
     runtime: "",
     replicas: 1,
-    provider: "nosana",
+    provider: "",
     model: "",
-    market: null as any,
+    instance: null as ComputeInstance | null,
     hf_token: "",
     strategy: "EXTEND",
     timeout_minutes: 60,
@@ -88,14 +127,14 @@ export default function DeployAIModelPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ModelItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [runtimes, setRuntimes] = useState<RuntimeCapability[]>([]);
   const [modalities, setModalities] = useState<RuntimeTask[]>([]);
   const [isLoadingCapabilities, setIsLoadingCapabilities] = useState(true);
-  const [markets, setMarkets] = useState<any[]>([]);
-  const [modelDetails, setModelDetails] = useState<any>(null);
-  const [advancedSchema, setAdvancedSchema] = useState<any[]>([]);
+  const [instances, setInstances] = useState<ComputeInstance[]>([]);
+  const [modelDetails, setModelDetails] = useState<ModelDetails | null>(null);
+  const [advancedSchema, setAdvancedSchema] = useState<ConfigOption[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isDeploying, setIsDeploying] = useState(false);
 
@@ -126,12 +165,16 @@ export default function DeployAIModelPage() {
       .then((r) => r.json())
       .then((json) => {
         if (json.schema) {
-          setAdvancedSchema(json.schema);
+          const schema = json.schema as ConfigOption[];
+          setAdvancedSchema(schema);
           const defaults: Record<string, string> = {};
-          json.schema.forEach((opt: any) => {
+          schema.forEach((opt) => {
             defaults[opt.key] = opt.default;
           });
-          setData((d) => ({ ...d, advanced_config: { ...defaults, ...d.advanced_config } }));
+          setData((d) => ({
+            ...d,
+            advanced_config: { ...defaults, ...d.advanced_config },
+          }));
         }
       })
       .catch(console.error);
@@ -145,43 +188,37 @@ export default function DeployAIModelPage() {
     )
       .then((r) => r.json())
       .then((json) => {
-        if (json.details) setModelDetails(json.details);
+        if (json.details) {
+          setModelDetails(json.details as ModelDetails);
+        }
       })
       .catch(console.error);
   }, [data.model, data.runtime, data.modality]);
 
-  // Auto‑detect tool_parser / reasoning_parser – only run when a valid modality is selected
+  // Load instance types for active provider – make sure we have a provider selected (nosana is default)
   useEffect(() => {
-    if (!["text-generation", "multimodal"].includes(data.modality) || !modelDetails || advancedSchema.length === 0) return;
-    const metadata = modelDetails.metadata || {};
-    const detected = {
-      tool_parser: metadata.tool_parser ?? modelDetails.recommended_tool_parser ?? "",
-      reasoning_parser: metadata.reasoning_parser ?? modelDetails.recommended_reasoning_parser ?? "",
-    };
-    const nextConfig = { ...data.advanced_config };
-    for (const key of ["tool_parser", "reasoning_parser"]) {
-      const option = advancedSchema.find((opt) => opt.key === key);
-      const value = detected[key as keyof typeof detected];
-      if (option?.options?.includes(value)) {
-        nextConfig[key] = value;
-      }
-    }
-    setData((d) => ({ ...d, advanced_config: nextConfig }));
-  }, [data.modality, modelDetails, advancedSchema]);
-
-  // Load markets for active provider – make sure we have a provider selected (nosana is default)
-  useEffect(() => {
-    fetch(`/api/v1/markets?provider=${data.provider}`)
+    fetch(`/api/v1/instances?provider=${data.provider}`)
       .then((r) => r.json())
       .then((json) => {
-        if (json.markets && Array.isArray(json.markets)) {
-          setMarkets(json.markets.map(mapMarket));
+        if (json.instances && Array.isArray(json.instances)) {
+          setInstances(json.instances.map(mapInstance));
         } else {
-          setMarkets([]);
+          setInstances([]);
         }
       })
       .catch(console.error);
   }, [data.provider]);
+
+  const advancedConfig = useMemo(
+    () =>
+      applyDetectedParsers(
+        data.advanced_config,
+        data.modality,
+        modelDetails,
+        advancedSchema
+      ),
+    [data.advanced_config, data.modality, modelDetails, advancedSchema]
+  );
 
   const handleSearch = async () => {
     if (!searchQuery || !data.runtime || !data.modality) return;
@@ -193,12 +230,12 @@ export default function DeployAIModelPage() {
       const json = await res.json();
       if (json.results) {
         setSearchResults(
-          json.results.map((r: any) => {
+          (json.results as ModelSearchApiResult[]).map((r) => {
             const params =
               typeof r.Parameters === "number" && r.Parameters > 0 ? r.Parameters : undefined;
             return {
               id: r.ID,
-              name: r.ID.split("/").pop(),
+              name: r.ID.split("/").pop() || r.ID,
               org: r.Author || r.ID.split("/")[0] || "model",
               downloads: r.Downloads,
               likes: r.Likes,
@@ -239,7 +276,7 @@ export default function DeployAIModelPage() {
   };
 
   const handleDeploy = async () => {
-    if (!data.name || !data.model || !data.market) return;
+    if (!data.name || !data.model || !data.instance) return;
     setIsDeploying(true);
     try {
       const res = await fetch("/api/v1/deployments", {
@@ -248,8 +285,8 @@ export default function DeployAIModelPage() {
         body: JSON.stringify({
           name: data.name,
           provider_id: data.provider,
-          instance_type_id: data.market.id,
-          instance_name: data.market.name,
+          instance_type_id: data.instance.id,
+          instance_name: data.instance.name,
           runtime_id: data.runtime,
           task: data.modality,
           model_id: data.model,
@@ -260,7 +297,7 @@ export default function DeployAIModelPage() {
           volume_size_gb: data.volume_size_gb,
           provider_config: data.provider_config,
           advanced_config: {
-            ...data.advanced_config,
+            ...advancedConfig,
             ...(data.api_key ? { api_key: data.api_key } : {}),
           },
         }),
@@ -283,12 +320,11 @@ export default function DeployAIModelPage() {
 
   const canNext =
     step === 1 ? !!data.model && (!modelDetails?.gated || !!data.hf_token) :
-    step === 2 ? !!data.market :
-    step === 3 ? !!data.name && !!data.model && !!data.market :
+    step === 2 ? !!data.instance :
+    step === 3 ? !!data.name && !!data.model && !!data.instance :
     false;
 
   const nextStep = () => setStep((s) => Math.min(3, s + 1));
-  const prevStep = () => setStep((s) => Math.max(1, s - 1));
 
   return (
     <div className="space-y-6">
@@ -352,7 +388,7 @@ export default function DeployAIModelPage() {
               hfToken={data.hf_token}
               onHfTokenChange={(token) => setData((d) => ({ ...d, hf_token: token }))}
               advancedSchema={advancedSchema}
-              advancedConfig={data.advanced_config}
+              advancedConfig={advancedConfig}
               onAdvancedChange={(key, value) =>
                 setData((d) => ({ ...d, advanced_config: { ...d.advanced_config, [key]: value } }))
               }
@@ -372,11 +408,11 @@ export default function DeployAIModelPage() {
               <ComputePanel
                 selectedProvider={data.provider}
                 onSelectProvider={(pid) =>
-                  setData((d) => ({ ...d, provider: pid, market: null, provider_config: {} }))
+                  setData((d) => ({ ...d, provider: pid, instance: null, provider_config: {} }))
                 }
-                markets={markets}
-                selectedMarket={data.market}
-                onSelectMarket={(m) => setData((d) => ({ ...d, market: m }))}
+                instances={instances}
+                selectedInstance={data.instance}
+                onSelectInstance={(i) => setData((d) => ({ ...d, instance: i }))}
                 requiredVram={requiredVram}
                 selectedModel={data.model}
                 providerConfig={data.provider_config}
