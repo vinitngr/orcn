@@ -67,7 +67,7 @@ function StatCard({ label, value, detail, icon: Icon }: { label: string; value: 
 
 function FilterSelect({ items, value, onChange }: { items: { label: string; value: string }[]; value: string; onChange: (value: string) => void }) {
 	return (
-		<Select items={items} value={value} onValueChange={(nextValue) => onChange(String(nextValue ?? "all"))}>
+		<Select items={items} value={value} onValueChange={(nextValue: string) => onChange(String(nextValue ?? "all"))}>
 			<SelectTrigger className="h-9 min-w-36 border-[var(--border)] bg-[var(--bg-color)] text-xs text-[var(--text-main)]"><SelectValue /></SelectTrigger>
 			<SelectContent><SelectGroup><SelectLabel>Filter</SelectLabel>{items.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectGroup></SelectContent>
 		</Select>

@@ -12,7 +12,12 @@ import {
   SiSupabase,
   SiTensorflow,
   SiVercel,
-  SiGooglecloud 
+  SiGooglecloud,
+  SiMeta,
+  SiQwen,
+  SiDeepseek,
+  SiMistralai,
+  SiHuggingface
 } from "react-icons/si";
 import { FaAws, FaMicrosoft } from "react-icons/fa";
 import {
@@ -104,13 +109,38 @@ const PROVIDER_LOGOS: Record<string, IconType> = {
   runtime: RiFlashlightFill,
 };
 
+const SarvamLogo: IconType = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <path d="M14.5 3C17.5 3 20 5.5 20 8.5C20 11.5 17 14 14.5 15.5C12 17 9.5 18 9.5 21" stroke="#E63E22" strokeWidth="3" strokeLinecap="round" />
+    <path d="M9.5 21C6.5 21 4 18.5 4 15.5C4 12.5 7 10 9.5 8.5C12 7 14.5 6 14.5 3" stroke="#FF6B4A" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
+const MicrosoftLogo: IconType = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="2" y="2" width="9" height="9" fill="#F25022" />
+    <rect x="13" y="2" width="9" height="9" fill="#7FBA00" />
+    <rect x="2" y="13" width="9" height="9" fill="#00A4EF" />
+    <rect x="13" y="13" width="9" height="9" fill="#FFB900" />
+  </svg>
+);
+
 const MODEL_LOGOS: Record<string, IconType> = {
-  deepseek: RiRobot2Line,
-  "deepseek ai": RiRobot2Line,
-  qwen: RiRobot2Line,
+  deepseek: SiDeepseek,
+  "deepseek ai": SiDeepseek,
+  qwen: SiQwen,
+  alibaba: SiQwen,
+  mistral: SiMistralai,
+  mistralai: SiMistralai,
+  meta: SiMeta,
+  "meta llama": SiMeta,
+  llama: SiMeta,
+  microsoft: MicrosoftLogo,
+  sarvam: SarvamLogo,
+  sarvamai: SarvamLogo,
+  huggingface: SiHuggingface,
+  hf: SiHuggingface,
   baidu: RiRobot2Line,
-  llama: RiRobot2Line,
-  meta: RiRobot2Line,
 };
 
 const GENERAL_LOGOS: Record<string, IconType> = {
@@ -129,8 +159,32 @@ const LOGOS: Record<string, IconType> = {
   ...GENERAL_LOGOS,
 };
 
+const FallbackLogo: IconType = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.4" />
+    <circle cx="9" cy="9" r="1.5" fill="currentColor" fillOpacity="0.7" />
+    <circle cx="15" cy="9" r="1.5" fill="currentColor" fillOpacity="0.7" />
+    <path d="M8 15C8 15 9.5 17 12 17C14.5 17 16 15 16 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+  </svg>
+);
+
+const LocalNodeLogo: IconType = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+    <rect x="2" y="4" width="20" height="7" rx="1.5" stroke="#38bdf8" strokeWidth="1.7" />
+    <rect x="2" y="13" width="20" height="7" rx="1.5" stroke="#38bdf8" strokeWidth="1.7" />
+    <circle cx="6" cy="7.5" r="1" fill="#38bdf8" />
+    <circle cx="9" cy="7.5" r="1" fill="#38bdf8" />
+    <circle cx="6" cy="16.5" r="1" fill="#38bdf8" />
+    <circle cx="9" cy="16.5" r="1" fill="#38bdf8" />
+  </svg>
+);
+
 function getIcon(name: string): IconType {
-  return LOGOS[normalize(name)] ?? RiQuestionMark;
+  const n = normalize(name);
+  if (n === "local" || n === "local node" || n === "localhost") {
+    return LocalNodeLogo;
+  }
+  return LOGOS[n] ?? FallbackLogo;
 }
 
 export function Logo({ name, size = 24, className }: LogoProps) {

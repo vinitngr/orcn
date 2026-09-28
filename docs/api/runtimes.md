@@ -1,8 +1,53 @@
 # Runtimes API
 
-This API fetches configuration schemas and runtime-specific data for inference engines like vLLM and Ollama.
+This API exposes the registered inference runtimes (e.g. vLLM, Ollama) and their configuration schemas.
 
-## 1. Get Runtime Schema
+## 1. List Runtimes
+Returns every runtime registered in the gateway together with the model tasks (modalities) it supports. This is the single source of truth for the runtime and modality selectors in clients, so adding a new runtime plugin only requires registering it in `services/gateway/main.go` — no API or frontend changes.
+
+**Endpoint:** `GET /api/v1/runtimes`
+
+### cURL Example
+```bash
+curl -X GET "http://localhost:8080/api/v1/runtimes"
+```
+
+### Response Example
+```json
+{
+  "runtimes": [
+    {
+      "id": "ollama",
+      "name": "Ollama",
+      "tasks": [
+        { "id": "text-generation", "name": "Text Generation", "description": "Autoregressive chat and completion models." }
+      ]
+    },
+    {
+      "id": "vllm",
+      "name": "vLLM",
+      "tasks": [
+        { "id": "text-generation", "name": "Text Generation", "description": "Autoregressive chat and completion models." },
+        { "id": "multimodal", "name": "Multimodal", "description": "Models that accept image, video or audio alongside text." },
+        { "id": "embedding", "name": "Embedding", "description": "Models that turn text into dense vector representations." },
+        { "id": "score", "name": "Reranker", "description": "Cross-encoder models that score query-document pairs." }
+      ]
+    }
+  ],
+  "tasks": [
+    { "id": "text-generation", "name": "Text Generation", "description": "Autoregressive chat and completion models." },
+    { "id": "multimodal", "name": "Multimodal", "description": "Models that accept image, video or audio alongside text." },
+    { "id": "embedding", "name": "Embedding", "description": "Models that turn text into dense vector representations." },
+    { "id": "score", "name": "Reranker", "description": "Cross-encoder models that score query-document pairs." }
+  ]
+}
+```
+> [!NOTE]
+> `runtimes[].tasks` is scoped per runtime; the top-level `tasks` array is the de-duplicated union of all tasks in display order. Clients should render the modality selector from `tasks` and the runtime selector from the runtimes that support the selected task.
+
+---
+
+## 2. Get Runtime Schema
 Retrieves the "Advanced Configuration" schema for a specific runtime. This schema defines the parameters (e.g., memory utilization, prefix caching) that the frontend should display when configuring a workload.
 
 **Endpoint:** `GET /api/v1/runtimes/schema`

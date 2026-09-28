@@ -30,13 +30,14 @@ curl -X GET "http://localhost:8080/api/v1/models/search?runtime=vllm&q=llama"
       "pipeline_tag": "text-generation",
       "tags": [
         "LlamaForCausalLM"
-      ]
+      ],
+      "Parameters": 8.03
     }
   ]
 }
 ```
 > [!NOTE]
-> The exact search behavior and sorting (e.g., by downloads) is handled by the Runtime plugin. The response conforms to the `core.ModelInfo` struct.
+> The exact search behavior and sorting (e.g., by downloads) is handled by the Runtime plugin. The response conforms to the `core.ModelInfo` struct. `Parameters` is the parameter count in billions, sourced from the model card (HuggingFace `safetensors.total` for vLLM, the bundled catalog for Ollama) and omitted when unknown.
 
 ---
 

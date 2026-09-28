@@ -58,6 +58,12 @@ func (v *OllamaRuntime) GetWorkloadType() string {
 	return "model_inference"
 }
 
+func (v *OllamaRuntime) Name() string { return "Ollama" }
+
+func (v *OllamaRuntime) SupportedTasks() []core.ModelTask {
+	return []core.ModelTask{core.TaskTextGeneration}
+}
+
 func (v *OllamaRuntime) BuildJobSpec(modelID string, task core.ModelTask, advancedConfig map[string]string) (*core.JobSpec, error) {
 	if task = core.NormalizeModelTask(task); task != core.TaskTextGeneration {
 		return nil, errors.New("ollama supports only text-generation models")
@@ -122,6 +128,11 @@ func (v *OllamaRuntime) SearchModels(query string, task core.ModelTask) ([]core.
 				tags = append(tags, *m.Quantization)
 			}
 
+			var parameters float64
+			if m.Parameters != nil {
+				parameters = *m.Parameters
+			}
+
 			results = append(results, core.ModelInfo{
 				ID:           m.Name,
 				Name:         m.Name,
@@ -130,6 +141,7 @@ func (v *OllamaRuntime) SearchModels(query string, task core.ModelTask) ([]core.
 				PipelineTag:  "text-generation",
 				Tags:         tags,
 				Task:         string(core.TaskTextGeneration),
+				Parameters:   parameters,
 			})
 			count++
 			if count > 50 {

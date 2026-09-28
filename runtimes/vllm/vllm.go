@@ -15,6 +15,17 @@ type VLLMRuntime struct{}
 
 func New() *VLLMRuntime { return &VLLMRuntime{} }
 
+func (v *VLLMRuntime) Name() string { return "vLLM" }
+
+func (v *VLLMRuntime) SupportedTasks() []core.ModelTask {
+	return []core.ModelTask{
+		core.TaskTextGeneration,
+		core.TaskMultimodal,
+		core.TaskEmbedding,
+		core.TaskScore,
+	}
+}
+
 func (v *VLLMRuntime) GetWorkloadType() string { return "model_inference" }
 
 func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config map[string]string) (*core.JobSpec, error) {
@@ -124,6 +135,9 @@ type hfModelSearchResult struct {
 	Config    struct {
 		Architectures []string `json:"architectures"`
 	} `json:"config"`
+	Safetensors struct {
+		Total int64 `json:"total"`
+	} `json:"safetensors"`
 }
 
 type modelRuntimeConfig struct {
@@ -212,6 +226,7 @@ func (v *VLLMRuntime) SearchModels(query string, task core.ModelTask) ([]core.Mo
 				PipelineTag:  pipelineTag,
 				Tags:         []string{architecture},
 				Task:         string(task),
+				Parameters:   float64(model.Safetensors.Total) / 1e9,
 			})
 		}
 	}
@@ -222,7 +237,7 @@ func (v *VLLMRuntime) SearchModels(query string, task core.ModelTask) ([]core.Mo
 }
 
 func searchHuggingFaceModels(query, pipelineTag string) ([]hfModelSearchResult, error) {
-	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&pipeline_tag=%s&expand=config", url.QueryEscape(query), url.QueryEscape(pipelineTag))
+	searchURL := fmt.Sprintf("https://huggingface.co/api/models?search=%s&limit=100&sort=downloads&direction=-1&pipeline_tag=%s&expand=config&expand=safetensors", url.QueryEscape(query), url.QueryEscape(pipelineTag))
 	resp, err := http.Get(searchURL)
 	if err != nil {
 		return nil, err

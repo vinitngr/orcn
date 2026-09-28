@@ -85,6 +85,7 @@ type ModelInfo struct {
 	PipelineTag  string   `json:"PipelineTag"`
 	Tags         []string `json:"Tags"`
 	Task         string   `json:"Task,omitempty"`
+	Parameters   float64  `json:"Parameters,omitempty"` // parameter count in billions
 }
 
 type ModelTask string
@@ -103,6 +104,38 @@ func NormalizeModelTask(task ModelTask) ModelTask {
 	return task
 }
 
+// ModelTaskInfo is the canonical, user-facing description of a model task.
+// It is the single source of truth for task labels exposed to clients.
+type ModelTaskInfo struct {
+	ID          ModelTask `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+}
+
+var modelTaskCatalog = []ModelTaskInfo{
+	{ID: TaskTextGeneration, Name: "Text Generation", Description: "Autoregressive chat and completion models."},
+	{ID: TaskMultimodal, Name: "Multimodal", Description: "Models that accept image, video or audio alongside text."},
+	{ID: TaskEmbedding, Name: "Embedding", Description: "Models that turn text into dense vector representations."},
+	{ID: TaskScore, Name: "Reranker", Description: "Cross-encoder models that score query-document pairs."},
+}
+
+// ModelTasks returns the full task catalog in display order.
+func ModelTasks() []ModelTaskInfo {
+	tasks := make([]ModelTaskInfo, len(modelTaskCatalog))
+	copy(tasks, modelTaskCatalog)
+	return tasks
+}
+
+// GetModelTaskInfo looks up the catalog entry for a task.
+func GetModelTaskInfo(task ModelTask) (ModelTaskInfo, bool) {
+	for _, info := range modelTaskCatalog {
+		if info.ID == task {
+			return info, true
+		}
+	}
+	return ModelTaskInfo{}, false
+}
+
 type ConfigOption struct {
 	Key         string   `json:"key"`
 	Name        string   `json:"name"`
@@ -115,6 +148,10 @@ type ConfigOption struct {
 }
 
 type Runtime interface {
+	// Name is the human-readable runtime name shown in clients (e.g. "vLLM").
+	Name() string
+	// SupportedTasks lists the model tasks this runtime can serve.
+	SupportedTasks() []ModelTask
 	BuildJobSpec(modelID string, task ModelTask, advancedConfig map[string]string) (*JobSpec, error)
 	GetWorkloadType() string
 	SearchModels(query string, task ModelTask) ([]ModelInfo, error)
