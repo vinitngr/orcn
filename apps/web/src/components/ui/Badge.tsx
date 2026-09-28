@@ -1,17 +1,17 @@
 import { ReactNode } from 'react';
 
-export function Badge({ children, variant = 'default' }: { children: ReactNode, variant?: 'default' | 'success' | 'warning' | 'error' }) {
+export function Badge({ children, variant = 'default', className }: { children: ReactNode, variant?: 'default' | 'success' | 'warning' | 'error', className?: string }) {
   const styles = {
     default: { bg: 'var(--surface-hover)', color: 'var(--text-muted)', border: 'var(--border)' },
-    success: { bg: '#ecfdf5', color: '#059669', border: '#a7f3d0' },
-    warning: { bg: '#fffbeb', color: '#d97706', border: '#fde68a' },
-    error: { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
+    success: { bg: 'var(--status-running-bg)', color: 'var(--status-running)', border: 'var(--status-running-border)' },
+    warning: { bg: 'var(--status-scaling-bg)', color: 'var(--status-scaling)', border: 'var(--status-scaling-border)' },
+    error: { bg: 'var(--status-stopped-bg)', color: 'var(--status-stopped)', border: 'var(--status-stopped-border)' }
   };
 
   const s = styles[variant];
 
   return (
-    <span style={{
+    <span className={className} style={{
       display: 'inline-flex',
       alignItems: 'center',
       padding: '0.125rem 0.5rem',

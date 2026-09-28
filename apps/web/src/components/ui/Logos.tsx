@@ -28,6 +28,7 @@ import {
   RiSparkling2Fill,
 } from "react-icons/ri";
 
+import { SiVllm } from "react-icons/si";
 import { BsOpenai } from "react-icons/bs";
 
 export interface LogoProps {
@@ -64,7 +65,7 @@ const PROVIDER_LOGOS: Record<string, IconType> = {
   "akash network": RiCloudLine,
   azure: FaMicrosoft,
   "microsoft azure": FaMicrosoft,
-  vllm: RiFlashlightFill,
+  vllm: SiVllm ,
   openrouter: RiSparkling2Fill,
   runpod: RiServerLine,
   together: RiSparkling2Fill,
