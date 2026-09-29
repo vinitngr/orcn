@@ -20,7 +20,7 @@ export function ResourcesModalContent({
 }) {
   const { providers, loading } = useResourceProviders();
   const resources = container.resources || [];
-
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
 
     const updateResource = (i: number, key: string, val: any) =>
       helpers.updateArrayItem(cIndex, "resources", i, key, val);

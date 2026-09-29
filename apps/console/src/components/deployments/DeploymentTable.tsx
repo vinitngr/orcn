@@ -167,9 +167,9 @@ export function DeploymentTable() {
                 id: deployment.ID,
                 name: deployment.Name || "Unnamed deployment",
                 status: deployment.Status || "UNKNOWN",
-                model: deployment.ModelID || "Model not specified",
-                provider: deployment.ProviderID || "Provider not specified",
-                resource: deployment.InstanceName || "Resource not specified",
+                model: deployment.ModelID || "-",
+                provider: deployment.ProviderID || "-",
+                resource: deployment.InstanceName || "-",
                 replicas: `${deployment.Nodes?.length || 0} / ${deployment.Replicas || 0}`,
                 created: deployment.CreatedAt
                   ? new Date(deployment.CreatedAt).toLocaleDateString()
