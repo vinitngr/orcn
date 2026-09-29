@@ -5,7 +5,11 @@ import { HardDrive, Server } from "lucide-react";
 
 import { ComputeInstance } from "@/components/create/instance-utils";
 import { ProviderInfo } from "./compute-types";
-import ComputeProviderSection from "./ComputeProviderSection";
+import {
+  type ProviderConnection,
+  fetchConnections,
+} from "@/components/providers/api";
+import ProviderConnectionSection from "./ProviderConnectionSection";
 import ComputeFiltersSection from "./ComputeFiltersSection";
 import ComputeInstancesList from "./ComputeInstancesList";
 import ComputeProviderConfigSection from "./ComputeProviderConfigSection";
@@ -13,6 +17,8 @@ import ComputeProviderConfigSection from "./ComputeProviderConfigSection";
 interface ComputePanelProps {
   selectedProvider: string;
   onSelectProvider: (providerId: string) => void;
+  selectedConnectionId?: string;
+  onSelectConnection?: (connection: ProviderConnection) => void;
   instances: ComputeInstance[];
   selectedInstance?: ComputeInstance | null;
   onSelectInstance: (instance: ComputeInstance) => void;
@@ -26,7 +32,8 @@ interface ComputePanelProps {
 
 export function ComputePanel({
   selectedProvider,
-  onSelectProvider,
+  selectedConnectionId = "",
+  onSelectConnection,
   instances,
   selectedInstance,
   onSelectInstance,
@@ -38,6 +45,9 @@ export function ComputePanel({
   onVolumeSizeGbChange,
 }: ComputePanelProps) {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [connections, setConnections] = useState<ProviderConnection[]>([]);
+  const [connectionsLoading, setConnectionsLoading] = useState(true);
+  const [connectionsError, setConnectionsError] = useState<string | null>(null);
   const [instanceSearch, setInstanceSearch] = useState("");
   const [deviceFilter, setDeviceFilter] = useState("all");
   const [sortBy, setSortBy] = useState("price_asc");
@@ -53,6 +63,18 @@ export function ComputePanel({
         }
       })
       .catch(console.error);
+  }, []);
+
+  // Fetch saved provider connections (connectors)
+  useEffect(() => {
+    fetchConnections()
+      .then(setConnections)
+      .catch((e) =>
+        setConnectionsError(
+          e instanceof Error ? e.message : "Failed to load connectors",
+        ),
+      )
+      .finally(() => setConnectionsLoading(false));
   }, []);
 
   const activeProvider = providers.find((p) => p.id === selectedProvider) ||
@@ -122,28 +144,14 @@ export function ComputePanel({
         </div>
       )}
 
-      {/* 1. Provider Selection */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-              1. Compute Provider
-            </h3>
-            <p className="mt-0.5 text-xs text-[var(--text-light)]">
-              Choose an infrastructure provider to orchestrate your instances.
-            </p>
-          </div>
-          <span className="rounded bg-[var(--dm-chip)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
-            {providers.length} Available
-          </span>
-        </div>
-
-        <ComputeProviderSection
-          providers={providers}
-          selectedProvider={selectedProvider}
-          onSelectProvider={onSelectProvider}
-        />
-      </div>
+      {/* 1. Provider Connection Selection */}
+      <ProviderConnectionSection
+        connections={connections}
+        isLoading={connectionsLoading}
+        error={connectionsError}
+        selectedConnectionId={selectedConnectionId}
+        onSelect={(connection) => onSelectConnection?.(connection)}
+      />
 
       {/* 2. Hardware Instance Selection */}
       <div className="pt-2 space-y-4">
@@ -180,31 +188,6 @@ export function ComputePanel({
           onSelectInstance={onSelectInstance}
         />
       </div>
-
-      {/* 3. Selected Instance Summary (if selected) */}
-      {selectedInstance && (
-        <div className="rounded-xl border border-[var(--dm-divider)] bg-[var(--dm-card)] p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400">
-              <Server className="size-4" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-[var(--text-main)]">
-                Selected: {selectedInstance.name}
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)]">
-                {selectedInstance.vram_gb
-                  ? `${selectedInstance.vram_gb} GB VRAM • `
-                  : ""}
-                ${selectedInstance.price}/h • {activeProvider.name}
-              </div>
-            </div>
-          </div>
-          <span className="rounded bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-            Hardware Assigned
-          </span>
-        </div>
-      )}
 
       {/* 4. Volume, Required & Advanced Provider Configuration */}
       <ComputeProviderConfigSection

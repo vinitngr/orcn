@@ -34,6 +34,7 @@ export interface WorkloadFormData {
   replicas: number;
   templateId: string;
   provider: string;
+  providerConnectionId: string;
   providerConfig: Record<string, unknown>;
   volumeSizeGb: number;
   instance: any;
@@ -116,6 +117,7 @@ export function useCreateWorkload() {
     replicas: 1,
     templateId: "",
     provider: "nosana",
+    providerConnectionId: "",
     providerConfig: {},
     volumeSizeGb: 50,
     instance: null as any,
@@ -298,7 +300,7 @@ export function useCreateWorkload() {
   };
 
   const performDeploy = async () => {
-    if (!formData.workloadName || !formData.templateId || !formData.instance)
+    if (!formData.workloadName || !formData.templateId || !formData.instance || !formData.providerConnectionId)
       return;
     setIsDeploying(true);
     setConfirmOpen(false);
@@ -310,6 +312,7 @@ export function useCreateWorkload() {
         name: formData.workloadName,
         template_id: formData.templateId,
         provider_id: formData.provider,
+        provider_connection_id: formData.providerConnectionId,
         instance_type_id: formData.instance.id,
         instance_name: formData.instance.name,
         replicas: formData.replicas,

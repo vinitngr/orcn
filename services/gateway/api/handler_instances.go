@@ -57,7 +57,7 @@ func (s *Server) handleListProviders(w http.ResponseWriter, r *http.Request) {
 		{
 			ID:               "nosana",
 			Name:             "Nosana Network",
-			Description:      "Decentralized GPU compute network powered by Solana.",
+			Description:      "Decentralized GPU compute network powered by Nosana.",
 			Type:             "depin",
 			HasVolumeSupport: false,
 			RequiresRegions:  false,

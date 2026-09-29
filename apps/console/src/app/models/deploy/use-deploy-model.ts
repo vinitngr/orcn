@@ -23,6 +23,7 @@ interface DeployModelData {
   runtime: string;
   replicas: number;
   provider: string;
+  provider_connection_id: string;
   model: string;
   instance: ComputeInstance | null;
   hf_token: string;
@@ -148,6 +149,7 @@ export function useDeployModel() {
     runtime: "",
     replicas: 1,
     provider: "",
+    provider_connection_id: "",
     model: "",
     instance: null,
     hf_token: "",
@@ -325,7 +327,7 @@ export function useDeployModel() {
   };
 
   const handleDeploy = async () => {
-    if (!data.name || !data.model || !data.instance) return;
+    if (!data.name || !data.model || !data.instance || !data.provider_connection_id) return;
     setIsDeploying(true);
     try {
       const res = await fetch("/api/v1/deployments", {
@@ -334,6 +336,7 @@ export function useDeployModel() {
         body: JSON.stringify({
           name: data.name,
           provider_id: data.provider,
+          provider_connection_id: data.provider_connection_id,
           instance_type_id: data.instance.id,
           instance_name: data.instance.name,
           runtime_id: data.runtime,
@@ -373,7 +376,7 @@ export function useDeployModel() {
     step === 1
       ? !!data.model && (!modelDetails?.gated || !!data.hf_token)
       : step === 2
-        ? !!data.instance
+        ? !!data.instance && !!data.provider_connection_id
         : step === 3
           ? !!data.name && !!data.model && !!data.instance
           : false;

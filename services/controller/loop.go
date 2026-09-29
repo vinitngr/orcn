@@ -1,12 +1,15 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
 
 	"orcn/core"
+	"orcn/core/config"
 	"orcn/core/logger"
+	"orcn/core/providerconn"
 	"orcn/models"
 	"orcn/services/gateway/health"
 
@@ -17,6 +20,7 @@ var controllerLog = logger.New("CONTROLLER")
 
 type Controller struct {
 	DB     *gorm.DB
+	Cfg    *config.Config
 	Health *health.Checker
 
 	// Concurrency Lock Map: Tracks which nodes are currently being checked
@@ -24,9 +28,10 @@ type Controller struct {
 	activeChecks sync.Map
 }
 
-func New(db *gorm.DB) *Controller {
+func New(db *gorm.DB, cfg *config.Config) *Controller {
 	return &Controller{
 		DB:     db,
+		Cfg:    cfg,
 		Health: health.New(db),
 	}
 }
@@ -34,10 +39,10 @@ func New(db *gorm.DB) *Controller {
 func (c *Controller) StartLoop() {
 	controllerLog.Info("Starting background reconciliation loop...")
 	ticker := time.NewTicker(15 * time.Second)
-	
+
 	// Run the first reconciliation immediately
 	go c.reconcile()
-	
+
 	go func() {
 		for range ticker.C {
 			c.reconcile()
@@ -53,7 +58,7 @@ func (c *Controller) StartLoop() {
 
 func (c *Controller) reconcile() {
 	var deployments []models.Deployment
-	
+
 	activeStatuses := []string{
 		models.DeploymentDraft,
 		models.DeploymentPending,
@@ -68,8 +73,9 @@ func (c *Controller) reconcile() {
 	}
 
 	for _, dep := range deployments {
-		provider, err := core.GetProvider(dep.ProviderID)
+		provider, err := providerconn.Resolve(context.Background(), c.DB, c.Cfg, dep.ProviderID, dep.ProviderConnectionID)
 		if err != nil {
+			controllerLog.Warn("resolve provider for deployment %s: %v", dep.ID, err)
 			continue
 		}
 
@@ -78,7 +84,7 @@ func (c *Controller) reconcile() {
 
 		var hcPath string
 		var hcExpected int
-		
+
 		for _, container := range spec.Containers {
 			for _, p := range container.Args.Expose {
 				if p.HealthCheck != nil && p.HealthCheck.Path != "" {
@@ -97,7 +103,7 @@ func (c *Controller) reconcile() {
 
 		for i := range dep.Nodes {
 			node := dep.Nodes[i]
-			
+
 			// Check if this node is already being processed by a slow thread
 			if _, loaded := c.activeChecks.LoadOrStore(node.ID, true); loaded {
 				continue
@@ -109,18 +115,18 @@ func (c *Controller) reconcile() {
 				info, err := provider.GetNodeInfo(n.ID)
 				if err == nil && info != nil {
 					statusChanged := false
-					
+
 					// 1. Update Infra Status blindly (no conditional hell needed!)
 					if n.InfraStatus != info.Status {
 						n.InfraStatus = info.Status
-						
+
 						if n.InfraStatus != models.InfraRunning {
 							n.AppStatus = models.AppPending
 						}
-						
+
 						statusChanged = true
 					}
-					
+
 					if len(info.Endpoints) > 0 {
 						if b, err := json.Marshal(info.Endpoints); err == nil {
 							if n.EndpointsJSON != string(b) {
@@ -151,7 +157,7 @@ func (c *Controller) reconcile() {
 				}
 			}(node, dep.ID)
 		}
-		
+
 		// Update parent deployment status based on current DB state of nodes
 		c.updateDeploymentStatus(dep)
 	}

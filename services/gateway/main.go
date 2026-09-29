@@ -35,8 +35,8 @@ func main() {
 	log.Info("Database initialized successfully.")
 
 	// 2. Register Plugins
-	nosClient := nosana.New(cfg.NosanaAPIKey, cfg.NosanaURL)
-	core.RegisterProvider("nosana", nosClient)
+	nosClient := nosana.New()
+	core.RegisterProvider("nosana", nosClient) 
 
 	vllmRT := vllm.New()
 	core.RegisterRuntime("vllm", vllmRT)
@@ -50,7 +50,7 @@ func main() {
 	healthChecker := health.New(db)
 	
 	// 4. Start Background Controller Loop (Control Plane)
-	ctrl := controller.New(db)
+	ctrl := controller.New(db, cfg)
 	ctrl.StartLoop()
 
 	// 5. Start the Admin API Server (Control Plane)

@@ -8,23 +8,25 @@ import (
 	"time"
 
 	"orcn/core"
+	"orcn/core/providerconn"
 	"orcn/models"
 
 	"gorm.io/gorm"
 )
 
 type createDeploymentRequest struct {
-	Name           string            `json:"name"`
-	TemplateID     string            `json:"template_id"`
-	ProviderID     string            `json:"provider_id"`
-	InstanceTypeID string            `json:"instance_type_id"`
-	InstanceName   string            `json:"instance_name"`
-	RuntimeID      string            `json:"runtime_id"`
-	Task           core.ModelTask    `json:"task,omitempty"`
-	ModelID        string            `json:"model_id"`
-	Replicas       int               `json:"replicas"`
-	HFToken        string            `json:"hf_token,omitempty"`
-	AdvancedConfig map[string]string `json:"advanced_config,omitempty"`
+	Name                 string            `json:"name"`
+	TemplateID           string            `json:"template_id"`
+	ProviderID           string            `json:"provider_id"`
+	ProviderConnectionID string            `json:"provider_connection_id"`
+	InstanceTypeID       string            `json:"instance_type_id"`
+	InstanceName         string            `json:"instance_name"`
+	RuntimeID            string            `json:"runtime_id"`
+	Task                 core.ModelTask    `json:"task,omitempty"`
+	ModelID              string            `json:"model_id"`
+	Replicas             int               `json:"replicas"`
+	HFToken              string            `json:"hf_token,omitempty"`
+	AdvancedConfig       map[string]string `json:"advanced_config,omitempty"`
 }
 
 type actionRequest struct {
@@ -66,9 +68,9 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	provider, err := core.GetProvider(req.ProviderID)
+	provider, err := providerconn.Resolve(r.Context(), s.DB, s.Cfg, req.ProviderID, req.ProviderConnectionID)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid provider_id")
+		respondError(w, http.StatusBadRequest, "Invalid provider or provider_connection_id: "+err.Error())
 		return
 	}
 
@@ -98,18 +100,19 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 	// 1. Create the parent Deployment row
 	deploymentID := fmt.Sprintf("dep-%s-%d", req.Name, time.Now().UnixMilli())
 	dbDeployment := models.Deployment{
-		ID:             deploymentID,
-		Name:           req.Name,
-		TemplateID:     req.TemplateID,
-		Status:         models.DeploymentDraft,
-		ProviderID:     req.ProviderID,
-		InstanceName:   req.InstanceName,
-		InstanceTypeID: req.InstanceTypeID,
-		RuntimeID:      req.RuntimeID,
-		Task:           string(req.Task),
-		ModelID:        req.ModelID,
-		Replicas:       req.Replicas,
-		JobSpecJSON:    specJSON,
+		ID:                   deploymentID,
+		Name:                 req.Name,
+		TemplateID:           req.TemplateID,
+		Status:               models.DeploymentDraft,
+		ProviderID:           req.ProviderID,
+		ProviderConnectionID: req.ProviderConnectionID,
+		InstanceName:         req.InstanceName,
+		InstanceTypeID:       req.InstanceTypeID,
+		RuntimeID:            req.RuntimeID,
+		Task:                 string(req.Task),
+		ModelID:              req.ModelID,
+		Replicas:             req.Replicas,
+		JobSpecJSON:          specJSON,
 	}
 	if err := s.DB.Create(&dbDeployment).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to save deployment: "+err.Error())
@@ -182,7 +185,6 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, dep)
 }
 
-
 func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	var deployments []models.Deployment
 
@@ -193,6 +195,7 @@ func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 			"template_id",
 			"status",
 			"provider_id",
+			"provider_connection_id",
 			"instance_name",
 			"instance_type_id",
 			"runtime_id",
@@ -224,9 +227,9 @@ func (s *Server) handleDeploymentAction(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	provider, err := core.GetProvider(dep.ProviderID)
+	provider, err := providerconn.Resolve(r.Context(), s.DB, s.Cfg, dep.ProviderID, dep.ProviderConnectionID)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, "Provider missing")
+		respondError(w, http.StatusInternalServerError, "Provider missing: "+err.Error())
 		return
 	}
 
@@ -332,13 +335,14 @@ func (s *Server) generateNodeEndpoints(deploymentID, nodeID string, ports []int)
 }
 
 type createWorkloadRequest struct {
-	Name           string          `json:"name"`
-	TemplateID     string          `json:"template_id"`
-	ProviderID     string          `json:"provider_id"`
-	InstanceTypeID string          `json:"instance_type_id"`
-	InstanceName   string          `json:"instance_name"`
-	Replicas       int             `json:"replicas"`
-	Spec           json.RawMessage `json:"spec"`
+	Name                 string          `json:"name"`
+	TemplateID           string          `json:"template_id"`
+	ProviderID           string          `json:"provider_id"`
+	ProviderConnectionID string          `json:"provider_connection_id"`
+	InstanceTypeID       string          `json:"instance_type_id"`
+	InstanceName         string          `json:"instance_name"`
+	Replicas             int             `json:"replicas"`
+	Spec                 json.RawMessage `json:"spec"`
 }
 
 func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
@@ -353,9 +357,9 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider, err := core.GetProvider(req.ProviderID)
+	provider, err := providerconn.Resolve(r.Context(), s.DB, s.Cfg, req.ProviderID, req.ProviderConnectionID)
 	if err != nil {
-		respondError(w, http.StatusBadRequest, "Invalid provider_id")
+		respondError(w, http.StatusBadRequest, "Invalid provider or provider_connection_id: "+err.Error())
 		return
 	}
 
@@ -382,16 +386,17 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 	// 3. Create the Database Record to archive this deployment
 	deploymentID := fmt.Sprintf("workload-%s-%d", req.Name, time.Now().UnixMilli())
 	dbDeployment := models.Deployment{
-		ID:             deploymentID,
-		Name:           req.Name,
-		TemplateID:     req.TemplateID,
-		Status:         models.DeploymentDraft,
-		ProviderID:     req.ProviderID,
-		InstanceName:   req.InstanceName,
-		InstanceTypeID: req.InstanceTypeID,
-		WorkloadType:   "container",
-		Replicas:       req.Replicas,
-		JobSpecJSON:    string(req.Spec),
+		ID:                   deploymentID,
+		Name:                 req.Name,
+		TemplateID:           req.TemplateID,
+		Status:               models.DeploymentDraft,
+		ProviderID:           req.ProviderID,
+		ProviderConnectionID: req.ProviderConnectionID,
+		InstanceName:         req.InstanceName,
+		InstanceTypeID:       req.InstanceTypeID,
+		WorkloadType:         "container",
+		Replicas:             req.Replicas,
+		JobSpecJSON:          string(req.Spec),
 	}
 
 	if err := s.DB.Create(&dbDeployment).Error; err != nil {

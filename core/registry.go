@@ -44,6 +44,25 @@ func RuntimeIDs() []string {
 	return ids
 }
 
+// ProviderIDs returns the registered provider IDs in deterministic order.
+func ProviderIDs() []string {
+	ids := make([]string, 0, len(providers))
+	for id := range providers {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// ListProviders returns the registered providers keyed by ID.
+func ListProviders() map[string]Provider {
+	registered := make(map[string]Provider, len(providers))
+	for id, provider := range providers {
+		registered[id] = provider
+	}
+	return registered
+}
+
 // ListRuntimes returns the registered runtimes keyed by ID.
 func ListRuntimes() map[string]Runtime {
 	registered := make(map[string]Runtime, len(runtimes))

@@ -67,6 +67,15 @@ export function WorkloadWorkflow({
             onSelectProvider={(provider) =>
               updateData({ provider, instance: null, providerConfig: {} })
             }
+            selectedConnectionId={data.providerConnectionId || ""}
+            onSelectConnection={(conn) =>
+              updateData({
+                provider: conn.Provider,
+                providerConnectionId: conn.ID,
+                instance: null,
+                providerConfig: {},
+              })
+            }
             instances={instances}
             selectedInstance={data.instance}
             onSelectInstance={(instance) => updateData({ instance })}

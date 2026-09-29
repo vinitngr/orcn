@@ -121,6 +121,15 @@ export default function DeployAIModelPage() {
                 onSelectProvider={(pid) =>
                   updateData({ provider: pid, instance: null, provider_config: {} })
                 }
+                selectedConnectionId={data.provider_connection_id}
+                onSelectConnection={(conn) =>
+                  updateData({
+                    provider: conn.Provider,
+                    provider_connection_id: conn.ID,
+                    instance: null,
+                    provider_config: {},
+                  })
+                }
                 instances={instances}
                 selectedInstance={data.instance}
                 onSelectInstance={(i) => updateData({ instance: i })}

@@ -147,6 +147,32 @@ type ConfigOption struct {
 	Options     []string `json:"options,omitempty"`
 }
 
+// ProviderField describes one input a provider needs to establish a connection.
+// It is the single source of truth for the connection form rendered by clients.
+type ProviderField struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	// Type is one of: text, password, number, boolean, select, file.
+	Type string `json:"type"`
+	// Required marks the field as mandatory; clients must enforce this.
+	Required bool `json:"required"`
+	// Secret marks the value as sensitive. Secrets are encrypted at rest;
+	// non-secret values are stored as raw provider config.
+	Secret      bool     `json:"secret"`
+	Default     string   `json:"default,omitempty"`
+	Placeholder string   `json:"placeholder,omitempty"`
+	Options     []string `json:"options,omitempty"`
+}
+
+// ProviderConnectionConfig is the provider-processed result of raw user input.
+// Config is stored as-is; Secret is encrypted at rest.
+type ProviderConnectionConfig struct {
+	Config map[string]any `json:"config"`
+	Secret map[string]any `json:"secret"`
+}
+
+
 type Runtime interface {
 	// Name is the human-readable runtime name shown in clients (e.g. "vLLM").
 	Name() string
@@ -171,4 +197,16 @@ type Provider interface {
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
 	GetNodeInfo(providerJobID string) (*NodeInfo, error)
+
+	// ConnectionSchema returns the fields a user must supply to connect this provider.
+	ConnectionSchema() []ProviderField
+	// ProcessConnection splits raw user input into raw config and secret material.
+	// Providers use this to transform/validate uploaded files or derived values.
+	ProcessConnection(raw map[string]any) (*ProviderConnectionConfig, error)
+	// VerifyConnection checks the supplied credentials against the provider.
+	VerifyConnection(cfg *ProviderConnectionConfig) error
+	// WithConfig returns a provider instance bound to the given connection
+	// credentials. The registered provider is treated as a template; callers
+	// must use the returned instance for credential-scoped operations.
+	WithConfig(cfg *ProviderConnectionConfig) (Provider, error)
 }

@@ -11,6 +11,7 @@ import {
   Boxes,
   Sun,
   Moon,
+  Cloud,
 } from "lucide-react";
 
 export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
@@ -202,6 +203,16 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
             Configuration
           </span>
         </div>
+
+        <Link
+          href="/providers"
+          style={navItemStyle(pathname.startsWith("/providers"))}
+        >
+          <Cloud size={18} strokeWidth={2.2} />
+          {!isCollapsed && (
+            <span style={{ whiteSpace: "nowrap" }}>Providers</span>
+          )}
+        </Link>
 
         <Link
           href="/templates"

@@ -1,0 +1,92 @@
+### Provider Connections API
+
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+@connectionId = replace-with-connection-id
+@provider = nosana
+
+# NOTE: The user NEVER sends credential_secret_id.
+# The provider defines its own fields (schema). Backend calls the provider to
+# split the user input into `config` (stored raw) and `secret` (encrypted at rest),
+# then creates the Secret row itself and links it to the connection.
+
+### Get connection schema (form fields for a provider)
+# Use this to render the connection form. Each field carries:
+#   key, name, type, required, secret, default, placeholder, options
+# type: text | password | number | boolean | select | file
+GET {{URL}}/api/v1/provider-connections/schema?provider={{provider}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Verify provider credentials (dry-run, nothing saved)
+# Drives the green check in the UI before the user clicks Connect.
+# Accepts either JSON or multipart/form-data (when a file field is present).
+POST {{URL}}/api/v1/provider-connections/verify
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "provider": "nosana",
+  "api_key": "nos_xxxxxxxxxxxxxxxx",
+  "base_url": "https://api.nosana.com"
+}
+
+### List Provider Connections
+GET {{URL}}/api/v1/provider-connections
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Create Provider Connection
+# Only provider + name + provider-defined fields. No credential_secret_id.
+POST {{URL}}/api/v1/provider-connections
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "provider": "nosana",
+  "name": "nosana-prod",
+  "api_key": "nos_xxxxxxxxxxxxxxxx",
+  "base_url": "https://api.nosana.com"
+}
+
+### Create Provider Connection (with file upload, e.g. GCP service account)
+# Use multipart/form-data when the schema has a `file` field.
+# Backend reads the file bytes and passes them to the provider.
+POST {{URL}}/api/v1/provider-connections
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: multipart/form-data; boundary=----ORCNBoundary
+
+------ORCNBoundary
+Content-Disposition: form-data; name="provider"
+
+gcp
+------ORCNBoundary
+Content-Disposition: form-data; name="name"
+
+gcp-prod
+------ORCNBoundary
+Content-Disposition: form-data; name="service_account"; filename="service-account.json"
+Content-Type: application/json
+
+< ./service-account.json
+------ORCNBoundary--
+
+### Get Provider Connection
+GET {{URL}}/api/v1/provider-connections/{{connectionId}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Re-verify a saved connection
+POST {{URL}}/api/v1/provider-connections/{{connectionId}}/verify
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Update Provider Connection
+PUT {{URL}}/api/v1/provider-connections/{{connectionId}}
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "nosana-prod-updated",
+  "api_key": "nos_newkey"
+}
+
+### Delete Provider Connection
+DELETE {{URL}}/api/v1/provider-connections/{{connectionId}}
+Authorization: Bearer {{AUTH_TOKEN}}

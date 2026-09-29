@@ -69,7 +69,7 @@ export default function CreateDeploymentPage() {
           canNext={
             step === 1
               ? Boolean(formData.workloadName && formData.templateId)
-              : Boolean(formData.instance)
+              : Boolean(formData.instance && formData.providerConnectionId)
           }
         />
       </div>

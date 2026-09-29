@@ -16,8 +16,11 @@ type Config struct {
 	DatabaseDSN  string
 	AgentBaseURL string
 
-	NosanaURL    string
-	NosanaAPIKey string
+    NosanaURL    string `json:"NOSANA_URL"`
+		// NosanaAPIKey omitted – use provider connections
+    KMSProvider string `json:"KMS_PROVIDER"`
+    KMSMasterKey string `json:"KMS_MASTER_KEY"`
+
 
 	MaxConnsPerHost        int
 	MaxActiveRequests      int
@@ -36,8 +39,8 @@ func LoadConfig() (*Config, error) {
 		DatabaseDSN:  getEnv("DATABASE_DSN", "orcn.db"),
 		AgentBaseURL: getEnv("AGENT_BASE_URL", "http://127.0.0.1:4000"),
 
-		NosanaURL:    getEnv("NOSANA_URL", "https://api.nosana.com"),
-		NosanaAPIKey: getEnv("NOSANA_API_KEY", ""),
+		KMSProvider: getEnv("KMS_PROVIDER", "local"),
+		KMSMasterKey: getEnv("KMS_MASTER_KEY", ""),
 
 		MaxConnsPerHost:        getEnvAsInt("GATEWAY_MAX_CONNS_PER_HOST", 20),
 		MaxActiveRequests:      getEnvAsInt("GATEWAY_MAX_ACTIVE_REQUESTS", 100),

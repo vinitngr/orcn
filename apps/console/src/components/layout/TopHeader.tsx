@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
+
 export function TopHeader({ sidebarWidth }: { sidebarWidth: number }) {
+  const [showAllOrgs, setShowAllOrgs] = useState(false);
   return (
     <header
       style={{
@@ -29,21 +33,24 @@ export function TopHeader({ sidebarWidth }: { sidebarWidth: number }) {
             padding: "0.4rem 0.615rem",
             borderRadius: "6px",
             border: "1px solid var(--border)",
-            backgroundColor: "var(--surface)",
+            backgroundColor: showAllOrgs ? "var(--surface-hover)" : "var(--surface)",
             color: "var(--text-main)",
             fontSize: "0.8125rem",
             fontWeight: 500,
             cursor: "pointer",
             transition: "background-color 0.15s ease",
           }}
+          onClick={() => setShowAllOrgs(!showAllOrgs)}
           onMouseEnter={(e) =>
             (e.currentTarget.style.backgroundColor = "var(--surface-hover)")
           }
           onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "var(--surface)")
+            (e.currentTarget.style.backgroundColor = showAllOrgs ? "var(--surface-hover)" : "var(--surface)")
           }
         >
           {/* Organization Switcher */}
+          <span>{showAllOrgs ? "All Orgs" : "Single Org"}</span>
+          <ChevronDown size={14} />
         </button>
       </div>
 

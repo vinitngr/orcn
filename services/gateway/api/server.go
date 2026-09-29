@@ -146,6 +146,18 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("GET /api/v1/resource-providers", s.handleListResourceProviders)
 
+	s.mux.HandleFunc("POST /api/v1/provider-connections", s.handleCreateProviderConnection)
+	s.mux.HandleFunc("GET /api/v1/provider-connections", s.handleListProviderConnections)
+	s.mux.HandleFunc("GET /api/v1/provider-connections/schema", s.handleGetProviderConnectionSchema)
+	s.mux.HandleFunc("POST /api/v1/provider-connections/verify", s.handleVerifyProviderConnection)
+	s.mux.HandleFunc("GET /api/v1/provider-connections/{id}", s.handleGetProviderConnection)
+	s.mux.HandleFunc("PUT /api/v1/provider-connections/{id}", s.handleUpdateProviderConnection)
+	s.mux.HandleFunc("POST /api/v1/provider-connections/{id}/verify", s.handleVerifyProviderConnectionByID)
+	s.mux.HandleFunc("DELETE /api/v1/provider-connections/{id}", s.handleDeleteProviderConnection)
+
+	s.mux.HandleFunc("GET /api/v1/organizations", s.handleListOrganizations)
+	s.mux.HandleFunc("GET /api/v1/organizations/{id}", s.handleGetOrganization)
+
 	s.mux.HandleFunc("GET /api/v1/templates", s.handleListTemplates)
 	s.mux.HandleFunc("POST /api/v1/templates", s.handleCreateTemplate)
 	s.mux.HandleFunc("GET /api/v1/templates/{id}", s.handleGetTemplate)

@@ -1,88 +1,13 @@
 package nosana
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	"orcn/core"
 	"orcn/models"
 )
-
-type Client struct {
-	APIKey     string
-	BaseURL    string
-	HTTPClient *http.Client
-}
-
-func New(apiKey, baseURL string) *Client {
-	if baseURL == "" {
-		baseURL = "https://api.nosana.com"
-	}
-	return &Client{
-		APIKey:     apiKey,
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{},
-	}
-}
-
-func (c *Client) request(method, path string, body any) ([]byte, error) {
-	url := fmt.Sprintf("%s%s", strings.TrimRight(c.BaseURL, "/"), path)
-	var reqBody io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		reqBody = bytes.NewReader(b)
-	}
-
-	req, err := http.NewRequest(method, url, reqBody)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+c.APIKey)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		b, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("nosana api error: %s - %s", resp.Status, string(b))
-	}
-
-	return io.ReadAll(resp.Body)
-}
-
-func (c *Client) GetInstanceTypes() (any, error) {
-	b, err := c.request("GET", "/markets", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var markets []map[string]any
-	if err := json.Unmarshal(b, &markets); err != nil {
-		return nil, err
-	}
-	filtered := make([]map[string]any, 0, len(markets))
-	for _, market := range markets {
-		if marketType, ok := market["type"].(string); ok {
-			if strings.EqualFold(marketType, "COMMUNITY") || strings.EqualFold(marketType, "OTHER") {
-				continue
-			}
-			market["tag"] = marketType
-		}
-		filtered = append(filtered, market)
-	}
-	return filtered, nil
-}
 
 func (c *Client) CreateDeployment(name, instanceTypeID string, spec *core.JobSpec) (string, error) {
 	ops := make([]map[string]any, 0)
