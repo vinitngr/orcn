@@ -47,12 +47,18 @@ type Deployment = {
 
 function statusStyle(status: string) {
   const normalized = status.toLowerCase();
+  if (normalized === "ready")
+    return "border-[var(--status-ready-border)] bg-[var(--status-ready-bg)] text-[var(--status-ready)]";
   if (normalized === "running")
     return "border-[var(--status-running-border)] bg-[var(--status-running-bg)] text-[var(--status-running)]";
   if (normalized === "scaling")
     return "border-[var(--status-scaling-border)] bg-[var(--status-scaling-bg)] text-[var(--status-scaling)]";
+  if (normalized === "pending")
+    return "border-[var(--status-pending-border)] bg-[var(--status-pending-bg)] text-[var(--status-pending)]";
   if (normalized === "stopped")
     return "border-[var(--status-stopped-border)] bg-[var(--status-stopped-bg)] text-[var(--status-stopped)]";
+  if (normalized === "error" || normalized === "failed")
+    return "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error)]";
   return "border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-muted)]";
 }
 
@@ -163,18 +169,38 @@ export function DeploymentTable() {
         if (Array.isArray(data))
           setDeployments(
             data
-              .map((deployment) => ({
-                id: deployment.ID,
-                name: deployment.Name || "Unnamed deployment",
-                status: deployment.Status || "UNKNOWN",
-                model: deployment.ModelID || "-",
-                provider: deployment.ProviderID || "-",
-                resource: deployment.InstanceName || "-",
-                replicas: `${deployment.Nodes?.length || 0} / ${deployment.Replicas || 0}`,
-                created: deployment.CreatedAt
-                  ? new Date(deployment.CreatedAt).toLocaleDateString()
-                  : "-",
-              }))
+              .map((deployment) => {
+                const nodeCount = deployment.Nodes?.length || 0;
+                const replicas = deployment.Replicas || 0;
+                const isStopped = nodeCount === 0 || replicas === 0;
+                
+                let status = deployment.Status || "UNKNOWN";
+                const hasErrorNode = deployment.Nodes?.some((n: any) =>
+                  n.InfraStatus?.toLowerCase() === "error" ||
+                  n.InfraStatus?.toLowerCase() === "failed" ||
+                  n.AppStatus?.toLowerCase() === "error" ||
+                  n.AppStatus?.toLowerCase() === "failed"
+                ) ?? false;
+                
+                if (hasErrorNode) {
+                  status = "error";
+                } else if (isStopped) {
+                  status = "stopped";
+                }
+                
+                return {
+                  id: deployment.ID,
+                  name: deployment.Name || "Unnamed deployment",
+                  status: status.toLowerCase(),
+                  model: deployment.ModelID || "-",
+                  provider: deployment.ProviderID || "-",
+                  resource: deployment.InstanceName || "-",
+                  replicas: `${nodeCount} / ${replicas}`,
+                  created: deployment.CreatedAt
+                    ? new Date(deployment.CreatedAt).toLocaleDateString()
+                    : "-",
+                };
+              })
               .reverse(),
           );
       })
@@ -206,8 +232,14 @@ export function DeploymentTable() {
   const runningCount = deployments.filter(
     (deployment) => deployment.status.toLowerCase() === "running",
   ).length;
+  const readyCount = deployments.filter(
+    (deployment) => deployment.status.toLowerCase() === "ready",
+  ).length;
   const stoppedCount = deployments.filter(
     (deployment) => deployment.status.toLowerCase() === "stopped",
+  ).length;
+  const errorCount = deployments.filter(
+    (deployment) => deployment.status.toLowerCase() === "error",
   ).length;
 
   return (
@@ -226,15 +258,21 @@ export function DeploymentTable() {
           icon={Activity}
         />
         <StatCard
+          label="Ready"
+          value={String(readyCount)}
+          detail="Healthy & serving"
+          icon={Activity}
+        />
+        <StatCard
           label="Stopped"
           value={String(stoppedCount)}
           detail="No active instances"
           icon={Clock3}
         />
         <StatCard
-          label="Requests (24h)"
-          value="--"
-          detail="Metrics coming soon"
+          label="Error"
+          value={String(errorCount)}
+          detail="Failed deployments"
           icon={SlidersHorizontal}
         />
       </div>

@@ -212,7 +212,7 @@ func (c *Client) GetNodeInfo(providerJobID string) (*core.NodeInfo, error) {
 			info.Status = models.InfraRunning
 		case "COMPLETED", "STOPPED":
 			info.Status = models.InfraStopped
-		case "FAILED", "TERMINATED":
+		case "FAILED", "TERMINATED", "ERROR":
 			info.Status = models.InfraFailed
 		default:
 			info.Status = models.InfraPending

@@ -37,6 +37,9 @@ func NewReverseProxy(target *url.URL, originalHost, nodeID string, route *Cached
 	// Use a global singleton Transport so that TCP connections are reused (Keep-Alives) 
 	// and MaxConnsPerHost can actually function as a global queue for the node.
 	proxy.Transport = getLLMTransport(server.cfg.MaxConnsPerHost, server.cfg.ProxyTimeoutSec)
+	
+	// Enable immediate flushing for streaming responses
+	proxy.FlushInterval = 100 * time.Millisecond
 
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {

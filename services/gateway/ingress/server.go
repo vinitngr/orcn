@@ -40,13 +40,16 @@ type Server struct {
 
 	mu        sync.RWMutex
 	routes    map[string]*CachedRoute
+	transMu   sync.Mutex
+	trans     map[string]*http.Transport
 }
 
 func New(apiURL string, cfg *config.Config) *Server {
 	s := &Server{
-		apiURL:    apiURL,
-		cfg:       cfg,
-		routes:    make(map[string]*CachedRoute),
+		apiURL:  apiURL,
+		cfg:     cfg,
+		routes:  make(map[string]*CachedRoute),
+		trans:   make(map[string]*http.Transport),
 	}
 	s.StartCacheSync()
 	return s
@@ -210,20 +213,12 @@ func (s *Server) Handler() http.Handler {
 
 			proxy := httputil.NewSingleHostReverseProxy(targetNode.TargetURL)
 			
-			// Use a high-performance transport with aggressive keep-alives and connection pooling
+			// Use a shared high-performance transport with aggressive keep-alives and connection pooling
 			// This is CRITICAL for web apps like ComfyUI that load 100+ small assets concurrently
-			proxy.Transport = &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout:   15 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).DialContext,
-				ForceAttemptHTTP2:     true,
-				MaxIdleConns:          1000,
-				MaxIdleConnsPerHost:   100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			}
+			proxy.Transport = s.getTransport(targetNode.TargetURL.Host)
+			
+			// Enable immediate flushing for streaming responses (WebSockets, SSE, progress)
+			proxy.FlushInterval = 100 * time.Millisecond
 			
 			originalDirector := proxy.Director
 			proxy.Director = func(req *http.Request) {
@@ -265,4 +260,31 @@ func (s *Server) Handler() http.Handler {
 
 
 	return http.HandlerFunc(handler)
+}
+
+func (s *Server) getTransport(targetHost string) *http.Transport {
+	s.transMu.Lock()
+	defer s.transMu.Unlock()
+	if t, ok := s.trans[targetHost]; ok {
+		return t
+	}
+	maxConns := s.cfg.MaxConnsPerHost
+	if maxConns <= 0 {
+		maxConns = 200
+	}
+	t := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   15 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          1000,
+		MaxIdleConnsPerHost:   maxConns,
+		MaxConnsPerHost:       maxConns,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+	s.trans[targetHost] = t
+	return t
 }

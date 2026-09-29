@@ -35,12 +35,21 @@
   --status-running: #059669;
   --status-running-bg: #ecfdf5;
   --status-running-border: #a7f3d0;
+  --status-ready: #059669;
+  --status-ready-bg: #ecfdf5;
+  --status-ready-border: #a7f3d0;
   --status-scaling: #d97706;
   --status-scaling-bg: #fffbeb;
   --status-scaling-border: #fde68a;
-  --status-stopped: #dc2626;
-  --status-stopped-bg: #fef2f2;
-  --status-stopped-border: #fecaca;
+  --status-pending: #d97706;
+  --status-pending-bg: #fffbeb;
+  --status-pending-border: #fde68a;
+  --status-stopped: #6b7280;
+  --status-stopped-bg: #f3f4f6;
+  --status-stopped-border: #d1d5db;
+  --status-error: #dc2626;
+  --status-error-bg: #fef2f2;
+  --status-error-border: #fecaca;
 
   /* Deploy flow (light) */
   --dm-panel: #ffffff;
@@ -277,12 +286,21 @@
   --status-running: #34d399;
   --status-running-bg: rgb(16 185 129 / 0.14);
   --status-running-border: rgb(52 211 153 / 0.36);
+  --status-ready: #34d399;
+  --status-ready-bg: rgb(16 185 129 / 0.14);
+  --status-ready-border: rgb(52 211 153 / 0.36);
   --status-scaling: #fbbf24;
   --status-scaling-bg: rgb(245 158 11 / 0.14);
   --status-scaling-border: rgb(251 191 36 / 0.36);
-  --status-stopped: #fb7185;
-  --status-stopped-bg: rgb(244 63 94 / 0.14);
-  --status-stopped-border: rgb(251 113 133 / 0.36);
+  --status-pending: #fbbf24;
+  --status-pending-bg: rgb(245 158 11 / 0.14);
+  --status-pending-border: rgb(251 191 36 / 0.36);
+  --status-stopped: #9ca3af;
+  --status-stopped-bg: rgb(156 163 175 / 0.14);
+  --status-stopped-border: rgb(156 163 175 / 0.36);
+  --status-error: #fb7185;
+  --status-error-bg: rgb(244 63 94 / 0.14);
+  --status-error-border: rgb(251 113 133 / 0.36);
 
   --text-main: #f4f4f5;
   --text-muted: #a1a1aa;
