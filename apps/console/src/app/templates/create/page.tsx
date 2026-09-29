@@ -115,10 +115,12 @@ export default function CreateTemplatePage() {
             type: r.type,
             url: r.url,
             target: r.target,
-            files: (r.filesFilter || "")
-              .split(",")
-              .map((f: string) => f.trim())
-              .filter((f: string) => f),
+            files: Array.isArray(r.files)
+              ? r.files
+              : (r.filesFilter || "")
+                  .split(",")
+                  .map((f: string) => f.trim())
+                  .filter((f: string) => f),
           }));
 
         return {

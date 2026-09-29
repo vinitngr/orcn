@@ -93,7 +93,7 @@ export default function EditTemplatePage() {
                 type: r.type || "HF",
                 url: r.url || "",
                 target: r.target || "",
-                filesFilter: (r.files || []).join(", "),
+                files: Array.isArray(r.files) ? r.files : [],
               })),
             };
           }),
@@ -199,10 +199,12 @@ export default function EditTemplatePage() {
             type: r.type,
             url: r.url,
             target: r.target,
-            files: (r.filesFilter || "")
-              .split(",")
-              .map((f: string) => f.trim())
-              .filter((f: string) => f),
+            files: Array.isArray(r.files)
+              ? r.files
+              : (r.filesFilter || "")
+                  .split(",")
+                  .map((f: string) => f.trim())
+                  .filter((f: string) => f),
           }));
 
         const args: any = {
