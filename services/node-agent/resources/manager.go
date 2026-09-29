@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"orcn/core"
+	"orcn/pkg/resourcetype"
 )
 
 type Runtime interface {
@@ -45,9 +46,14 @@ type Resource struct {
 }
 
 func BuildPlan(specs []core.ResourceSpec) (Plan, error) {
+	validTypes := make(map[string]bool)
+	for _, p := range resourcetype.Providers {
+		validTypes[p.ID] = true
+	}
+
 	plan := Plan{Version: 1, Resources: make([]Resource, 0, len(specs))}
 	for _, spec := range specs {
-		if !strings.EqualFold(spec.Type, "http") && !strings.EqualFold(spec.Type, "https") {
+		if !validTypes[strings.ToLower(spec.Type)] {
 			return Plan{}, fmt.Errorf("unsupported resource type %q", spec.Type)
 		}
 		plan.Resources = append(plan.Resources, Resource{

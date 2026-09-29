@@ -32,6 +32,9 @@ func main() {
 	if err := registry.Register("https", installHTTP); err != nil {
 		log.Fatalf("register HTTPS resource installer: %v", err)
 	}
+	if err := registry.Register("hf", installHF); err != nil {
+		log.Fatalf("register HF resource installer: %v", err)
+	}
 
 	//TODO : parallelize resource installation
 	for _, resource := range plan.Resources {

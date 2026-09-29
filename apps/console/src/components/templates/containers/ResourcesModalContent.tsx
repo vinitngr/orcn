@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/input";
@@ -90,40 +91,64 @@ export function ResourcesModalContent({
                       const key = field.spec_key || field.name;
                       const value = res[key];
 
-                      if (field.type === "string_list") {
-                        const items: string[] = Array.isArray(value)
-                          ? value.filter(Boolean)
-                          : value
-                            ? String(value)
-                                .split(",")
-                                .map((f: string) => f.trim())
-                                .filter(Boolean)
-                            : [];
-                        const joined = items.join(", ");
-                        return (
-                          <div key={field.name} className="space-y-1.5">
-                            <FieldLabel>
-                              {field.label}
-                              {!field.required && (
-                                <span className="text-[var(--text-muted)]"> (Optional)</span>
-                              )}
-                            </FieldLabel>
-                            <Input
-                              value={joined}
-                              onChange={(e) => {
-                                const val = e.target.value
+if (field.type === "string_list") {
+                          const storedItems: string[] = Array.isArray(value)
+                            ? value.filter(Boolean)
+                            : value
+                              ? String(value)
                                   .split(",")
-                                  .map((s) => s.trim())
-                                  .filter(Boolean);
-                                updateResource(i, key, val);
-                              }}
-                              placeholder={field.placeholder}
-                              className={`${inputCls} font-mono`}
-                            />
-                            {field.description && <Hint>{field.description}</Hint>}
-                          </div>
-                        );
-                      }
+                                  .map((f: string) => f.trim())
+                                  .filter(Boolean)
+                              : [];
+                          const draft = drafts[i] ?? "";
+                          const addItem = () => {
+                            const trimmed = draft.trim();
+                            if (!trimmed) return;
+                            addFilesItem(i, key, storedItems, trimmed);
+                          };
+                          const removeItem = (idx: number) => {
+                            const newItems = storedItems.filter((_, j) => j !== idx);
+                            updateResource(i, key, newItems);
+                          };
+                          return (
+                            <div key={field.name} className="space-y-1.5">
+                              <FieldLabel>
+                                {field.label}
+                                {!field.required && (
+                                  <span className="text-[var(--text-muted)]"> (Optional)</span>
+                                )}
+                              </FieldLabel>
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {storedItems.map((item, idx) => (
+                                  <Badge
+                                    key={idx}
+                                    variant="default"
+                                    className="flex items-center gap-1 px-2 py-0.5 text-xs font-mono"
+                                  >
+                                    {item}
+                                    <X
+                                      className="size-3 cursor-pointer"
+                                      onClick={() => removeItem(idx)}
+                                    />
+                                  </Badge>
+                                ))}
+                              </div>
+                              <Input
+                                value={draft}
+                                onChange={(e) => setDrafts({ ...drafts, [i]: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    addItem();
+                                  }
+                                }}
+                                placeholder={field.placeholder}
+                                className={`${inputCls} font-mono`}
+                              />
+                              {field.description && <Hint>{field.description}</Hint>}
+                            </div>
+                          );
+                        }
 
                       return (
                         <div key={field.name} className="space-y-1.5">
