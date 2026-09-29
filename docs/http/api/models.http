@@ -1,0 +1,13 @@
+@URL = http://localhost:8080
+@q = llama
+@model = meta-llama/Llama-3.2-1B-Instruct
+@runtime = vllm
+@AUTH_TOKEN = your-token
+
+### Search models
+GET {{URL}}/api/v1/models/search?q={{q}}&runtime={{runtime}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Get model details
+GET {{URL}}/api/v1/models/details?runtime={{runtime}}&model={{model}}
+Authorization: Bearer {{AUTH_TOKEN}}

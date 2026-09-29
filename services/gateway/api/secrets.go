@@ -4,14 +4,27 @@ import (
 	"encoding/json"
 	"net/http"
 	"orcn/models"
+	"time"
 )
 
+
+type SecretResponse struct {
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 func (s *Server) handleListSecrets(w http.ResponseWriter, r *http.Request) {
-	var secrets []models.Secret
-	if err := s.DB.Select("name", "description", "created_at", "updated_at").Find(&secrets).Error; err != nil {
+	var secrets []SecretResponse
+
+	if err := s.DB.Model(&models.Secret{}).
+		Select("name", "description", "created_at", "updated_at").
+		Find(&secrets).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to list secrets")
 		return
 	}
+
 	respondJSON(w, http.StatusOK, secrets)
 }
 

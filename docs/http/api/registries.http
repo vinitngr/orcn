@@ -1,0 +1,22 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+
+### List registries
+GET {{URL}}/api/v1/registries
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Create registry
+POST {{URL}}/api/v1/registries
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "Docker Hub",
+  "server_url": "https://registry-1.docker.io",
+  "username": "your-username",
+  "password": "your-password"
+}
+
+### Delete registry
+DELETE {{URL}}/api/v1/registries/reg-1790692350455412185
+Authorization: Bearer {{AUTH_TOKEN}}

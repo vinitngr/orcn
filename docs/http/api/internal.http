@@ -1,0 +1,6 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+
+### Get internal routes
+GET {{URL}}/api/v1/internal/routes
+Authorization: Bearer {{AUTH_TOKEN}}

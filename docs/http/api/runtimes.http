@@ -1,0 +1,11 @@
+@URL = http://localhost:8080
+@runtime = vllm
+@AUTH_TOKEN = your-token
+
+### List runtimes
+GET {{URL}}/api/v1/runtimes?runtime={{runtime}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Get runtime schema
+GET {{URL}}/api/v1/runtimes/schema?runtime={{runtime}}
+Authorization: Bearer {{AUTH_TOKEN}}

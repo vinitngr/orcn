@@ -1,0 +1,55 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+@deploymentId = dep-test-rest-deployment-1790693827875
+
+### Create deployment
+POST {{URL}}/api/v1/deployments
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "test-rest-deployment",
+  "template_id": "temp_e0d2e0e284fb",
+  "provider_id": "nosana",
+  "instance_type_id": "RXP7JK8MTY4uPJng4UjC9ZJdDDSG6wGr8pvVf3mwgXF",
+  "instance_name": "NVIDIA 4060",
+  "runtime_id": "",
+  "model_id": "",
+  "replicas": 1
+}
+
+### List deployments
+GET {{URL}}/api/v1/deployments
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Get deployment
+GET {{URL}}/api/v1/deployments/{{deploymentId}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Start deployment
+POST {{URL}}/api/v1/deployments/{{deploymentId}}/action
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "action": "start"
+}
+
+### Stop deployment
+POST {{URL}}/api/v1/deployments/{{deploymentId}}/action
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "action": "stop"
+}
+
+### Update deployment timeout
+POST {{URL}}/api/v1/deployments/{{deploymentId}}/action
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "action": "update_timeout",
+  "timeout_minutes": 60
+}

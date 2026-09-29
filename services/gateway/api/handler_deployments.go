@@ -182,12 +182,36 @@ func (s *Server) handleGetDeployment(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, dep)
 }
 
+
 func (s *Server) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	var deployments []models.Deployment
-	if err := s.DB.Preload("Nodes").Preload("Endpoints").Find(&deployments).Error; err != nil {
+
+	query := s.DB.
+		Select(
+			"id",
+			"name",
+			"template_id",
+			"status",
+			"provider_id",
+			"instance_name",
+			"instance_type_id",
+			"runtime_id",
+			"task",
+			"model_id",
+			"workload_type",
+			"replicas",
+			"confidential_mode",
+			"created_at",
+			"updated_at",
+		).
+		Preload("Nodes").
+		Preload("Endpoints")
+
+	if err := query.Find(&deployments).Error; err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch deployments")
 		return
 	}
+
 	respondJSON(w, http.StatusOK, deployments)
 }
 
@@ -423,7 +447,7 @@ func (s *Server) handleCreateWorkload(w http.ResponseWriter, r *http.Request) {
 	}
 	s.DB.Save(&dbDeployment)
 
-	response := map[string]interface{}{
+	response := map[string]any{
 		"deployment_id": deploymentID,
 		"node_ids":      createdNodeIDs,
 		"status":        dbDeployment.Status,

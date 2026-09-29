@@ -1,0 +1,11 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+@deploymentId = workload-compfy-1786100990393
+
+### List endpoints
+GET {{URL}}/api/v1/endpoints
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### List endpoints by deployment
+GET {{URL}}/api/v1/endpoints?deployment_id={{deploymentId}}
+Authorization: Bearer {{AUTH_TOKEN}}

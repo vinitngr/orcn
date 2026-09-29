@@ -1,0 +1,102 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+@templateId = temp_1b7e51b1dd72
+
+### List templates
+GET {{URL}}/api/v1/templates
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Create template
+POST {{URL}}/api/v1/templates
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "comfyui-test",
+  "computeType": "GPU",
+  "version": "v2",
+  "type": "container",
+  "meta": {
+    "trigger": "dashboard"
+  },
+  "containers": [
+    {
+      "id": "comfyui",
+      "args": {
+        "image": "ghcr.io/lecode-official/comfyui-docker:latest",
+        "gpu": true,
+        "cmd": [
+          "--listen",
+          "0.0.0.0",
+          "--port",
+          "8188",
+          "--highvram",
+          "--enable-cors-header",
+          "*"
+        ],
+        "expose": [
+          {
+            "port": 8188,
+            "protocol": "tcp",
+            "is_public": true
+          }
+        ],
+        "resources": [
+          {
+            "type": "HF",
+            "url": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+            "target": "/opt/comfyui/models/checkpoints/",
+            "files": [
+              "v1-5-pruned-emaonly.safetensors"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+
+### Get template
+GET {{URL}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{AUTH_TOKEN}}
+
+### Update template
+PUT {{URL}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{AUTH_TOKEN}}
+Content-Type: application/json
+
+{
+  "name": "comfyui-updated",
+  "computeType": "GPU",
+  "version": "v2",
+  "type": "container",
+  "meta": {
+    "trigger": "dashboard"
+  },
+  "containers": [
+    {
+      "id": "comfyui",
+      "args": {
+        "image": "ghcr.io/lecode-official/comfyui-docker:latest",
+        "gpu": true,
+        "cmd": [
+          "--listen",
+          "0.0.0.0",
+          "--port",
+          "8188"
+        ],
+        "expose": [
+          {
+            "port": 8188,
+            "protocol": "tcp",
+            "is_public": true
+          }
+        ]
+      }
+    }
+  ]
+}
+
+### Delete template
+DELETE {{URL}}/api/v1/templates/{{templateId}}
+Authorization: Bearer {{AUTH_TOKEN}}

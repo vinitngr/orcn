@@ -1,0 +1,6 @@
+@URL = http://localhost:8080
+@AUTH_TOKEN = your-token
+
+### List resource providers
+GET {{URL}}/api/v1/resource-providers
+Authorization: Bearer {{AUTH_TOKEN}}

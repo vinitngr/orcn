@@ -40,3 +40,20 @@ func (s *Server) handleCreateRegistry(w http.ResponseWriter, r *http.Request) {
 	reg.Password = "" // Hide password in response
 	respondJSON(w, http.StatusCreated, reg)
 }
+
+func (s *Server) handleDeleteRegistry(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	var reg models.Registry
+	if err := s.DB.First(&reg, "id = ?", id).Error; err != nil {
+		respondError(w, http.StatusNotFound, "Registry not found")
+		return
+	}
+
+	if err := s.DB.Delete(&reg).Error; err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to delete registry")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
