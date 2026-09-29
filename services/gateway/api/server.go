@@ -143,6 +143,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/v1/registries", s.handleListRegistries)
 	s.mux.HandleFunc("POST /api/v1/registries", s.handleCreateRegistry)
 
+	s.mux.HandleFunc("GET /api/v1/resource-providers", s.handleListResourceProviders)
+
 	s.mux.HandleFunc("GET /api/v1/templates", s.handleListTemplates)
 	s.mux.HandleFunc("POST /api/v1/templates", s.handleCreateTemplate)
 	s.mux.HandleFunc("GET /api/v1/templates/{id}", s.handleGetTemplate)

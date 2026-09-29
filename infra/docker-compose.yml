@@ -15,14 +15,14 @@ services:
   #   networks:
   #     - orcn-net
 
-  web:
+  console:
     build:
       context: ..
       dockerfile: infra/web.Dockerfile
-    container_name: orcn-web
+    container_name: orcn-console
     volumes:
       - ../:/app
-      - /app/apps/web/node_modules
+      - /app/apps/console/node_modules
     ports:
       - "3000:3000"
     environment:
