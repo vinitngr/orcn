@@ -301,9 +301,18 @@ export default function NodeDetailPage(props: {
             onOpenTab={openTab}
           />
         )}
-        {activeTab === "events" && <NodeEventsTab />}
+        {activeTab === "events" && (
+          <NodeEventsTab
+            key={`${deployment.ID}:${node.ID}:events`}
+            deploymentId={deployment.ID}
+            nodeId={node.ID}
+          />
+        )}
         {activeTab === "logs" && (
           <NodeLogsTab
+            key={`${deployment.ID}:${node.ID}:logs`}
+            deploymentId={deployment.ID}
+            nodeId={node.ID}
             containers={jobContainers}
             selected={selectedContainer}
             onSelect={(id) =>

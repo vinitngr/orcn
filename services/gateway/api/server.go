@@ -132,6 +132,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/v1/deployments", s.handleCreateDeployment)
 	s.mux.HandleFunc("GET /api/v1/deployments", s.handleListDeployments)
 	s.mux.HandleFunc("GET /api/v1/deployments/{id}", s.handleGetDeployment)
+	
+	//node logging
+	s.mux.HandleFunc("GET /api/v1/deployments/{id}/nodes/{node_id}/logs", s.handleNodeLogs)
+	s.mux.HandleFunc("GET /api/v1/deployments/{id}/nodes/{node_id}/events", s.handleNodeEvents)
+
 	s.mux.HandleFunc("POST /api/v1/deployments/{id}/action", s.handleDeploymentAction)
 	
 	s.mux.HandleFunc("POST /api/v1/workloads", s.handleCreateWorkload)

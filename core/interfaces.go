@@ -198,6 +198,11 @@ type Provider interface {
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
 	GetNodeInfo(providerJobID string) (*NodeInfo, error)
 
+	// NewLogAdapter returns an adapter that streams normalized logs for the
+	// given provider job/deployment ID. Credentials come from the bound
+	// connection (see WithConfig); the adapter performs no database work.
+	NewLogAdapter(deploymentID string) (LogAdapter, error)
+
 	// ConnectionSchema returns the fields a user must supply to connect this provider.
 	ConnectionSchema() []ProviderField
 	// ProcessConnection splits raw user input into raw config and secret material.
