@@ -50,38 +50,35 @@ export function TemplateWizard({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col justify-between gap-4">
         <WorkflowStepIndicator
           steps={STEPS}
           currentStep={step}
           onStepClick={(target) => target <= step && onStepChange(target)}
         />
-        <div className="flex shrink-0 rounded-lg border border-zinc-800 bg-[var(--dm-panel)] p-1">
+        <div className="flex w-fit shrink-0 rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-panel)] p-1">
           <button
             type="button"
             onClick={() => onViewModeChange("wizard")}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${viewMode === "wizard" ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${viewMode === "wizard" ? "bg-zinc-800 text-[var(--text-main)]" : "text-zinc-500 hover:text-zinc-300"}`}
           >
             <FileText className="size-3.5" /> Builder
           </button>
           <button
             type="button"
             onClick={openSpec}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${viewMode === "spec" ? "bg-zinc-800 text-zinc-100" : "text-zinc-500 hover:text-zinc-300"}`}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs ${viewMode === "spec" ? "bg-zinc-800 text-[var(--text-main)]" : "text-zinc-500 hover:text-zinc-300"}`}
           >
             <Code2 className="size-3.5" /> JSON
           </button>
         </div>
       </div>
 
-      <section className="rounded-xl border border-zinc-800 bg-[var(--dm-panel)] p-6 shadow-sm">
+      <section className="rounded-xl border border-[var(--dm-card-border)] bg-[var(--dm-panel)] p-6 shadow-sm">
         {viewMode === "wizard" ? (
           <>
-            <div className="mb-6 border-b border-zinc-800 pb-5">
-              <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-blue-400">
-                Step {step} of {STEPS.length}
-              </div>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight text-zinc-100">
+            <div className="mb-6 border-b border-[var(--dm-card-border)] pb-5">
+              <h2 className="mt-2 text-xl font-semibold tracking-tight text-[var(--text-main)]">
                 {STEPS[currentStep]}
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
@@ -89,7 +86,7 @@ export function TemplateWizard({
                 workloads.
               </p>
             </div>
-            <div className="min-h-[400px]">
+            <div className="min-h-[300px]">
               {currentStep === 0 && (
                 <BasicConfig data={data} updateData={updateData} />
               )}
@@ -106,7 +103,7 @@ export function TemplateWizard({
                 <ReadmeConfig data={data} updateData={updateData} />
               )}
             </div>
-            <div className="mt-7 flex justify-between border-t border-zinc-800 pt-5">
+            <div className="mt-7 flex justify-between border-t border-[var(--dm-card-border)] pt-5">
               <Button
                 size="sm"
                 variant="secondary"
@@ -126,7 +123,7 @@ export function TemplateWizard({
               <div className="text-[11px] font-medium uppercase tracking-[0.12em] text-blue-400">
                 Advanced
               </div>
-              <h2 className="mt-2 text-xl font-semibold text-zinc-100">
+              <h2 className="mt-2 text-xl font-semibold text-[var(--text-main)]">
                 Template JSON
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
@@ -137,7 +134,7 @@ export function TemplateWizard({
             <textarea
               value={rawSpec}
               onChange={(event) => onRawSpecChange(event.target.value)}
-              className="min-h-[380px] w-full resize-y rounded-lg border border-zinc-800 bg-[var(--dm-card)] p-4 font-mono text-xs text-zinc-200 outline-none focus:border-zinc-700"
+              className="min-h-[380px] w-full resize-y rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-card)] p-4 font-mono text-xs text-zinc-200 outline-none focus:border-zinc-700"
               spellCheck={false}
             />
           </div>

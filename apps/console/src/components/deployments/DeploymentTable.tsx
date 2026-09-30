@@ -269,12 +269,12 @@ export function DeploymentTable() {
           detail="No active instances"
           icon={Clock3}
         />
-        <StatCard
+        {/* <StatCard
           label="Error"
           value={String(errorCount)}
           detail="Failed deployments"
           icon={SlidersHorizontal}
-        />
+        /> */}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card-bg)] shadow-[var(--shadow-card)]">

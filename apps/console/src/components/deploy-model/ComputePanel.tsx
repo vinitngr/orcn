@@ -126,7 +126,7 @@ export function ComputePanel({
   );
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card-bg)] p-6 shadow-sm space-y-6">
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-6 shadow-sm space-y-6">
       {/* VRAM requirement notice */}
       {selectedModel && requiredVram > 0 && (
         <div className="flex items-center gap-2.5 rounded-lg border border-[var(--dm-divider)] bg-[var(--dm-card)] px-4 py-3 text-xs">

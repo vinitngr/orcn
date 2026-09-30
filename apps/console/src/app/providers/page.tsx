@@ -96,7 +96,7 @@ export default function ProvidersPage() {
           Loading connections…
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--dm-card-border)] bg-[var(--dm-card)] py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--dm-card-border)] bg-[var(--card-bg)] py-16 text-center">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--dm-inset)]">
             <Plus className="size-5 text-[var(--text-muted)]" />
           </div>
@@ -123,7 +123,7 @@ export default function ProvidersPage() {
             return (
               <div
                 key={c.ID}
-                className="flex flex-col rounded-xl border border-[var(--dm-card-border)] bg-[var(--dm-card)] p-4"
+                className="flex flex-col rounded-xl border border-[var(--dm-card-border)] bg-[var(--card-bg)] p-4"
               >
                 <div className="flex items-center gap-3.5">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--dm-inset)] p-2">

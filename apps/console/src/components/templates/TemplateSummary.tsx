@@ -18,17 +18,9 @@ export function TemplateSummary({ data, onSave }: any) {
   );
 
   return (
-    <aside
-      style={{
-        position: "sticky",
-        top: "2rem",
-        background: "#0a0a0a",
-        color: "#e5e5e5",
-        border: "1px solid #27272a",
-        borderRadius: "var(--radius-md)",
-        padding: "1.5rem",
-      }}
-    >
+<aside
+        className="sticky top-8 bg-[var(--dm-panel)] text-[var(--text-main)] border border-[var(--dm-card-border)] rounded-md p-6"
+      >
       <div
         style={{
           display: "flex",

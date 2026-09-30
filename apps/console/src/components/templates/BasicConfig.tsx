@@ -60,14 +60,7 @@ export function BasicConfig({ data, updateData }: any) {
           onChange={(e) =>
             updateData({ name: e.target.value.replace(/\//g, "-") })
           }
-          style={{
-            width: "100%",
-            padding: "0.75rem 1rem",
-            background: "var(--bg-color)",
-            border: "1px solid var(--border)",
-            color: "var(--text-main)",
-            borderRadius: "0",
-          }}
+          className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           placeholder="e.g. Ubuntu 22.04 Setup"
         />
       </div>
@@ -84,57 +77,16 @@ export function BasicConfig({ data, updateData }: any) {
         >
           Compute Type
         </label>
-        <div
-          style={{
-            display: "inline-flex",
-            border: "1px solid var(--border)",
-            borderRadius: "0",
-            overflow: "hidden",
-          }}
-        >
-          <button
-            onClick={() => updateData({ computeType: "CPU" })}
-            style={{
-              padding: "0.35rem 1rem",
-              border: "none",
-              background:
-                data.computeType === "CPU"
-                  ? "var(--text-main)"
-                  : "var(--surface)",
-              color:
-                data.computeType === "CPU"
-                  ? "var(--bg-color)"
-                  : "var(--text-main)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              transition: "all 0.2s",
-              borderRight: "1px solid var(--border)",
-            }}
-          >
-            CPU
-          </button>
-          <button
-            onClick={() => updateData({ computeType: "GPU" })}
-            style={{
-              padding: "0.35rem 1rem",
-              border: "none",
-              background:
-                data.computeType === "GPU"
-                  ? "var(--text-main)"
-                  : "var(--surface)",
-              color:
-                data.computeType === "GPU"
-                  ? "var(--bg-color)"
-                  : "var(--text-main)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              transition: "all 0.2s",
-            }}
-          >
-            GPU
-          </button>
+        <div style={{ width: "8rem" }}>
+          <Select
+            value={data.computeType || "CPU"}
+            onChange={(val: any) => updateData({ computeType: val })}
+            options={[
+              { label: "CPU", value: "CPU" },
+              { label: "GPU", value: "GPU" },
+            ]}
+            placeholder="Select type"
+          />
         </div>
       </div>
 
@@ -347,9 +299,9 @@ export function BasicConfig({ data, updateData }: any) {
                   fontSize: "0.875rem",
                   opacity:
                     !newReg.name ||
-                    !newReg.server_url ||
-                    !newReg.username ||
-                    !newReg.password
+                      !newReg.server_url ||
+                      !newReg.username ||
+                      !newReg.password
                       ? 0.5
                       : 1,
                 }}

@@ -637,7 +637,7 @@ export default function EditTemplatePage() {
         <span className="text-zinc-300">Edit template</span>
       </div>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
           Edit Template
         </h1>
         <p className="mt-1 text-xs text-zinc-400">

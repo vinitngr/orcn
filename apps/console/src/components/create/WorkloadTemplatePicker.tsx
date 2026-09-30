@@ -45,14 +45,14 @@ export function WorkloadTemplatePicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton
-        className="flex h-[90dvh] w-[94vw] max-w-[94vw] translate-x-0 translate-y-0 left-0 top-0 flex-col gap-0 overflow-hidden rounded-2xl border border-zinc-800 bg-[var(--dm-panel)] p-0 text-zinc-100 shadow-2xl ring-0 sm:h-[80vh] sm:w-[80vw] sm:max-w-[80vw] sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
+        className="flex h-[90dvh] w-[94vw] max-w-[94vw] translate-x-0 translate-y-0 left-0 top-0 flex-col gap-0 overflow-hidden rounded-2xl border border-[var(--dm-card-border)] bg-[var(--dm-panel)] p-0 text-[var(--text-main)] shadow-2xl ring-0 sm:h-[80vh] sm:w-[80vw] sm:max-w-[80vw] sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-5 sm:px-8">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--dm-card-border)] px-6 py-5 sm:px-8">
           <div className="min-w-0">
-            <DialogTitle className="font-heading text-lg font-semibold text-zinc-100">
+            <DialogTitle className="font-heading text-lg font-semibold text-[var(--text-main)]">
               Choose a template
             </DialogTitle>
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-[var(--text-muted)]">
               Select a container configuration to begin.
             </p>
           </div>
@@ -86,15 +86,15 @@ export function WorkloadTemplatePicker({
                   className={`rounded-xl border p-4 text-left transition ${
                     selected
                       ? "border-blue-500 bg-[var(--dm-selected-2)] ring-1 ring-blue-500/40"
-                      : "border-zinc-800 bg-[var(--dm-card)] hover:border-zinc-600 hover:bg-[var(--dm-inset)]"
+                      : "border-[var(--dm-card-border)] bg-[var(--card-bg)] hover:border-zinc-600 hover:bg-[var(--dm-inset)]"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-zinc-100">
+                      <p className="truncate text-sm font-semibold text-[var(--text-main)]">
                         {template.name || "Untitled template"}
                       </p>
-                      <p className="mt-1 truncate font-mono text-[11px] text-zinc-500">
+                      <p className="mt-1 truncate font-mono text-[11px] text-[var(--text-muted)]">
                         {image}
                       </p>
                     </div>
@@ -106,18 +106,18 @@ export function WorkloadTemplatePicker({
                       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
                         gpu
                           ? "border-blue-500/30 bg-blue-500/10 text-blue-300"
-                          : "border-zinc-800 bg-[var(--dm-inset)] text-zinc-400"
+                          : "border-[var(--dm-card-border)] bg-[var(--dm-inset)] text-zinc-400"
                       }`}
                     >
                       {gpu ? <Server className="size-3" /> : <Cpu className="size-3" />}
                       {gpu ? "GPU" : computeType || "CPU"}
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-full border border-zinc-800 bg-[var(--dm-inset)] px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[var(--dm-card-border)] bg-[var(--dm-inset)] px-2 py-0.5 text-[10px] font-medium text-zinc-400">
                       <Boxes className="size-3" />
                       {containerCount} container{containerCount !== 1 ? "s" : ""}
                     </span>
                     {createdAt && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-zinc-800 bg-[var(--dm-inset)] px-2 py-0.5 text-[10px] font-medium text-zinc-500">
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[var(--dm-card-border)] bg-[var(--dm-inset)] px-2 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
                         <CalendarDays className="size-3" />
                         {createdAt}
                       </span>
@@ -133,7 +133,7 @@ export function WorkloadTemplatePicker({
               <p className="text-sm font-medium text-zinc-300">
                 No templates available yet.
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-[var(--text-muted)]">
                 Create your first template to get started.
               </p>
             </div>

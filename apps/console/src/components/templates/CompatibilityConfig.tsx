@@ -1,272 +1,120 @@
+"use client";
+
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/Button";
+
 export function CompatibilityConfig({ data, updateData }: any) {
   const isCpu = data.computeType === "CPU";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+    <div className="flex flex-col gap-6">
       <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "1.5rem",
-          opacity: isCpu ? 0.5 : 1,
-          pointerEvents: isCpu ? "none" : "auto",
-          transition: "opacity 0.3s",
-        }}
+        className={`flex flex-col gap-6 ${isCpu ? "opacity-50 pointer-events-none" : ""}`}
       >
         {isCpu && (
-          <div
-            style={{
-              padding: "1rem",
-              background: "rgba(234, 179, 8, 0.1)",
-              color: "#eab308",
-              border: "1px solid rgba(234, 179, 8, 0.5)",
-              borderRadius: "0",
-              fontSize: "0.875rem",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-            }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          <div className="p-4 bg-yellow-100/10 text-yellow-500 border border-yellow-500/50 rounded-lg flex items-center gap-3 text-sm">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            GPU limits are disabled because this is a CPU-only template.
+            GPU limits are disabled because this is a CPU‑only template.
           </div>
         )}
 
         <div>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              color: "var(--text-main)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
+          <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
             Minimum VRAM (GB)
           </label>
-          <input
+          <Input
             type="number"
             value={data.minVram || ""}
             onChange={(e) => updateData({ minVram: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "var(--bg-color)",
-              border: "1px solid var(--border)",
-              color: "var(--text-main)",
-              borderRadius: "0",
-            }}
             placeholder="e.g. 16"
+            className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           />
-          <p
-            style={{
-              color: "var(--text-muted)",
-              fontSize: "0.75rem",
-              marginTop: "0.5rem",
-            }}
-          >
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
             Minimum GPU Memory required to run this template.
           </p>
         </div>
 
         <div>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              color: "var(--text-main)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
+          <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
             Preferred GPU Models
           </label>
-          <input
+          <Input
             type="text"
             value={data.gpuModel || ""}
             onChange={(e) => updateData({ gpuModel: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "var(--bg-color)",
-              border: "1px solid var(--border)",
-              color: "var(--text-main)",
-              borderRadius: "0",
-            }}
             placeholder="e.g. RTX 4090, A100 (Optional)"
+            className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           />
         </div>
 
         <div>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              color: "var(--text-main)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
+          <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
             Required CUDA Version
           </label>
-          <input
+          <Input
             type="text"
             value={data.cudaVersion || ""}
             onChange={(e) => updateData({ cudaVersion: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "var(--bg-color)",
-              border: "1px solid var(--border)",
-              color: "var(--text-main)",
-              borderRadius: "0",
-            }}
             placeholder="e.g. 12.0"
+            className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           />
         </div>
       </div>
 
-      <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}
-      >
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              color: "var(--text-main)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
+          <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
             Min Cores
           </label>
-          <input
+          <Input
             type="number"
             value={data.minCores || ""}
             onChange={(e) => updateData({ minCores: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "var(--bg-color)",
-              border: "1px solid var(--border)",
-              color: "var(--text-main)",
-              borderRadius: "0",
-            }}
             placeholder="e.g. 4"
+            className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           />
         </div>
         <div>
-          <label
-            style={{
-              display: "block",
-              marginBottom: "0.5rem",
-              color: "var(--text-main)",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
-          >
+          <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
             Min RAM (GB)
           </label>
-          <input
+          <Input
             type="number"
             value={data.minRam || ""}
             onChange={(e) => updateData({ minRam: e.target.value })}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              background: "var(--bg-color)",
-              border: "1px solid var(--border)",
-              color: "var(--text-main)",
-              borderRadius: "0",
-            }}
             placeholder="e.g. 16"
+            className="w-full rounded-lg border border-[var(--dm-card-border)] bg-[var(--dm-input)] px-3 py-2 text-sm text-[var(--text-main)]"
           />
         </div>
       </div>
 
       <div>
-        <label
-          style={{
-            display: "block",
-            marginBottom: "0.5rem",
-            color: "var(--text-main)",
-            fontSize: "0.875rem",
-            fontWeight: 500,
-          }}
-        >
+        <label className="block mb-2 text-sm font-medium text-[var(--text-main)]">
           Architecture Constraint
         </label>
-        <div
-          style={{
-            display: "inline-flex",
-            border: "1px solid var(--border)",
-            borderRadius: "0",
-            overflow: "hidden",
-          }}
-        >
+        <div className="inline-flex border border-[var(--dm-card-border)] rounded-lg overflow-hidden">
           <button
+            type="button"
             onClick={() => updateData({ arch: "any" })}
-            style={{
-              padding: "0.35rem 1rem",
-              border: "none",
-              background:
-                !data.arch || data.arch === "any"
-                  ? "var(--text-main)"
-                  : "var(--surface)",
-              color:
-                !data.arch || data.arch === "any"
-                  ? "var(--bg-color)"
-                  : "var(--text-main)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              borderRight: "1px solid var(--border)",
-            }}
+            className={`px-4 py-2 text-sm font-medium ${!data.arch || data.arch === "any" ? "bg-[var(--text-main)] text-[var(--bg-color)]" : "bg-[var(--surface)] text-[var(--text-main)]"}`}
           >
             Any
           </button>
           <button
+            type="button"
             onClick={() => updateData({ arch: "amd64" })}
-            style={{
-              padding: "0.35rem 1rem",
-              border: "none",
-              background:
-                data.arch === "amd64" ? "var(--text-main)" : "var(--surface)",
-              color:
-                data.arch === "amd64" ? "var(--bg-color)" : "var(--text-main)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              borderRight: "1px solid var(--border)",
-            }}
+            className={`px-4 py-2 text-sm font-medium border-l border-[var(--dm-card-border)] ${data.arch === "amd64" ? "bg-[var(--text-main)] text-[var(--bg-color)]" : "bg-[var(--surface)] text-[var(--text-main)]"}`}
           >
             x86 / AMD64
           </button>
           <button
+            type="button"
             onClick={() => updateData({ arch: "arm64" })}
-            style={{
-              padding: "0.35rem 1rem",
-              border: "none",
-              background:
-                data.arch === "arm64" ? "var(--text-main)" : "var(--surface)",
-              color:
-                data.arch === "arm64" ? "var(--bg-color)" : "var(--text-main)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              fontWeight: 500,
-            }}
+            className={`px-4 py-2 text-sm font-medium border-l border-[var(--dm-card-border)] ${data.arch === "arm64" ? "bg-[var(--text-main)] text-[var(--bg-color)]" : "bg-[var(--surface)] text-[var(--text-main)]"}`}
           >
             ARM64
           </button>

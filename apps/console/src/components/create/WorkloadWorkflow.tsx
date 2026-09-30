@@ -3,7 +3,7 @@
 import { type ReactNode } from "react";
 import { Container, Layers } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { WorkflowStepIndicator } from "./WorkflowStepIndicator";
+
 import { ComputePanel } from "@/components/deploy-model/ComputePanel";
 import { ContainersConfig } from "@/components/templates/ContainersConfig";
 
@@ -16,7 +16,6 @@ interface WorkloadWorkflowProps {
   updateData: (data: any) => void;
   onOpenTemplatePicker: () => void;
   step: number;
-  onStepChange: (step: number) => void;
 }
 
 export function WorkloadWorkflow({
@@ -25,19 +24,13 @@ export function WorkloadWorkflow({
   instances,
   updateData,
   onOpenTemplatePicker,
-  step,
-  onStepChange,
+  step
 }: WorkloadWorkflowProps) {
   const selectedTemplate = templates.find(
     (template) => template.id === data.templateId,
   );
   return (
     <div className="space-y-5">
-      <WorkflowStepIndicator
-        steps={STEPS}
-        currentStep={step}
-        onStepClick={(target) => target <= step && onStepChange(target)}
-      />
       <section className="rounded-xl border border-[var(--dm-card-border)] bg-[var(--dm-panel)] p-6 shadow-sm">
         <div className="mb-6 border-b border-[var(--dm-divider)] pb-5">
           <h2 className="text-xl font-semibold tracking-tight text-[var(--text-main)]">

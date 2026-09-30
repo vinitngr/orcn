@@ -7,7 +7,7 @@
 
 :root {
   --bg-color: #fafafa;
-  --card-bg: #f4f4f5; /* card/box background — tune this to taste */
+  --card-bg: #f7f7f7; /* card/box background — tune this to taste */
   --font-body:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display:

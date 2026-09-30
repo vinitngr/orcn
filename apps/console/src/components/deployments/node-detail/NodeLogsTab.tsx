@@ -251,7 +251,7 @@ export function NodeLogsTab({
                 </span>
                 <span
                   className={[
-                    "shrink-0 rounded px-1 text-[10px]",
+                    "shrink-0 rounded px-1 text-[10px] py-1 h-fit",
                     line.source === "system"
                       ? "bg-blue-500/10 text-blue-400"
                       : "bg-emerald-500/10 text-emerald-400",

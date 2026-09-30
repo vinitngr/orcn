@@ -259,7 +259,7 @@ export function ProviderWizard({ connectionId }: Props) {
               key={p.id}
               type="button"
               onClick={() => chooseProvider(p)}
-              className="group relative flex flex-col rounded-2xl border border-[var(--dm-card-border)] bg-[var(--dm-card)] p-5 text-left transition-all duration-150 hover:border-blue-500/50 hover:bg-[var(--dm-card-hover)] hover:shadow-[0_0_18px_rgba(59,130,246,0.12)]"
+              className="group relative flex flex-col rounded-2xl border border-[var(--dm-card-border)] bg-[var(--card-bg)] p-5 text-left transition-all duration-150 hover:border-blue-500/50 hover:bg-[var(--dm-card-hover)] hover:shadow-[0_0_18px_rgba(59,130,246,0.12)]"
             >
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--dm-inset)] p-3">

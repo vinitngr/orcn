@@ -1,53 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import DeploymentCard from "./deployment";
+import InferenceRequestsCard from "./inference_req";
+import LatencyCard from "./latency";
+import ProviderNodeCard from "./provider-node";
 
-export default function Test2Page() {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-  }, [isDark]);
-
+export default function Page() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground transition-colors">
-      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-lg">
-        <Breadcrumb className="mb-8">
-          <BreadcrumbList className="justify-center">
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/">Home</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Test 2</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-        <p className="mb-2 text-sm font-medium text-muted-foreground">
-          Tailwind CSS test
-        </p>
-        <h1 className="mb-3 text-3xl font-bold tracking-tight">
-          {isDark ? "Dark mode" : "Light mode"}
-        </h1>
-        <p className="mb-6 text-muted-foreground">
-          The utility classes and global CSS variables are working.
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsDark((current) => !current)}
-          className="rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground transition-colors hover:opacity-90"
-        >
-          Toggle {isDark ? "light" : "dark"} mode
-        </button>
-      </section>
+    <main className="min-h-screen bg-[#090b0e] px-4 py-5 text-white">
+      <div className="w-full">
+        <div className="grid grid-cols-4 gap-3">
+          <div className="min-w-0 h-[200px]">
+            <DeploymentCard />
+          </div>
+
+          <div className="min-w-0 h-[200px]">
+            <InferenceRequestsCard />
+          </div>
+
+          <div className="min-w-0 h-[200px]">
+            <LatencyCard />
+          </div>
+
+          <div className="min-w-0 h-[200px]">
+            <ProviderNodeCard />
+          </div>
+        </div>
+
+        {/* Existing deployments table */}
+        <div className="mt-5">
+          {/* existing table */}
+        </div>
+      </div>
     </main>
   );
 }

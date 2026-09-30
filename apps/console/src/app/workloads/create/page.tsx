@@ -1,11 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { WorkloadWorkflow } from "@/components/create/WorkloadWorkflow";
 import { WorkloadSummary } from "@/components/create/WorkloadSummary";
 import { WorkloadTemplatePicker } from "@/components/create/WorkloadTemplatePicker";
 import { useCreateWorkload } from "./use-create-workload";
 import { DeployConfirmDialog } from "./DeployConfirmDialog";
+import { WorkflowStepIndicator } from "@/components/create/WorkflowStepIndicator";
+
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+
+const STEPS = ["Workload", "Compute", "Containers"];
 
 export default function CreateDeploymentPage() {
   const {
@@ -29,25 +34,29 @@ export default function CreateDeploymentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-        <button
-          type="button"
-          onClick={() => router.push("/workloads")}
-          className="hover:text-zinc-300"
+      <div className="flex items-center gap-1.5 text-xs text-[var(--text-light)]">
+        <Link
+          href="/deployments"
+          className="hover:text-[var(--dm-text-3)] transition-colors"
         >
-          Workloads
-        </button>
-        <span>/</span>
-        <span className="text-zinc-300">Create workload</span>
+          workloads
+        </Link>
+        <ChevronRight className="size-3.5 text-zinc-600" />
+        <span className="text-[var(--dm-text-3)]">Create Workload</span>
       </div>
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-100">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
           Create Workload
         </h1>
-        <p className="mt-1 text-xs text-zinc-400">
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
           Launch a template on dedicated compute from the network.
         </p>
       </div>
+      <WorkflowStepIndicator
+        steps={STEPS}
+        currentStep={step}
+        onStepClick={(target) => target <= step && setStep(target)}
+      />
       <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[1fr_360px]">
         <WorkloadWorkflow
           data={formData}
@@ -56,7 +65,6 @@ export default function CreateDeploymentPage() {
           updateData={updateData}
           onOpenTemplatePicker={() => setIsTemplateModalOpen(true)}
           step={step}
-          onStepChange={setStep}
         />
         <WorkloadSummary
           formData={formData}
