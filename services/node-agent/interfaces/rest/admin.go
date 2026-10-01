@@ -3,19 +3,23 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"orcn/core"
+	"orcn/core/logger"
 	"orcn/services/node-agent/agent"
 	"orcn/services/node-agent/capabilities"
 	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
+	"orcn/services/node-agent/reconcile/telemetry"
 )
 
 type AdminServer struct {
+	addr            string
 	engine          agent.Engine
 	routes          *RouteTable
 	state           *RegistrationState
@@ -23,10 +27,52 @@ type AdminServer struct {
 	registrationKey string
 	eventBuffer     *events.Buffer
 	capabilities    *capabilities.Collector
+	telemetryBuffer *telemetry.Buffer
+	server          *http.Server
+	logger          *logger.Logger
 }
 
-func NewAdminServer(engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, machineCapabilities *capabilities.Collector, token, registrationKey string) *AdminServer {
-	return &AdminServer{engine: engine, routes: routes, state: state, eventBuffer: eventBuffer, capabilities: machineCapabilities, token: token, registrationKey: registrationKey}
+func NewAdminServer(addr string, engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, machineCapabilities *capabilities.Collector, telemetryBuffer *telemetry.Buffer, token, registrationKey string) *AdminServer {
+	return &AdminServer{
+		addr:            addr,
+		engine:          engine,
+		routes:          routes,
+		state:           state,
+		eventBuffer:     eventBuffer,
+		capabilities:    machineCapabilities,
+		telemetryBuffer: telemetryBuffer,
+		token:           token,
+		registrationKey: registrationKey,
+		logger:          logger.New("ADMIN"),
+	}
+}
+
+func (s *AdminServer) Name() string {
+	return "Admin_Server"
+}
+
+func (s *AdminServer) Start(ctx context.Context) error {
+	s.server = &http.Server{
+		Addr:    s.addr,
+		Handler: s.Handler(),
+	}
+
+	go func() {
+		s.logger.Info("Listening on %s", s.addr)
+		if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("Server error: %v", err)
+		}
+	}()
+
+	return nil
+}
+
+func (s *AdminServer) Stop(ctx context.Context) error {
+	s.logger.Info("Shutting down admin server...")
+	if s.server != nil {
+		return s.server.Shutdown(ctx)
+	}
+	return nil
 }
 
 func (s *AdminServer) Handler() http.Handler {
@@ -36,6 +82,8 @@ func (s *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("GET /registrations", s.registrations)
 	mux.HandleFunc("GET /capabilities", s.machineCapabilities)
 	mux.HandleFunc("POST /capabilities/refresh", s.refreshMachineCapabilities)
+	mux.HandleFunc("GET /metrics", s.metrics)
+	mux.HandleFunc("GET /metrics/latest", s.metricsLatest)
 	mux.HandleFunc("POST /register", s.register)
 	mux.HandleFunc("DELETE /register/{jobName}", s.unregister)
 	mux.HandleFunc("GET /events", s.events)
@@ -46,6 +94,27 @@ func (s *AdminServer) Handler() http.Handler {
 	mux.HandleFunc("DELETE /containers/{id}", s.remove)
 	mux.HandleFunc("GET /containers/{id}/logs", s.logs)
 	return s.auth(mux)
+}
+
+func (s *AdminServer) metrics(w http.ResponseWriter, r *http.Request) {
+	if s.telemetryBuffer == nil {
+		writeJSON(w, http.StatusOK, core.NodeMetrics{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.telemetryBuffer.Snapshot())
+}
+
+func (s *AdminServer) metricsLatest(w http.ResponseWriter, r *http.Request) {
+	if s.telemetryBuffer == nil {
+		writeJSON(w, http.StatusOK, map[string]any{})
+		return
+	}
+	latest := s.telemetryBuffer.Latest()
+	if latest == nil {
+		writeJSON(w, http.StatusOK, map[string]any{})
+		return
+	}
+	writeJSON(w, http.StatusOK, latest)
 }
 
 func (s *AdminServer) machineCapabilities(w http.ResponseWriter, r *http.Request) {

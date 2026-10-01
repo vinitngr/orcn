@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -13,39 +12,51 @@ import (
 	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
 	restinterface "orcn/services/node-agent/interfaces/rest"
+	"orcn/services/node-agent/reconcile/telemetry"
 )
 
 func main() {
 	cfg := config.Load()
 	logger.SetLevel(logLevel(cfg.LogLevel))
-	terminalLogger := logger.New("NODE-AGENT")
+	log := logger.New("NODE-AGENT")
 
-	// initialize Event System
+	// 1. Initialize Event System
 	eventBuffer := events.NewBuffer(500)
-	recorder := events.NewRecorder(eventBuffer, terminalLogger)
+	recorder := events.NewRecorder(eventBuffer, log)
 
-	// initialized container Engine
-	var Engine agent.Engine
-	var err error
-	Engine, err = docker.NewEngine(cfg, recorder)
+	// 2. Initialize Container Engine (driver dependency)
+	engine, err := docker.NewEngine(cfg, recorder)
 	if err != nil {
-		log.Fatalf("Failed to initialize Docker Engine: %v", err)
+		log.Fatal("Failed to initialize Docker Engine: %v", err)
 	}
-	defer Engine.Close()
+	defer engine.Close()
 
-	// initialize node agent
+	// 3. Initialize Background Reconcilers
+	var telemetryBuffer *telemetry.Buffer
+	var telemetryReconciler *telemetry.Reconciler
+	if cfg.TelemetryEnabled {
+		telemetryReconciler = telemetry.New(cfg.TelemetryInterval, cfg.TelemetryBufferPoints)
+		telemetryBuffer = telemetryReconciler.Buffer()
+	}
+
+	// 4. Initialize Network Interfaces (Admin Control Plane & Proxy Router)
+	adminServer, proxyServer := restinterface.InitServers(cfg, engine, eventBuffer, telemetryBuffer)
+
+	// 5. Register Components into Orchestrator
 	nodeAgent := agent.New()
+	if telemetryReconciler != nil {
+		nodeAgent.Register(telemetryReconciler)
+	}
+	nodeAgent.Register(adminServer)
+	nodeAgent.Register(proxyServer)
 
-	// initialized and register interface
-	restPlugin := restinterface.NewServer(cfg, Engine, eventBuffer)
-	nodeAgent.Register(restPlugin)
-
-	// boot node agent
+	// 6. Boot Node Agent with Signal Handling
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	log.Info("Booting node-agent components...")
 	if err := nodeAgent.Start(ctx); err != nil {
-		log.Fatalf("Agent crashed: %v", err)
+		log.Fatal("Agent crashed: %v", err)
 	}
 }
 

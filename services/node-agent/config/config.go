@@ -3,6 +3,9 @@ package config
 import (
 	"os"
 	"strconv"
+	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -18,11 +21,16 @@ type Config struct {
 	RegistryCredential    string
 	RegistryServerAddress string
 	ResourceLoaderImage   string
-	AgentMode             string // "exclusive" or "shared"
-	MaxWorkloadCount      int    // 0 means unlimited (shared mode only)
+	AgentMode             string        // "exclusive" or "shared"
+	MaxWorkloadCount      int           // 0 means unlimited (shared mode only)
+	TelemetryEnabled      bool          // whether background telemetry sampler is active
+	TelemetryInterval     time.Duration // sampling interval (e.g. 5s)
+	TelemetryBufferPoints int           // max sample points retained in ring buffer (e.g. 60 = 5 min at 5s)
 }
 
 func Load() Config {
+	_ = godotenv.Load()
+
 	return Config{
 		AdminAddress:          env("NODE_AGENT_ADMIN_ADDRESS", "127.0.0.1:9090"),
 		ProxyAddress:          env("NODE_AGENT_PROXY_ADDRESS", "0.0.0.0:8080"),
@@ -38,6 +46,9 @@ func Load() Config {
 		ResourceLoaderImage:   env("NODE_AGENT_RESOURCE_LOADER_IMAGE", "vinitngr/orcn-resource-loader:dev"),
 		AgentMode:             env("AGENT_MODE", "exclusive"),
 		MaxWorkloadCount:      envInt("MAX_WORKLOAD_COUNT", 0),
+		TelemetryEnabled:      envBool("NODE_AGENT_TELEMETRY_ENABLED", true),
+		TelemetryInterval:     envDuration("NODE_AGENT_TELEMETRY_INTERVAL", 5*time.Second),
+		TelemetryBufferPoints: envInt("NODE_AGENT_TELEMETRY_BUFFER_POINTS", 60),
 	}
 }
 
@@ -54,4 +65,28 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func envBool(key string, fallback bool) bool {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(val)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func envDuration(key string, fallback time.Duration) time.Duration {
+	val := os.Getenv(key)
+	if val == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(val)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
 }
