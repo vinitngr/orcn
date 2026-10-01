@@ -150,9 +150,9 @@ type ConfigOption struct {
 // ProviderField describes one input a provider needs to establish a connection.
 // It is the single source of truth for the connection form rendered by clients.
 type ProviderField struct {
-	Key         string   `json:"key"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 	// Type is one of: text, password, number, boolean, select, file.
 	Type string `json:"type"`
 	// Required marks the field as mandatory; clients must enforce this.
@@ -171,7 +171,6 @@ type ProviderConnectionConfig struct {
 	Config map[string]any `json:"config"`
 	Secret map[string]any `json:"secret"`
 }
-
 
 type Runtime interface {
 	// Name is the human-readable runtime name shown in clients (e.g. "vLLM").
@@ -197,6 +196,11 @@ type Provider interface {
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
 	GetNodeInfo(providerJobID string) (*NodeInfo, error)
+
+	// GetNodeMetrics returns a normalized telemetry snapshot for the provider
+	// job/deployment. Providers map whatever their APIs expose; unavailable
+	// fields are left nil. Credentials come from the bound connection.
+	GetNodeMetrics(deploymentID string) (*NodeMetrics, error)
 
 	// NewLogAdapter returns an adapter that streams normalized logs for the
 	// given provider job/deployment ID. Credentials come from the bound

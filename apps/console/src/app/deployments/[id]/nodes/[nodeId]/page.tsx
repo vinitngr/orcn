@@ -292,7 +292,14 @@ export default function NodeDetailPage(props: {
             statusVariant={statusVariant}
           />
         )}
-        {activeTab === "metrics" && <NodeMetricsTab />}
+        {activeTab === "metrics" && (
+          <NodeMetricsTab
+            key={`${deployment.ID}:${node.ID}:metrics`}
+            deploymentId={deployment.ID}
+            nodeId={node.ID}
+            enabled={activeTab === "metrics"}
+          />
+        )}
         {activeTab === "workloads" && (
           <NodeWorkloadsTab
             deployment={deployment}

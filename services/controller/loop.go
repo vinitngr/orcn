@@ -47,12 +47,6 @@ func (c *Controller) StartLoop() {
 		for range ticker.C {
 			c.reconcile()
 		}
-		// for {
-		// 	select {
-		// 	case <-ticker.C:
-		// 		c.reconcile()
-		// 	}
-		// }
 	}()
 }
 
@@ -109,10 +103,10 @@ func (c *Controller) reconcile() {
 				continue
 			}
 
-			go func(n models.Node, deploymentID string) {
+			go func(n models.Node, deploymentID string, p core.Provider) {
 				defer c.activeChecks.Delete(n.ID)
 
-				info, err := provider.GetNodeInfo(n.ID)
+				info, err := p.GetNodeInfo(n.ID)
 				if err == nil && info != nil {
 					statusChanged := false
 
@@ -155,7 +149,7 @@ func (c *Controller) reconcile() {
 						}
 					}
 				}
-			}(node, dep.ID)
+			}(node, dep.ID, provider)
 		}
 
 		// Update parent deployment status based on current DB state of nodes
