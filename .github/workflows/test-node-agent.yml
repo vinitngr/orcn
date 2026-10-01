@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build all Go packages
+        run: go build ./...
+
+      - name: Run core tests
+        run: go test -v -count=1 ./core/...
+
+      - name: Run providers tests
+        run: go test -v -count=1 ./providers/...
+
+      - name: Run runtimes tests
+        run: go test -v -count=1 ./runtimes/...
+
+      - name: Run gateway tests
+        run: go test -v -count=1 ./services/gateway/...
+
+      - name: Run node-agent tests
+        run: go test -v -count=1 -timeout=60s ./services/node-agent/...

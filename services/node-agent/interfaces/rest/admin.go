@@ -15,6 +15,7 @@ import (
 	"orcn/services/node-agent/capabilities"
 	"orcn/services/node-agent/engines/docker"
 	"orcn/services/node-agent/events"
+	"orcn/services/node-agent/reconcile/health"
 	"orcn/services/node-agent/reconcile/telemetry"
 )
 
@@ -28,11 +29,12 @@ type AdminServer struct {
 	eventBuffer     *events.Buffer
 	capabilities    *capabilities.Collector
 	telemetryBuffer *telemetry.Buffer
+	healthStore     *health.Store
 	server          *http.Server
 	logger          *logger.Logger
 }
 
-func NewAdminServer(addr string, engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, machineCapabilities *capabilities.Collector, telemetryBuffer *telemetry.Buffer, token, registrationKey string) *AdminServer {
+func NewAdminServer(addr string, engine agent.Engine, routes *RouteTable, state *RegistrationState, eventBuffer *events.Buffer, machineCapabilities *capabilities.Collector, telemetryBuffer *telemetry.Buffer, healthStore *health.Store, token, registrationKey string) *AdminServer {
 	return &AdminServer{
 		addr:            addr,
 		engine:          engine,
@@ -41,6 +43,7 @@ func NewAdminServer(addr string, engine agent.Engine, routes *RouteTable, state 
 		eventBuffer:     eventBuffer,
 		capabilities:    machineCapabilities,
 		telemetryBuffer: telemetryBuffer,
+		healthStore:     healthStore,
 		token:           token,
 		registrationKey: registrationKey,
 		logger:          logger.New("ADMIN"),
@@ -78,6 +81,10 @@ func (s *AdminServer) Stop(ctx context.Context) error {
 func (s *AdminServer) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /health", s.workloadHealth)
+	mux.HandleFunc("GET /health/deployments", s.deploymentsHealth)
+	mux.HandleFunc("GET /health/deployments/{name}", s.deploymentHealth)
+	mux.HandleFunc("GET /health/deployments/{name}/containers/{id}", s.containerHealth)
 	mux.HandleFunc("GET /registration", s.registration)
 	mux.HandleFunc("GET /registrations", s.registrations)
 	mux.HandleFunc("GET /capabilities", s.machineCapabilities)
@@ -261,6 +268,85 @@ func (s *AdminServer) health(w http.ResponseWriter, r *http.Request) {
 		"workloads":  len(jobs),
 		"registered": len(jobs) > 0,
 	})
+}
+
+func (s *AdminServer) workloadHealth(w http.ResponseWriter, r *http.Request) {
+	if s.healthStore == nil {
+		writeJSON(w, http.StatusOK, health.NodeHealthSummary{Status: health.StatusUnknown})
+		return
+	}
+
+	depQuery := r.URL.Query().Get("deployment")
+	containerQuery := r.URL.Query().Get("container")
+
+	if depQuery != "" && containerQuery != "" {
+		c, ok := s.healthStore.GetContainer(depQuery, containerQuery)
+		if !ok {
+			writeError(w, http.StatusNotFound, "container health not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, c)
+		return
+	}
+
+	if depQuery != "" {
+		dep, ok := s.healthStore.GetDeployment(depQuery)
+		if !ok {
+			writeError(w, http.StatusNotFound, "deployment health not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, dep)
+		return
+	}
+
+	if containerQuery != "" {
+		c, _, ok := s.healthStore.FindContainer(containerQuery)
+		if !ok {
+			writeError(w, http.StatusNotFound, "container health not found")
+			return
+		}
+		writeJSON(w, http.StatusOK, c)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, s.healthStore.Summary())
+}
+
+func (s *AdminServer) deploymentsHealth(w http.ResponseWriter, r *http.Request) {
+	if s.healthStore == nil {
+		writeJSON(w, http.StatusOK, map[string]*health.DeploymentHealth{})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.healthStore.GetDeployments())
+}
+
+func (s *AdminServer) deploymentHealth(w http.ResponseWriter, r *http.Request) {
+	if s.healthStore == nil {
+		writeError(w, http.StatusNotFound, "health store not initialized")
+		return
+	}
+	name := r.PathValue("name")
+	dep, ok := s.healthStore.GetDeployment(name)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("deployment %q not found", name))
+		return
+	}
+	writeJSON(w, http.StatusOK, dep)
+}
+
+func (s *AdminServer) containerHealth(w http.ResponseWriter, r *http.Request) {
+	if s.healthStore == nil {
+		writeError(w, http.StatusNotFound, "health store not initialized")
+		return
+	}
+	name := r.PathValue("name")
+	id := r.PathValue("id")
+	c, ok := s.healthStore.GetContainer(name, id)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Sprintf("container %q in deployment %q not found", id, name))
+		return
+	}
+	writeJSON(w, http.StatusOK, c)
 }
 
 func (s *AdminServer) registration(w http.ResponseWriter, r *http.Request) {

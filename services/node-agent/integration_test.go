@@ -47,7 +47,7 @@ func TestNodeAgentDockerIntegration(t *testing.T) {
 	removeIntegrationContainers(t, engine, job)
 	routes := restinterface.NewRouteTable()
 	state := restinterface.NewRegistrationState("exclusive", 0)
-	admin := httptest.NewServer(restinterface.NewAdminServer("", engine, routes, state, eventBuffer, nil, nil, "", integrationRegistrationKey).Handler())
+	admin := httptest.NewServer(restinterface.NewAdminServer("", engine, routes, state, eventBuffer, nil, nil, nil, "", integrationRegistrationKey).Handler())
 	defer admin.Close()
 	forwarder := httptest.NewServer(restinterface.NewRouter(routes, state, engine, "").Handler())
 	defer forwarder.Close()

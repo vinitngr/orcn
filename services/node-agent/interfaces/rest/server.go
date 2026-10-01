@@ -5,12 +5,15 @@ import (
 	"orcn/services/node-agent/capabilities"
 	"orcn/services/node-agent/config"
 	"orcn/services/node-agent/events"
+	"orcn/services/node-agent/reconcile/health"
 	"orcn/services/node-agent/reconcile/telemetry"
 )
 
-func InitServers(cfg config.Config, engine agent.Engine, eventBuffer *events.Buffer, telemetryBuffer *telemetry.Buffer) (*AdminServer, *ProxyServer) {
+func InitServers(cfg config.Config, engine agent.Engine, eventBuffer *events.Buffer, telemetryBuffer *telemetry.Buffer, healthStore *health.Store, state *RegistrationState) (*AdminServer, *ProxyServer) {
 	routes := NewRouteTable()
-	state := NewRegistrationState(cfg.AgentMode, cfg.MaxWorkloadCount)
+	if state == nil {
+		state = NewRegistrationState(cfg.AgentMode, cfg.MaxWorkloadCount)
+	}
 
 	adminServer := NewAdminServer(
 		cfg.AdminAddress,
@@ -20,6 +23,7 @@ func InitServers(cfg config.Config, engine agent.Engine, eventBuffer *events.Buf
 		eventBuffer,
 		capabilities.New(engine.Ping),
 		telemetryBuffer,
+		healthStore,
 		cfg.AdminToken,
 		cfg.RegistrationAPIKey,
 	)
