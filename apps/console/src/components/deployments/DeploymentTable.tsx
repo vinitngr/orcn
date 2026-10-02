@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
+  Check,
+  ChevronRight,
   Clock3,
+  Copy,
   Eye,
   MoreHorizontal,
   Play,
@@ -37,11 +40,55 @@ type Deployment = {
   name: string;
   status: string;
   model: string;
+  kind: string;
   provider: string;
   resource: string;
   replicas: string;
+  nodeCount: number;
+  desired: number;
   created: string;
+  createdAt: string;
 };
+
+function statusDot(status: string) {
+  const normalized = status.toLowerCase();
+  if (normalized === "ready" || normalized === "running")
+    return "bg-emerald-500";
+  if (normalized === "scaling" || normalized === "pending")
+    return "bg-amber-500";
+  if (normalized === "error" || normalized === "failed") return "bg-red-500";
+  return "bg-[var(--text-muted)]";
+}
+
+/** Grayscale identity logo: model logo for inference, container icon otherwise */
+function logoFor(deployment: Deployment) {
+  if (deployment.model && deployment.model !== "-") return deployment.model;
+  if (deployment.kind.toLowerCase().includes("container")) return "container";
+  return "model";
+}
+
+function kindLabel(kind: string) {
+  const normalized = kind.toLowerCase();
+  if (normalized.includes("container")) return "Container";
+  if (normalized.includes("model")) return "Model inference";
+  return kind || "-";
+}
+
+function timeAgo(iso: string) {
+  if (!iso) return "-";
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) return "-";
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  return `${Math.floor(months / 12)}y ago`;
+}
 
 // Dynamic filter options will be generated from fetched deployments
 
@@ -131,9 +178,35 @@ export function DeploymentTable() {
   const router = useRouter();
   const [statusFilter, setStatusFilter] = useState("all");
   const [providerFilter, setProviderFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copyField = (
+    event: { stopPropagation: () => void },
+    key: string,
+    value: string,
+  ) => {
+    event.stopPropagation();
+    const done = () => {
+      setCopied(key);
+      window.setTimeout(() => {
+        setCopied((current) => (current === key ? null : current));
+      }, 1200);
+    };
+    try {
+      const clipboard = navigator.clipboard;
+      if (clipboard?.writeText) {
+        clipboard.writeText(value).then(done).catch(done);
+        return;
+      }
+    } catch {
+      /* fall through to done */
+    }
+    done();
+  };
 
   const statusOptions = useMemo(() => {
     const unique = new Set<string>();
@@ -162,6 +235,17 @@ export function DeploymentTable() {
     return options;
   }, [deployments]);
 
+  const typeOptions = useMemo(() => {
+    const unique = new Set<string>();
+    deployments.forEach((d) => unique.add(d.kind));
+    const items = Array.from(unique).sort();
+    const options: { label: string; value: string }[] = [
+      { label: "All types", value: "all" },
+    ];
+    options.push(...items.map((v) => ({ label: kindLabel(v), value: v })));
+    return options;
+  }, [deployments]);
+
   useEffect(() => {
     fetch("/api/v1/deployments")
       .then((res) => res.json())
@@ -173,13 +257,23 @@ export function DeploymentTable() {
                 const nodeCount = deployment.Nodes?.length || 0;
                 const replicas = deployment.Replicas || 0;
                 const isStopped = nodeCount === 0 || replicas === 0;
+                // Nodes stay listed with STOPPED/FAILED status after teardown,
+                // so only live ones count toward the replica display.
+                const onlineCount = (deployment.Nodes || []).filter((n: {
+                  InfraStatus?: string;
+                }) =>
+                  ["RUNNING", "READY", "HEALTHY"].includes(
+                    (n.InfraStatus || "").toUpperCase(),
+                  ),
+                ).length;
                 
                 let status = deployment.Status || "UNKNOWN";
-                const hasErrorNode = deployment.Nodes?.some((n: any) =>
-                  n.InfraStatus?.toLowerCase() === "error" ||
-                  n.InfraStatus?.toLowerCase() === "failed" ||
-                  n.AppStatus?.toLowerCase() === "error" ||
-                  n.AppStatus?.toLowerCase() === "failed"
+                const hasErrorNode = deployment.Nodes?.some(
+                  (n: { InfraStatus?: string; AppStatus?: string }) =>
+                    n.InfraStatus?.toLowerCase() === "error" ||
+                    n.InfraStatus?.toLowerCase() === "failed" ||
+                    n.AppStatus?.toLowerCase() === "error" ||
+                    n.AppStatus?.toLowerCase() === "failed",
                 ) ?? false;
                 
                 if (hasErrorNode) {
@@ -193,12 +287,18 @@ export function DeploymentTable() {
                   name: deployment.Name || "Unnamed deployment",
                   status: status.toLowerCase(),
                   model: deployment.ModelID || "-",
+                  kind:
+                    deployment.WorkloadType ||
+                    (deployment.ModelID ? "model_inference" : "container"),
                   provider: deployment.ProviderID || "-",
                   resource: deployment.InstanceName || "-",
-                  replicas: `${nodeCount} / ${replicas}`,
+                  replicas: `${onlineCount} / ${replicas}`,
+                  nodeCount: onlineCount,
+                  desired: replicas,
                   created: deployment.CreatedAt
                     ? new Date(deployment.CreatedAt).toLocaleDateString()
                     : "-",
+                  createdAt: deployment.CreatedAt || "",
                 };
               })
               .reverse(),
@@ -217,6 +317,8 @@ export function DeploymentTable() {
       const matchesProvider =
         providerFilter === "all" ||
         deployment.provider.toLowerCase().includes(providerFilter);
+      const matchesType =
+        typeFilter === "all" || deployment.kind === typeFilter;
       const matchesQuery =
         !normalizedQuery ||
         [
@@ -225,9 +327,9 @@ export function DeploymentTable() {
           deployment.provider,
           deployment.resource,
         ].some((value) => value.toLowerCase().includes(normalizedQuery));
-      return matchesStatus && matchesProvider && matchesQuery;
+      return matchesStatus && matchesProvider && matchesType && matchesQuery;
     });
-  }, [deployments, providerFilter, query, statusFilter]);
+  }, [deployments, providerFilter, query, statusFilter, typeFilter]);
 
   const runningCount = deployments.filter(
     (deployment) => deployment.status.toLowerCase() === "running",
@@ -281,10 +383,10 @@ export function DeploymentTable() {
         <div className="flex flex-col gap-3 border-b border-[var(--border)] p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="font-heading text-sm font-semibold text-[var(--text-main)]">
-              Model deployments
+              Deployments
             </h2>
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Monitor model instances across your infrastructure.
+              Monitor workloads across your infrastructure.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -307,106 +409,185 @@ export function DeploymentTable() {
               value={providerFilter}
               onChange={setProviderFilter}
             />
+            <FilterSelect
+              items={typeOptions}
+              value={typeFilter}
+              onChange={setTypeFilter}
+            />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1040px] border-collapse text-left">
-            <thead className="border-b border-[var(--border)] bg-[var(--bg-color)]">
-              <tr className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">
-                {[
-                  "Deployment",
-                  "Status",
-                  "Model",
-                  "Provider",
-                  "Replicas",
-                  "Resource",
-                  "Requests (24h)",
-                  "Latency",
-                  "Created",
-                  "",
-                ].map((heading) => (
-                  <th key={heading} className="px-4 py-3 font-semibold">
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          <div className="min-w-[1120px] divide-y divide-[var(--border)]">
               {loading ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-4 py-14 text-center text-xs text-[var(--text-muted)]"
-                  >
+                <div className="px-4 py-14 text-center text-xs text-[var(--text-muted)]">
                     Loading deployments...
-                  </td>
-                </tr>
+                </div>
               ) : filteredDeployments.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={10}
-                    className="px-4 py-14 text-center text-xs text-[var(--text-muted)]"
-                  >
+                <div className="px-4 py-14 text-center text-xs text-[var(--text-muted)]">
                     No deployments match these filters.
-                  </td>
-                </tr>
+                </div>
               ) : (
-                filteredDeployments.map((deployment) => (
-                  <tr
+                filteredDeployments.map((deployment) => {
+                  const ratio =
+                    deployment.desired > 0
+                      ? Math.min(
+                          100,
+                          Math.round(
+                            (deployment.nodeCount / deployment.desired) * 100,
+                          ),
+                        )
+                      : 0;
+                  return (
+                  <div
                     key={deployment.id}
                     onClick={() => router.push(`/deployments/${deployment.id}`)}
-                    className="group cursor-pointer border-b border-[var(--border)] text-xs text-[var(--text-main)] transition-colors duration-200 last:border-0 hover:bg-[var(--surface-hover)]"
+                    className="group grid cursor-pointer grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_minmax(0,0.8fr)_auto] items-center gap-5 px-5 py-5 transition-colors duration-200 hover:bg-[var(--surface-hover)]"
                   >
-                    <td className="px-4 py-4">
-                      <div className="font-medium">{deployment.name}</div>
-                      <div className="mt-1 font-mono text-[10px] text-[var(--text-light)]">
-                        {deployment.id.slice(0, 14)}...
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
+                    {/* Deployment: logo + name | status over id */}
+                    <div className="flex min-w-0 items-center gap-3">
                       <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-medium ${statusStyle(deployment.status)}`}
+                        className={`flex size-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-hover)] text-[var(--text-main)] grayscale ${
+                          deployment.status === "stopped" ? "opacity-50" : ""
+                        }`}
                       >
-                        <span className="size-1.5 rounded-full bg-current" />
-                        {deployment.status}
+                        <Logo name={logoFor(deployment)} size={20} />
                       </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="max-w-32 truncate font-medium">
-                        {deployment.model}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="flex size-7 items-center justify-center rounded-md bg-[var(--surface-hover)] text-[var(--text-main)]">
-                          <Logo name={deployment.provider} size={16} />
-                        </span>
-                        <span>{deployment.provider}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            onClick={(e) =>
+                              copyField(e, `${deployment.id}:name`, deployment.name)
+                            }
+                            title="Click to copy"
+                            className="group/copy inline-flex min-w-0 cursor-pointer items-center gap-1 truncate text-sm font-semibold text-[var(--text-main)]"
+                          >
+                            <span className="truncate">{deployment.name}</span>
+                            {copied === `${deployment.id}:name` ? (
+                              <Check className="size-3 shrink-0 text-emerald-500" />
+                            ) : (
+                              <Copy className="hidden size-3 shrink-0 text-[var(--text-light)] group-hover/copy:inline" />
+                            )}
+                          </span>
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium ${statusStyle(deployment.status)}`}
+                          >
+                            <span className="size-1.5 rounded-full bg-current" />
+                            {deployment.status}
+                          </span>
+                        </div>
+                        <div
+                          onClick={(e) =>
+                            copyField(e, `${deployment.id}:id`, deployment.id)
+                          }
+                          title="Click to copy"
+                          className="group/copy mt-1 inline-flex max-w-full cursor-pointer items-center gap-1 truncate font-mono text-[10px] text-[var(--text-light)]"
+                        >
+                          <span className="truncate">{deployment.id}</span>
+                          {copied === `${deployment.id}:id` ? (
+                            <Check className="size-3 shrink-0 text-emerald-500" />
+                          ) : (
+                            <Copy className="hidden size-3 shrink-0 group-hover/copy:inline" />
+                          )}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-4 font-mono text-[var(--text-muted)]">
-                      {deployment.replicas}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="max-w-28 truncate text-[var(--text-muted)]">
+                    </div>
+                    {/* Model / workload kind */}
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Model
+                      </div>
+                      <div
+                        onClick={(e) =>
+                          copyField(e, `${deployment.id}:model`, deployment.model)
+                        }
+                        title="Click to copy"
+                        className="group/copy mt-1 inline-flex max-w-full cursor-pointer items-center gap-1 truncate text-xs font-semibold text-[var(--text-main)]"
+                      >
+                        <span className="truncate">{deployment.model}</span>
+                        {copied === `${deployment.id}:model` ? (
+                          <Check className="size-3 shrink-0 text-emerald-500" />
+                        ) : (
+                          <Copy className="hidden size-3 shrink-0 text-[var(--text-light)] group-hover/copy:inline" />
+                        )}
+                      </div>
+                      <div className="mt-1">
+                        <span className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
+                          {kindLabel(deployment.kind)}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Provider / instance */}
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Provider
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 truncate text-xs font-semibold text-[var(--text-main)]">
+                        <Logo name={deployment.provider} size={14} />
+                        <span className="truncate">{deployment.provider}</span>
+                      </div>
+                      <div className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
                         {deployment.resource}
                       </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex h-9 min-w-24 items-center justify-center rounded-md border border-dotted border-[var(--border-hover)] text-[10px] text-[var(--text-light)]">
+                    </div>
+                    {/* Replicas */}
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Replicas
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-[var(--text-main)]">
+                          {deployment.replicas}
+                        </span>
+                        <span className="h-1 w-14 overflow-hidden rounded-full bg-[var(--surface-hover)]">
+                          <span
+                            className={`block h-full rounded-full ${statusDot(deployment.status)}`}
+                            style={{ width: `${ratio}%` }}
+                          />
+                        </span>
+                      </div>
+                      <div className="mt-1 truncate text-[11px] text-[var(--text-muted)]">
+                        {deployment.nodeCount} of {deployment.desired} online
+                      </div>
+                    </div>
+                    {/* Requests (24h) — telemetry placeholder */}
+                    <div className="min-w-0" title="Request telemetry coming soon">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Requests
+                      </div>
+                      <div className="mt-1 font-mono text-xs font-semibold text-[var(--text-light)]">
                         --
                       </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex h-9 min-w-20 items-center justify-center rounded-md border border-dotted border-[var(--border-hover)] text-[10px] text-[var(--text-light)]">
+                      <div className="mt-1 text-[11px] text-[var(--text-light)]">
+                        last 24h
+                      </div>
+                    </div>
+                    {/* Latency — telemetry placeholder */}
+                    <div className="min-w-0" title="Latency telemetry coming soon">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Latency
+                      </div>
+                      <div className="mt-1 font-mono text-xs font-semibold text-[var(--text-light)]">
                         --
                       </div>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-4 text-[var(--text-muted)]">
-                      {deployment.created}
-                    </td>
-                    <td className="px-4 py-4 text-right">
+                      <div className="mt-1 text-[11px] text-[var(--text-light)]">
+                        avg
+                      </div>
+                    </div>
+                    {/* Created */}
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-light)]">
+                        Created
+                      </div>
+                      <div className="mt-1 whitespace-nowrap text-xs font-semibold text-[var(--text-main)]">
+                        {deployment.created}
+                      </div>
+                      <div className="mt-1 text-[11px] text-[var(--text-muted)]">
+                        {timeAgo(deployment.createdAt)}
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex items-center gap-0.5">
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           aria-label={`Actions for ${deployment.name}`}
@@ -441,12 +622,13 @@ export function DeploymentTable() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </td>
-                  </tr>
-                ))
+                      <ChevronRight className="size-4 text-[var(--text-light)] transition group-hover:translate-x-0.5 group-hover:text-[var(--text-main)]" />
+                    </div>
+                  </div>
+                  );
+                })
               )}
-            </tbody>
-          </table>
+          </div>
         </div>
         <div className="border-t border-[var(--border)] px-4 py-3 text-[10px] text-[var(--text-light)]">
           Showing {filteredDeployments.length} of {deployments.length}{" "}

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import Link from "next/link";
 import {
   Activity,
   ArrowUpRight,
@@ -6,7 +7,6 @@ import {
   ExternalLink,
   Gauge,
   Globe,
-  Link2,
   Server,
   Terminal,
   Zap,
@@ -76,12 +76,6 @@ function Placeholder({
 }
 
 type SpecPort = { port: number; protocol: string; isPublic: boolean };
-type NodeEndpoint = {
-  port: number;
-  protocol: string;
-  url: string;
-  nodeID: string;
-};
 
 /** Ports declared by the job spec (expose), deduped across containers */
 function buildSpecPorts(deployment: any): SpecPort[] {
@@ -112,34 +106,6 @@ function buildSpecPorts(deployment: any): SpecPort[] {
   return ports.sort((a, b) => a.port - b.port);
 }
 
-/** Direct tunnel URLs reported by replica nodes */
-function buildNodeEndpoints(nodes: any[]): NodeEndpoint[] {
-  const out: NodeEndpoint[] = [];
-  for (const node of nodes) {
-    if (!node?.EndpointsJSON) continue;
-    let arr: any[] = [];
-    try {
-      const parsed = JSON.parse(node.EndpointsJSON);
-      if (Array.isArray(parsed)) arr = parsed;
-    } catch {
-      continue;
-    }
-    for (const e of arr) {
-      const port = Number(e?.port);
-      if (!Number.isFinite(port) || port <= 0) continue;
-      const protocol = e?.protocol || "http";
-      const raw = String(e?.base_url || "");
-      const url = !raw
-        ? ""
-        : /^https?:\/\//i.test(raw)
-          ? raw
-          : `${protocol}://${raw}`;
-      out.push({ port, protocol, url, nodeID: node.ID });
-    }
-  }
-  return out;
-}
-
 function scheme(): string {
   if (typeof window === "undefined") return "http";
   return window.location.protocol === "https:" ? "https" : "http";
@@ -165,7 +131,6 @@ export function OverviewTab({
     runtimeName && getLogoCategory(runtimeName) !== "unknown";
 
   const specPorts = buildSpecPorts(deployment);
-  const nodeEndpoints = buildNodeEndpoints(nodes);
   const baseUrl = String(
     deployment.GatewayURL || deployment.Endpoint || deployment.URL || "",
   ).replace(/\/+$/, "");
@@ -180,8 +145,10 @@ export function OverviewTab({
     if (baseUrl) return `${baseUrl.replace(/:\d+$/, "")}:${port}`;
     return `${scheme()}://${slug}-${port}.${host}`;
   };
-  const primaryUrl = baseUrl || `${scheme()}://${slug}.${host}`;
   const publicCount = specPorts.filter((p) => p.isPublic).length;
+  const isRunning = ["RUNNING", "READY"].includes(
+    String(deployment.Status || "").toUpperCase(),
+  );
 
   return (
     <div className="space-y-3">
@@ -347,7 +314,21 @@ export function OverviewTab({
                     className="flex items-center justify-between rounded border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2 text-xs"
                   >
                     <div className="flex items-center gap-2 font-mono text-[var(--text-main)]">
-                      <span className="size-1.5 rounded-full bg-emerald-500" />
+                      <span
+                        className={[
+                          "size-1.5 rounded-full",
+                          statusVariant(node.InfraStatus || "UNKNOWN") ===
+                          "success"
+                            ? "bg-emerald-500"
+                            : statusVariant(node.InfraStatus || "UNKNOWN") ===
+                                "warning"
+                              ? "bg-amber-500"
+                              : statusVariant(node.InfraStatus || "UNKNOWN") ===
+                                  "error"
+                                ? "bg-red-500"
+                                : "bg-[var(--text-muted)]",
+                        ].join(" ")}
+                      />
                       <Logo
                         name={
                           node.ProviderID || deployment.ProviderID || "nosana"
@@ -357,13 +338,15 @@ export function OverviewTab({
                       <span className="text-[var(--text-muted)]">:</span>
                       <span>{node.ID}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={statusVariant(node.InfraStatus || "UNKNOWN")}
-                      >
-                        {node.InfraStatus || "UNKNOWN"}
-                      </Badge>
+                    <div className="flex items-center gap-1">
                       <CopyButton value={node.ID} size={12} />
+                      <Link
+                        href={`/deployments/${deployment.ID}/nodes/${node.ID}`}
+                        className="rounded p-1 text-[var(--text-muted)] transition hover:bg-[var(--card-bg)] hover:text-[var(--text-main)]"
+                        title="Open node details"
+                      >
+                        <ArrowUpRight className="size-3.5" />
+                      </Link>
                     </div>
                   </div>
                 ))
@@ -373,7 +356,9 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* Endpoints — one reserved URL per declared port, public ones highlighted */}
+      {/* Endpoints + Quick Actions side by side */}
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+      {/* Endpoints — reserved gateway URL per declared port */}
       <div className="rounded-lg border border-[var(--border)] bg-[var(--card-bg)] p-4">
         <div className="mb-3 flex items-center justify-between border-b border-[var(--border)] pb-2.5">
           <div className="flex items-center gap-2">
@@ -385,84 +370,76 @@ export function OverviewTab({
               {specPorts.length} port{specPorts.length !== 1 ? "s" : ""}
             </span>
           </div>
-          <span className="text-[11px] text-[var(--text-muted)]">
-            {publicCount > 0
-              ? `${publicCount} public`
-              : "No public ports in spec"}
-          </span>
+          {isRunning ? (
+            <span className="text-[11px] text-[var(--text-muted)]">
+              {publicCount > 0
+                ? `${publicCount} public`
+                : "No public ports in spec"}
+            </span>
+          ) : (
+            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+              Inactive while {deployment.Status || "stopped"}
+            </span>
+          )}
         </div>
 
-        {/* Primary gateway route */}
-        <div className="mb-2 flex items-center justify-between gap-3 rounded border border-[var(--border)] bg-[var(--surface-hover)] px-3 py-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <Link2 size={12} className="shrink-0 text-[var(--text-muted)]" />
-            <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-              Primary
-            </span>
-            <span className="truncate font-mono text-[11px] text-[var(--text-main)]">
-              {primaryUrl}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <a
-              href={primaryUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="rounded p-1 text-[var(--text-muted)] transition hover:bg-[var(--card-bg)] hover:text-[var(--text-main)]"
-              title="Open endpoint"
-            >
-              <ExternalLink size={12} />
-            </a>
-            <CopyButton value={primaryUrl} size={12} />
-          </div>
-        </div>
-
-        {/* Per-port reserved URLs */}
         {specPorts.length > 0 ? (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={[
+              "divide-y divide-[var(--border)] rounded border border-[var(--border)]",
+              isRunning ? "" : "opacity-50 grayscale",
+            ].join(" ")}
+          >
             {specPorts.map((p) => {
               const url = reservedUrl(p.port);
               return (
                 <div
                   key={p.port}
-                  className="rounded border border-[var(--border)] bg-[var(--surface-hover)] p-2.5"
+                  className="flex items-center justify-between gap-3 px-3 py-2"
                 >
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[11px] font-semibold text-[var(--text-main)]">
-                        :{p.port}
-                      </span>
-                      <span className="text-[10px] uppercase text-[var(--text-muted)]">
-                        {p.protocol}
-                      </span>
-                    </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={[
+                        "size-1.5 rounded-full",
+                        isRunning
+                          ? "bg-emerald-500"
+                          : "bg-[var(--text-muted)]",
+                      ].join(" ")}
+                    />
+                    <span className="font-mono text-[11px] font-semibold text-[var(--text-main)]">
+                      :{p.port}
+                    </span>
+                    <span className="text-[10px] uppercase text-[var(--text-muted)]">
+                      {p.protocol}
+                    </span>
                     <span
                       className={[
                         "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
                         p.isPublic
                           ? "bg-emerald-500/10 text-emerald-500"
-                          : "bg-[var(--card-bg)] text-[var(--text-muted)]",
+                          : "bg-[var(--surface-hover)] text-[var(--text-muted)]",
                       ].join(" ")}
                     >
                       {p.isPublic ? "public" : "internal"}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <span
+                      className="truncate font-mono text-[11px] text-[var(--text-muted)]"
+                      title={url}
+                    >
                       {url}
                     </span>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="rounded p-1 text-[var(--text-muted)] transition hover:bg-[var(--card-bg)] hover:text-[var(--text-main)]"
-                        title={`Open :${p.port}`}
-                      >
-                        <ExternalLink size={11} />
-                      </a>
-                      <CopyButton value={url} size={11} />
-                    </div>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="shrink-0 rounded p-1 text-[var(--text-muted)] transition hover:bg-[var(--surface-hover)] hover:text-[var(--text-main)]"
+                      title={`Open :${p.port}`}
+                    >
+                      <ExternalLink size={12} />
+                    </a>
+                    <CopyButton value={url} size={12} />
                   </div>
                 </div>
               );
@@ -471,29 +448,6 @@ export function OverviewTab({
         ) : (
           <div className="rounded border border-dashed border-[var(--border)] px-3 py-2.5 text-center text-[11px] text-[var(--text-muted)]">
             No ports declared in the job spec yet.
-          </div>
-        )}
-
-        {/* Direct node tunnels, when nodes report resolved endpoints */}
-        {nodeEndpoints.length > 0 && (
-          <div className="mt-2 space-y-1.5">
-            {nodeEndpoints.slice(0, 4).map((ep) => (
-              <div
-                key={`${ep.nodeID}-${ep.port}`}
-                className="flex items-center justify-between gap-3 rounded border border-[var(--border)] px-3 py-1.5"
-              >
-                <div className="flex min-w-0 items-center gap-2 text-[11px]">
-                  <Logo name={deployment.ProviderID || "nosana"} size={12} />
-                  <span className="font-mono text-[var(--text-main)]">
-                    :{ep.port}
-                  </span>
-                  <span className="truncate font-mono text-[var(--text-muted)]">
-                    {ep.url || "resolving..."}
-                  </span>
-                </div>
-                {ep.url && <CopyButton value={ep.url} size={11} />}
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -511,7 +465,7 @@ export function OverviewTab({
             Common deployment tasks
           </span>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2">
           {[
             {
               tab: "api",
@@ -552,6 +506,7 @@ export function OverviewTab({
             </button>
           ))}
         </div>
+      </div>
       </div>
     </div>
   );

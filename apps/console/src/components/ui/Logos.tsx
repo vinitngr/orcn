@@ -260,12 +260,37 @@ const LocalNodeLogo: IconType = ({ size = 24, ...props }) => (
   </svg>
 );
 
+/** Know logo keys, longest first so "meta llama" wins over "meta". */
+const SORTED_LOGO_KEYS = Object.keys(LOGOS).sort((a, b) => b.length - a.length);
+
+/**
+ * Find a known logo key inside a longer identifier such as
+ * "Qwen/Qwen3-14B-AWQ" or "meta-llama/Llama-3.1-8B-Instruct".
+ */
+function findLogoKey(name: string): string | null {
+  const n = normalize(name);
+  if (LOGOS[n]) return n;
+  for (const key of SORTED_LOGO_KEYS) {
+    if (
+      n.startsWith(`${key} `) ||
+      n.startsWith(`${key}/`) ||
+      n.includes(`/${key}`) ||
+      n.includes(` ${key} `) ||
+      n.endsWith(` ${key}`)
+    ) {
+      return key;
+    }
+  }
+  return null;
+}
+
 function getIcon(name: string): IconType {
   const n = normalize(name);
   if (n === "local" || n === "local node" || n === "localhost") {
     return LocalNodeLogo;
   }
-  return LOGOS[n] ?? FallbackLogo;
+  const key = LOGOS[n] ? n : findLogoKey(name);
+  return (key && LOGOS[key]) || FallbackLogo;
 }
 
 export function Logo({ name, size = 24, className }: LogoProps) {
@@ -283,5 +308,11 @@ export function getLogoCategory(name: string): LogoCategory {
   if (PROVIDER_LOGOS[key]) return "provider";
   if (MODEL_LOGOS[key]) return "model";
   if (GENERAL_LOGOS[key]) return "general";
+  const fuzzy = findLogoKey(name);
+  if (fuzzy) {
+    if (PROVIDER_LOGOS[fuzzy]) return "provider";
+    if (MODEL_LOGOS[fuzzy]) return "model";
+    if (GENERAL_LOGOS[fuzzy]) return "general";
+  }
   return "unknown";
 }
