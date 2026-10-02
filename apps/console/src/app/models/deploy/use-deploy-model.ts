@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ConfigOption } from "@/components/deploy-model/AdvancedConfigSection";
 import { ModelItem } from "@/components/deploy-model/ModelCard";
 import {
@@ -25,6 +25,8 @@ interface DeployModelData {
   provider: string;
   provider_connection_id: string;
   model: string;
+  /** Hidden container image override from the curated catalog (falls back to runtime default). */
+  image: string;
   instance: ComputeInstance | null;
   hf_token: string;
   strategy: string;
@@ -68,6 +70,38 @@ function applyDetectedParsers(
     }
   }
   return nextConfig;
+}
+
+/** Bytes per param guessed from quantization hints in the model id. */
+function bytesPerParamFromId(modelId: string): number {
+  const idL = modelId.toLowerCase();
+  if (
+    idL.includes("fp8") ||
+    idL.includes("int8") ||
+    idL.includes("8bit") ||
+    idL.includes("q8")
+  )
+    return 1;
+  else if (
+    idL.includes("awq") ||
+    idL.includes("gptq") ||
+    idL.includes("int4") ||
+    idL.includes("4bit") ||
+    idL.includes("q4")
+  )
+    return 0.5;
+  else if (idL.includes("fp32")) return 4;
+  return 2;
+}
+
+/**
+ * VRAM estimate for search results, where only the id + param count are
+ * known (no full model details yet). Applies the same per-quantization
+ * bytes/param as the full estimator so cards agree with the summary.
+ */
+function estimateSearchVram(modelId: string, paramsB: number): number {
+  const overhead = paramsB > 50 ? 8 : paramsB > 20 ? 4 : 2;
+  return paramsB * bytesPerParamFromId(modelId) + overhead;
 }
 
 function estimateVramNeeded(
@@ -115,23 +149,7 @@ function estimateVramNeeded(
     else if (q.includes("q3")) bytesPerParam = 0.375;
     else if (q.includes("q2")) bytesPerParam = 0.25;
   } else {
-    const idL = modelId.toLowerCase();
-    if (
-      idL.includes("fp8") ||
-      idL.includes("int8") ||
-      idL.includes("8bit") ||
-      idL.includes("q8")
-    )
-      bytesPerParam = 1;
-    else if (
-      idL.includes("awq") ||
-      idL.includes("gptq") ||
-      idL.includes("int4") ||
-      idL.includes("4bit") ||
-      idL.includes("q4")
-    )
-      bytesPerParam = 0.5;
-    else if (idL.includes("fp32")) bytesPerParam = 4;
+    bytesPerParam = bytesPerParamFromId(modelId);
   }
 
   let overhead = paramsB > 50 ? 8 : paramsB > 20 ? 4 : 2;
@@ -141,7 +159,9 @@ function estimateVramNeeded(
 
 export function useDeployModel() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(1);
+  const [isPreselected, setIsPreselected] = useState(false);
 
   const [data, setData] = useState<DeployModelData>({
     name: "",
@@ -151,6 +171,7 @@ export function useDeployModel() {
     provider: "",
     provider_connection_id: "",
     model: "",
+    image: "",
     instance: null,
     hf_token: "",
     strategy: "EXTEND",
@@ -174,7 +195,17 @@ export function useDeployModel() {
   const [isDeploying, setIsDeploying] = useState(false);
 
   // Load runtime & modality capabilities from the backend registry (single source of truth)
+  // If the page was opened from the curated catalog (?model=&runtime=&task=&image=),
+  // preselect everything and jump straight to step 2 (Select Compute).
   useEffect(() => {
+    const preselectedModel = searchParams.get("model") || "";
+    const preselectedRuntime = searchParams.get("runtime") || "";
+    const preselectedTask =
+      searchParams.get("task") || searchParams.get("modality") || "";
+    const preselectedImage = searchParams.get("image") || "";
+    const fromCatalog =
+      searchParams.get("from") === "catalog" || !!preselectedModel;
+
     fetch("/api/v1/runtimes")
       .then((r) => r.json())
       .then((json) => {
@@ -187,6 +218,32 @@ export function useDeployModel() {
         setRuntimes(caps);
         setModalities(tasks);
         setData((d) => {
+          if (fromCatalog && preselectedModel) {
+            const modality = tasks.some((t) => t.id === preselectedTask)
+              ? preselectedTask
+              : tasks.some((t) => t.id === d.modality)
+                ? d.modality
+                : (tasks[0]?.id ?? "");
+            const runtimeIds = caps
+              .filter((c) => c.tasks.some((t) => t.id === modality))
+              .map((c) => c.id);
+            const runtime = preselectedRuntime && runtimeIds.includes(preselectedRuntime)
+              ? preselectedRuntime
+              : runtimeIds.includes(d.runtime)
+                ? d.runtime
+                : (runtimeIds[0] ?? "");
+            return {
+              ...d,
+              model: preselectedModel,
+              modality,
+              runtime,
+              image: preselectedImage,
+              advanced_config: {
+                ...d.advanced_config,
+                ...(preselectedImage ? { image: preselectedImage } : {}),
+              },
+            };
+          }
           const modality = tasks.some((t) => t.id === d.modality)
             ? d.modality
             : (tasks[0]?.id ?? "");
@@ -198,9 +255,14 @@ export function useDeployModel() {
             : (runtimeIds[0] ?? "");
           return { ...d, modality, runtime };
         });
+        if (fromCatalog && preselectedModel) {
+          setIsPreselected(true);
+          setStep(2);
+        }
       })
       .catch(console.error)
       .finally(() => setIsLoadingCapabilities(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load runtime schema
@@ -289,7 +351,9 @@ export function useDeployModel() {
               downloads: r.Downloads,
               likes: r.Likes,
               parameters: params,
-              vram: params ? `~${Math.ceil(params * 2 + 2)} GB` : undefined,
+              vram: params
+                ? `~${Math.ceil(estimateSearchVram(r.ID, params))} GB`
+                : undefined,
               tags: Array.isArray(r.Tags) ? r.Tags : [],
               pipelineTag: r.PipelineTag,
             };
@@ -351,6 +415,7 @@ export function useDeployModel() {
           advanced_config: {
             ...advancedConfig,
             ...(data.api_key ? { api_key: data.api_key } : {}),
+            ...(data.image ? { image: data.image } : {}),
           },
         }),
       });
@@ -391,6 +456,7 @@ export function useDeployModel() {
     router,
     step,
     setStep,
+    isPreselected,
     data,
     updateData,
     searchQuery,

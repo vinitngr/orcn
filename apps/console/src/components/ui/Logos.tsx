@@ -121,28 +121,18 @@ const PROVIDER_LOGOS: Record<string, IconType> = {
   google: FcGoogle,
 };
 
-const SarvamLogo: IconType = ({ size = 24, ...props }) => (
-  <svg
+const SarvamLogo: IconType = ({ size = 24, className }) => (
+  // eslint-disable-next-line @next/next/no-img-element
+  <img
+    src="/sarvam.svg"
     width={size}
     height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <path
-      d="M14.5 3C17.5 3 20 5.5 20 8.5C20 11.5 17 14 14.5 15.5C12 17 9.5 18 9.5 21"
-      stroke="#E63E22"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
-    <path
-      d="M9.5 21C6.5 21 4 18.5 4 15.5C4 12.5 7 10 9.5 8.5C12 7 14.5 6 14.5 3"
-      stroke="#FF6B4A"
-      strokeWidth="3"
-      strokeLinecap="round"
-    />
-  </svg>
+    alt="Sarvam"
+    className={["invert dark:invert-0", className]
+      .filter(Boolean)
+      .join(" ")}
+    style={{ width: size, height: size, objectFit: "contain" }}
+  />
 );
 
 const MicrosoftLogo: IconType = ({ size = 24, ...props }) => (

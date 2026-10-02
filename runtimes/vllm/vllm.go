@@ -62,7 +62,11 @@ const (
 	vllmCUDAVersion = "12.9"
 )
 
-func (v *VLLMRuntime) buildJobSpec(_ string, entrypoint []string, command []string, healthPath string) *core.JobSpec {
+func (v *VLLMRuntime) buildJobSpec(_ string, entrypoint []string, command []string, healthPath string, config map[string]string) *core.JobSpec {
+	image := vllmImage
+	if custom, ok := config["image"]; ok && custom != "" {
+		image = custom
+	}
 	return &core.JobSpec{
 		Version: "v2",
 		Type:    "container",
@@ -73,7 +77,7 @@ func (v *VLLMRuntime) buildJobSpec(_ string, entrypoint []string, command []stri
 		Containers: []core.ContainerSpec{{
 			ID: "vllm-inference-server",
 			Args: core.ContainerArgs{
-				Image:      vllmImage,
+				Image:      image,
 				GPU:        true,
 				Entrypoint: entrypoint,
 				Cmd:        command,

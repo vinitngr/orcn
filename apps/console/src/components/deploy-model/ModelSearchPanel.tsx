@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { ModelCard, ModelItem } from "./ModelCard";
 import { ModelDetailCard } from "./ModelDetailCard";
-import { AdvancedConfigSection, ConfigOption } from "./AdvancedConfigSection";
 import { ModelDetails } from "./model-types";
 import {
   Select,
@@ -45,11 +44,6 @@ interface ModelSearchPanelProps {
   requiredVram: number;
   hfToken: string;
   onHfTokenChange: (token: string) => void;
-  advancedSchema: ConfigOption[];
-  advancedConfig: Record<string, string>;
-  onAdvancedChange: (key: string, value: string) => void;
-  showAdvanced: boolean;
-  onToggleAdvanced: () => void;
 }
 
 export function ModelSearchPanel({
@@ -71,11 +65,6 @@ export function ModelSearchPanel({
   requiredVram,
   hfToken,
   onHfTokenChange,
-  advancedSchema,
-  advancedConfig,
-  onAdvancedChange,
-  showAdvanced,
-  onToggleAdvanced,
 }: ModelSearchPanelProps) {
   const [sizeFilter, setSizeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popular");
@@ -269,17 +258,6 @@ export function ModelSearchPanel({
           requiredVram={requiredVram}
           hfToken={hfToken}
           onHfTokenChange={onHfTokenChange}
-        />
-      )}
-
-      {/* 3. Standalone Advanced Configuration Accordion at the bottom */}
-      {selectedModel && (
-        <AdvancedConfigSection
-          schema={advancedSchema}
-          data={advancedConfig}
-          onChange={onAdvancedChange}
-          isOpen={showAdvanced}
-          onToggle={onToggleAdvanced}
         />
       )}
     </div>

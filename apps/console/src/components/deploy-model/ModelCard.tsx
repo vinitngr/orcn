@@ -79,11 +79,12 @@ export function ModelCard({ model, selected, onClick }: ModelCardProps) {
           </div>
 
           {/* Tags */}
-          <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <div className="mt-2.5 flex min-w-0 flex-wrap gap-1.5">
             {displayTags.slice(0, 2).map((tag) => (
               <span
                 key={tag}
-                className="rounded bg-[var(--dm-chip)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] capitalize"
+                title={tag}
+                className="max-w-full truncate rounded bg-[var(--dm-chip)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-muted)] capitalize"
               >
                 {tag}
               </span>

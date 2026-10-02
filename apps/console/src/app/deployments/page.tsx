@@ -73,7 +73,7 @@ export default function DeploymentsPage() {
                     AI Model
                   </span>
                   <span className="text-[10px] leading-snug text-[var(--text-muted)]">
-                    Deploy a model from the catalog to your infrastructure
+                    Deploy any Hugging Face model with a runtime
                   </span>
                 </span>
               </DropdownMenuItem>

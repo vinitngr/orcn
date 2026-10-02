@@ -3,6 +3,14 @@
 import { ExternalLink, KeyRound, Tag } from "lucide-react";
 import { Logo } from "@/components/ui/Logos";
 import { ModelDetails } from "./model-types";
+import {
+  CONTEXT_KEYS,
+  DTYPE_KEYS,
+  LAYERS_KEYS,
+  VOCAB_KEYS,
+  resolveConfigNumber,
+  resolveConfigString,
+} from "./config-utils";
 
 interface ModelDetailCardProps {
   modelId: string;
@@ -35,20 +43,23 @@ export function ModelDetailCard({
         ? `${modelId.match(/(\d+)b/i)?.[1]}B`
         : "-";
 
-  // Derive context length
-  const contextLength = modelDetails?.config?.max_position_embeddings
-    ? `${Math.round(modelDetails.config.max_position_embeddings / 1024)}K`
-    : "-";
+  // Derive context length (falls back to text_config etc. for multimodal models)
+  const contextValue = resolveConfigNumber(
+    modelDetails?.config,
+    CONTEXT_KEYS,
+  );
+  const contextLength =
+    contextValue !== undefined
+      ? `${Math.round(contextValue / 1024)}K`
+      : "-";
 
-  // Derive layers
-  const layers =
-    modelDetails?.config?.num_hidden_layers ||
-    modelDetails?.config?.n_layer ||
-    "-";
+  // Derive layers (falls back to text_config etc. for multimodal models)
+  const layersValue = resolveConfigNumber(modelDetails?.config, LAYERS_KEYS);
+  const layers = layersValue !== undefined ? layersValue : "-";
 
-  // Derive dtype
+  // Derive dtype (falls back to text_config etc. for multimodal models)
   const dtype =
-    modelDetails?.config?.torch_dtype ||
+    resolveConfigString(modelDetails?.config, DTYPE_KEYS) ||
     (modelDetails?.safetensors?.parameters
       ? Object.keys(modelDetails.safetensors.parameters)[0]
       : modelDetails?.quantization) ||
@@ -75,8 +86,10 @@ export function ModelDetailCard({
       })
     : "-";
 
-  // Derive vocabulary size
-  const vocabSize = modelDetails?.config?.vocab_size?.toLocaleString() || "-";
+  // Derive vocabulary size (falls back to text_config etc.)
+  const vocabValue = resolveConfigNumber(modelDetails?.config, VOCAB_KEYS);
+  const vocabSize =
+    vocabValue !== undefined ? vocabValue.toLocaleString() : "-";
 
   const description =
     modelDetails?.description || `${modelName} is a model from ${org}.`;
@@ -195,32 +208,62 @@ export function ModelDetailCard({
       </div>
 
       {/* Metadata Key-Values Grid */}
-      <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3 border-t border-[var(--dm-divider)] pt-5">
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">Architecture</span>
-          <span className="font-mono text-[var(--dm-text-3)]">
+      <div className="mt-5 grid grid-cols-1 gap-x-8 gap-y-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3 pt-5">
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">Architecture</span>
+          <span
+            title={String(architecture)}
+            className="min-w-0 truncate font-mono text-[var(--dm-text-3)]"
+          >
             {architecture}
           </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">Model Type</span>
-          <span className="text-[var(--dm-text-3)]">{modelType}</span>
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">Model Type</span>
+          <span
+            title={String(modelType)}
+            className="min-w-0 truncate text-[var(--dm-text-3)]"
+          >
+            {modelType}
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">License</span>
-          <span className="text-[var(--dm-text-3)]">{license}</span>
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">License</span>
+          <span
+            title={String(license)}
+            className="min-w-0 truncate text-[var(--dm-text-3)]"
+          >
+            {license}
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">Last Updated</span>
-          <span className="text-[var(--dm-text-3)]">{lastUpdated}</span>
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">
+            Last Updated
+          </span>
+          <span
+            title={String(lastUpdated)}
+            className="min-w-0 truncate text-[var(--dm-text-3)]"
+          >
+            {lastUpdated}
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">Vocabulary Size</span>
-          <span className="text-[var(--dm-text-3)]">{vocabSize}</span>
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">
+            Vocabulary Size
+          </span>
+          <span
+            title={String(vocabSize)}
+            className="min-w-0 truncate text-[var(--dm-text-3)]"
+          >
+            {vocabSize}
+          </span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[var(--text-light)]">Framework</span>
-          <span className="text-[var(--dm-text-3)]">
+        <div className="flex min-w-0 items-center justify-between gap-3 border-b border-dashed border-[var(--dm-divider)] pb-2.5">
+          <span className="shrink-0 text-[var(--text-light)]">Framework</span>
+          <span
+            title={String(modelDetails?.library_name || "-")}
+            className="min-w-0 truncate text-[var(--dm-text-3)]"
+          >
             {modelDetails?.library_name || "-"}
           </span>
         </div>
@@ -228,7 +271,7 @@ export function ModelDetailCard({
 
       {/* Model Tags Section */}
       {tags.length > 0 && (
-        <div className="mt-5 border-t border-[var(--dm-divider)] pt-4">
+        <div className="mt-5 pt-4">
           <div className="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-[var(--text-muted)]">
             <Tag className="size-3 text-[var(--text-light)]" />
             <span>Tags</span>

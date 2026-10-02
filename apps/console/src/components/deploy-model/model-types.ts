@@ -27,6 +27,9 @@ export interface ModelDetails {
     architectures?: string[];
     model_type?: string;
     vocab_size?: number;
+    /** Multimodal / hybrid models nest text specs here (e.g. Qwen3-VL). */
+    text_config?: Record<string, unknown>;
+    [key: string]: unknown;
     quantization_config?: {
       bits?: number;
       weight_bits?: number;

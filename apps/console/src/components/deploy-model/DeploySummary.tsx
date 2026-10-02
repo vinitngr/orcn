@@ -13,6 +13,12 @@ import {
 } from "@/components/ui/dialog";
 import { ComputeInstance } from "@/components/create/instance-utils";
 import { ModelDetails } from "./model-types";
+import {
+  CONTEXT_KEYS,
+  DTYPE_KEYS,
+  resolveConfigNumber,
+  resolveConfigString,
+} from "./config-utils";
 
 interface DeploySummaryProps {
   data: {
@@ -62,14 +68,19 @@ export function DeploySummary({
         ? `${modelId.match(/(\d+)b/i)?.[1]}B`
         : "-";
 
-  // Context
-  const contextLength = modelDetails?.config?.max_position_embeddings
-    ? `${Math.round(modelDetails.config.max_position_embeddings / 1024)}K`
-    : "-";
+  // Context (falls back to text_config etc. for multimodal models)
+  const contextValue = resolveConfigNumber(
+    modelDetails?.config,
+    CONTEXT_KEYS,
+  );
+  const contextLength =
+    contextValue !== undefined
+      ? `${Math.round(contextValue / 1024)}K`
+      : "-";
 
-  // Dtype
+  // Dtype (falls back to text_config etc. for multimodal models)
   const dtype =
-    modelDetails?.config?.torch_dtype ||
+    resolveConfigString(modelDetails?.config, DTYPE_KEYS) ||
     (modelDetails?.safetensors?.parameters
       ? Object.keys(modelDetails.safetensors.parameters)[0]
       : modelDetails?.quantization) ||

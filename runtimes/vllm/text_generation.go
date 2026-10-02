@@ -37,7 +37,7 @@ func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[stri
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath, config), nil
 }
 
 func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {

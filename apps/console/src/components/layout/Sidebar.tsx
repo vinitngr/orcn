@@ -5,10 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutGrid,
-  Zap,
+  Sparkles,
   Blocks,
   ChevronLeft,
-  Boxes,
   Sun,
   Moon,
   Cloud,
@@ -165,21 +164,12 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: any) {
           )}
         </Link>
         <Link
-          href="/workloads/create"
-          style={navItemStyle(pathname === "/workloads/create")}
+          href="/models"
+          style={navItemStyle(pathname.startsWith("/models"))}
         >
-          <Boxes size={18} strokeWidth={2.2} />
+          <Sparkles size={18} strokeWidth={2.2} />
           {!isCollapsed && (
-            <span style={{ whiteSpace: "nowrap" }}>Create Workload</span>
-          )}
-        </Link>
-        <Link
-          href="/models/deploy"
-          style={navItemStyle(pathname === "/models/deploy")}
-        >
-          <Zap size={18} strokeWidth={2.2} />
-          {!isCollapsed && (
-            <span style={{ whiteSpace: "nowrap" }}>Deploy AI Model</span>
+            <span style={{ whiteSpace: "nowrap" }}>AI Models</span>
           )}
         </Link>
 
