@@ -95,6 +95,11 @@ const (
 	TaskEmbedding      ModelTask = "embedding"
 	TaskScore          ModelTask = "score"
 	TaskMultimodal     ModelTask = "multimodal"
+	// TaskDecision is a generic classification/decision task owned by orcn
+	// (typed classification, routing, guardrail-style models). Runtimes map
+	// it to their native equivalent: HF text-classification for vLLM,
+	// the decision library tag for Ollama.
+	TaskDecision ModelTask = "decision"
 )
 
 func NormalizeModelTask(task ModelTask) ModelTask {
@@ -117,6 +122,7 @@ var modelTaskCatalog = []ModelTaskInfo{
 	{ID: TaskMultimodal, Name: "Multimodal", Description: "Models that accept image, video or audio alongside text."},
 	{ID: TaskEmbedding, Name: "Embedding", Description: "Models that turn text into dense vector representations."},
 	{ID: TaskScore, Name: "Reranker", Description: "Cross-encoder models that score query-document pairs."},
+	{ID: TaskDecision, Name: "Decision", Description: "Fast, typed classification models for routing and decisions."},
 }
 
 // ModelTasks returns the full task catalog in display order.
@@ -155,31 +161,29 @@ type ProviderField struct {
 	Description string `json:"description,omitempty"`
 	// Type is one of: text, password, number, boolean, select, file.
 	Type string `json:"type"`
-	// Required marks the field as mandatory; clients must enforce this.
 	Required bool `json:"required"`
 	// Secret marks the value as sensitive. Secrets are encrypted at rest;
-	// non-secret values are stored as raw provider config.
 	Secret      bool     `json:"secret"`
 	Default     string   `json:"default,omitempty"`
 	Placeholder string   `json:"placeholder,omitempty"`
 	Options     []string `json:"options,omitempty"`
 }
 
-// ProviderConnectionConfig is the provider-processed result of raw user input.
-// Config is stored as-is; Secret is encrypted at rest.
 type ProviderConnectionConfig struct {
 	Config map[string]any `json:"config"`
 	Secret map[string]any `json:"secret"`
 }
 
 type Runtime interface {
-	// Name is the human-readable runtime name shown in clients (e.g. "vLLM").
 	Name() string
-	// SupportedTasks lists the model tasks this runtime can serve.
 	SupportedTasks() []ModelTask
+	// SupportedCapabilities lists the capability facets this runtime can
+	// filter on when searching. Runtimes that cannot filter on a
+	// capability ignore it.
+	SupportedCapabilities() []ModelCapability
 	BuildJobSpec(modelID string, task ModelTask, advancedConfig map[string]string) (*JobSpec, error)
 	GetWorkloadType() string
-	SearchModels(query string, task ModelTask) ([]ModelInfo, error)
+	SearchModels(query string, task ModelTask, capabilities []string) ([]ModelInfo, error)
 	GetModelDetails(modelID string, task ModelTask) (interface{}, error)
 	GetAdvancedConfigSchema(task ModelTask) []ConfigOption
 }
@@ -196,26 +200,10 @@ type Provider interface {
 	StopDeployment(deploymentID string) error
 	UpdateTimeout(deploymentID string, timeoutMinutes int) error
 	GetNodeInfo(providerJobID string) (*NodeInfo, error)
-
-	// GetNodeMetrics returns a normalized telemetry snapshot for the provider
-	// job/deployment. Providers map whatever their APIs expose; unavailable
-	// fields are left nil. Credentials come from the bound connection.
 	GetNodeMetrics(deploymentID string) (*NodeMetrics, error)
-
-	// NewLogAdapter returns an adapter that streams normalized logs for the
-	// given provider job/deployment ID. Credentials come from the bound
-	// connection (see WithConfig); the adapter performs no database work.
 	NewLogAdapter(deploymentID string) (LogAdapter, error)
-
-	// ConnectionSchema returns the fields a user must supply to connect this provider.
 	ConnectionSchema() []ProviderField
-	// ProcessConnection splits raw user input into raw config and secret material.
-	// Providers use this to transform/validate uploaded files or derived values.
 	ProcessConnection(raw map[string]any) (*ProviderConnectionConfig, error)
-	// VerifyConnection checks the supplied credentials against the provider.
 	VerifyConnection(cfg *ProviderConnectionConfig) error
-	// WithConfig returns a provider instance bound to the given connection
-	// credentials. The registered provider is treated as a template; callers
-	// must use the returned instance for credential-scoped operations.
 	WithConfig(cfg *ProviderConnectionConfig) (Provider, error)
 }

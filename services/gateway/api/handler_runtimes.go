@@ -7,9 +7,10 @@ import (
 )
 
 type runtimeCapability struct {
-	ID    string               `json:"id"`
-	Name  string               `json:"name"`
-	Tasks []core.ModelTaskInfo `json:"tasks"`
+	ID           string                   `json:"id"`
+	Name         string                   `json:"name"`
+	Tasks        []core.ModelTaskInfo     `json:"tasks"`
+	Capabilities []core.ModelCapabilityInfo `json:"capabilities"`
 }
 
 func (s *Server) handleListRuntimes(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +25,12 @@ func (s *Server) handleListRuntimes(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		capability := runtimeCapability{ID: id, Name: runtime.Name(), Tasks: []core.ModelTaskInfo{}}
+		capability := runtimeCapability{
+			ID:           id,
+			Name:         runtime.Name(),
+			Tasks:        []core.ModelTaskInfo{},
+			Capabilities: core.CapabilityInfos(runtime.SupportedCapabilities()),
+		}
 		for _, task := range runtime.SupportedTasks() {
 			info, ok := core.GetModelTaskInfo(task)
 			if !ok {

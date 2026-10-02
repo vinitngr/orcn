@@ -185,6 +185,9 @@ export function useDeployModel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ModelItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  // Generic capability facets (tools / thinking / vision). Sent to the
+  // backend on search; each runtime filters on the ones it supports.
+  const [capabilities, setCapabilities] = useState<string[]>([]);
   const [runtimes, setRuntimes] = useState<RuntimeCapability[]>([]);
   const [modalities, setModalities] = useState<RuntimeTask[]>([]);
   const [isLoadingCapabilities, setIsLoadingCapabilities] = useState(true);
@@ -333,8 +336,12 @@ export function useDeployModel() {
     if (!searchQuery || !data.runtime || !data.modality) return;
     setIsSearching(true);
     try {
+      const caps =
+        capabilities.length > 0
+          ? `&capabilities=${encodeURIComponent(capabilities.join(","))}`
+          : "";
       const res = await fetch(
-        `/api/v1/models/search?runtime=${data.runtime}&task=${encodeURIComponent(data.modality)}&q=${encodeURIComponent(searchQuery)}`,
+        `/api/v1/models/search?runtime=${data.runtime}&task=${encodeURIComponent(data.modality)}&q=${encodeURIComponent(searchQuery)}${caps}`,
       );
       const json = await res.json();
       if (json.results) {
@@ -373,21 +380,40 @@ export function useDeployModel() {
     setSearchQuery("");
     setSearchResults([]);
     setModelDetails(null);
-    setData((d) => {
-      const runtimeIds = runtimes
+    setCapabilities([]);
+    setData((d) => {      const runtimeIds = runtimes
         .filter((c) => c.tasks.some((t) => t.id === val))
         .map((c) => c.id);
       const runtime = runtimeIds.includes(d.runtime)
         ? d.runtime
         : (runtimeIds[0] ?? "");
-      return { ...d, modality: val, runtime, model: "", advanced_config: {} };
+      // Drop any catalog image override: it belongs to the previous
+      // runtime's default and must never leak into another runtime.
+      return { ...d, modality: val, runtime, model: "", image: "", advanced_config: {} };
     });
   };
 
   const handleRuntimeChange = (val: string) => {
     setSearchResults([]);
     setModelDetails(null);
-    setData((d) => ({ ...d, runtime: val, model: "", advanced_config: {} }));
+    setCapabilities([]);
+    setData((d) => ({ ...d, runtime: val, model: "", image: "", advanced_config: {} }));
+  };
+
+  // Selecting a (different) model drops the catalog image override, so a
+  // stale ollama/vLLM default can never leak into the deploy payload.
+  const handleSelectModel = (id: string) => {
+    setModelDetails(null);
+    setData((d) => (d.model === id ? d : { ...d, model: id, image: "" }));
+  };
+
+  const toggleCapability = (id: string) => {
+    setCapabilities((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
+    setSearchResults([]);
+    setModelDetails(null);
+    setData((d) => ({ ...d, model: "" }));
   };
 
   const handleDeploy = async () => {
@@ -465,6 +491,8 @@ export function useDeployModel() {
     isSearching,
     runtimes,
     modalities,
+    capabilities,
+    toggleCapability,
     isLoadingCapabilities,
     instances,
     modelDetails,
@@ -476,6 +504,7 @@ export function useDeployModel() {
     handleSearch,
     handleModalityChange,
     handleRuntimeChange,
+    handleSelectModel,
     handleDeploy,
     requiredVram,
     taskLabel,

@@ -1,12 +1,14 @@
 "use client";
 
 export const DEFAULT_VLLM_IMAGE = "docker.io/vllm/vllm-openai:v0.26.0";
+export const DEFAULT_OLLAMA_IMAGE = "ollama/ollama:latest";
 
 export type ModelCategory =
   | "llm"
   | "embedding"
   | "reranker"
   | "vision"
+  | "decision"
   | "image"
   | "audio"
   | "video";
@@ -37,6 +39,12 @@ export const MODEL_CATEGORIES: CategoryInfo[] = [
     id: "vision",
     label: "Vision",
     description: "Multimodal models that understand images and documents.",
+  },
+  {
+    id: "decision",
+    label: "Decision",
+    description:
+      "Fast classification models with typed, structured answers.",
   },
   {
     id: "image",
@@ -259,6 +267,40 @@ export const CURATED_MODELS: CuratedModel[] = [
     tags: ["vision", "multimodal", "chat"],
     contextLength: "32K",
     minVramGb: 20,
+  },
+  {
+    displayName: "TeV 1 4B",
+    modelId: "tev1:latest",
+    description:
+      "A 4B decision model from Together AI for fast classification.",
+    logo: "together",
+    provider: "Together AI",
+    category: "decision",
+    parameters: 4,
+    runtime: "ollama",
+    modality: "decision",
+    pipeline: "decision",
+    image: DEFAULT_OLLAMA_IMAGE,
+    tags: ["decision", "classification", "thinking"],
+    contextLength: "4K",
+    minVramGb: 8,
+  },
+  {
+    displayName: "Nimble 9B",
+    modelId: "nimble:latest",
+    description:
+      "A 9B decision model from Bespoke Labs for fast, typed classification.",
+    logo: "bespoke",
+    provider: "Bespoke Labs",
+    category: "decision",
+    parameters: 9,
+    runtime: "ollama",
+    modality: "decision",
+    pipeline: "decision",
+    image: DEFAULT_OLLAMA_IMAGE,
+    tags: ["decision", "classification", "thinking"],
+    contextLength: "4K",
+    minVramGb: 12,
   },
 ];
 

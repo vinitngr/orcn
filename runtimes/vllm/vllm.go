@@ -26,6 +26,8 @@ func (v *VLLMRuntime) SupportedTasks() []core.ModelTask {
 	}
 }
 
+func (v *VLLMRuntime) SupportedCapabilities() []core.ModelCapability { return nil }
+
 func (v *VLLMRuntime) GetWorkloadType() string { return "model_inference" }
 
 func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config map[string]string) (*core.JobSpec, error) {
@@ -199,7 +201,7 @@ func modelMaxLength(config map[string]any) int {
 	return 0
 }
 
-func (v *VLLMRuntime) SearchModels(query string, task core.ModelTask) ([]core.ModelInfo, error) {
+func (v *VLLMRuntime) SearchModels(query string, task core.ModelTask, _ []string) ([]core.ModelInfo, error) {
 	task = normalizeTask(task)
 	pipelineTags, architectures, err := taskSearchConfig(task)
 	if err != nil {

@@ -26,6 +26,8 @@ function DeployAIModelContent() {
     isSearching,
     runtimes,
     modalities,
+    capabilities,
+    toggleCapability,
     isLoadingCapabilities,
     instances,
     modelDetails,
@@ -37,6 +39,7 @@ function DeployAIModelContent() {
     handleSearch,
     handleModalityChange,
     handleRuntimeChange,
+    handleSelectModel,
     handleDeploy,
     requiredVram,
     taskLabel,
@@ -111,7 +114,7 @@ function DeployAIModelContent() {
               isSearching={isSearching}
               searchResults={searchResults}
               selectedModel={data.model}
-              onSelectModel={(id) => updateData({ model: id })}
+              onSelectModel={handleSelectModel}
               modality={data.modality}
               onModalityChange={handleModalityChange}
               runtime={data.runtime}
@@ -119,6 +122,8 @@ function DeployAIModelContent() {
               modalities={modalities}
               runtimes={runtimes}
               isLoadingCapabilities={isLoadingCapabilities}
+              capabilities={capabilities}
+              onToggleCapability={toggleCapability}
               modelDetails={modelDetails}
               requiredVram={requiredVram}
               hfToken={data.hf_token}

@@ -19,10 +19,18 @@ export interface RuntimeTask {
   description?: string;
 }
 
+export interface RuntimeCapabilityFacet {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 export interface RuntimeCapability {
   id: string;
   name: string;
   tasks: RuntimeTask[];
+  /** Generic capability facets this runtime can filter on (from the backend). */
+  capabilities?: RuntimeCapabilityFacet[];
 }
 
 interface ModelSearchPanelProps {
@@ -40,6 +48,8 @@ interface ModelSearchPanelProps {
   modalities: RuntimeTask[];
   runtimes: RuntimeCapability[];
   isLoadingCapabilities: boolean;
+  capabilities: string[];
+  onToggleCapability: (id: string) => void;
   modelDetails: ModelDetails | null;
   requiredVram: number;
   hfToken: string;
@@ -61,6 +71,8 @@ export function ModelSearchPanel({
   modalities,
   runtimes,
   isLoadingCapabilities,
+  capabilities,
+  onToggleCapability,
   modelDetails,
   requiredVram,
   hfToken,
@@ -73,6 +85,22 @@ export function ModelSearchPanel({
   const supportedRuntimes = useMemo(() => {
     return runtimes.filter((r) => r.tasks.some((t) => t.id === modality));
   }, [runtimes, modality]);
+
+  // The selected runtime is the source of truth for which tasks can be
+  // chosen: e.g. picking vLLM hides Decision, which only Ollama serves.
+  const selectedRuntime = useMemo(() => {
+    return runtimes.find((r) => r.id === runtime);
+  }, [runtimes, runtime]);
+
+  const visibleModalities = selectedRuntime?.tasks ?? modalities;
+
+  const handleRuntimeSelect = (val: string) => {
+    onRuntimeChange(val);
+    const next = runtimes.find((r) => r.id === val);
+    if (next && !next.tasks.some((t) => t.id === modality) && next.tasks[0]) {
+      onModalityChange(next.tasks[0].id);
+    }
+  };
 
   const handleModalitySelect = (val: string) => {
     onModalityChange(val);
@@ -150,7 +178,7 @@ export function ModelSearchPanel({
                   <SelectValue placeholder="Modality" />
                 </SelectTrigger>
                 <SelectContent className="border-[var(--border)] bg-[var(--dm-logo-solid)] text-[var(--dm-text-2)]">
-                  {modalities.map((task) => (
+                  {visibleModalities.map((task) => (
                     <SelectItem key={task.id} value={task.id}>
                       {task.name}
                     </SelectItem>
@@ -162,7 +190,7 @@ export function ModelSearchPanel({
               <Select
                 value={runtime}
                 onValueChange={(val: string | null) =>
-                  val && onRuntimeChange(val)
+                  val && handleRuntimeSelect(val)
                 }
               >
                 <SelectTrigger className="h-9 min-w-[100px] border-[var(--border)] bg-[var(--dm-input)] text-xs text-[var(--dm-text-2)]">
@@ -212,6 +240,34 @@ export function ModelSearchPanel({
               </Select>
             </div>
           </div>
+
+          {/* Capability facets, offered by the selected runtime (e.g. Ollama: tools / thinking / vision) */}
+          {selectedRuntime?.capabilities &&
+            selectedRuntime.capabilities.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-[var(--text-light)]">
+                  Capabilities:
+                </span>
+                {selectedRuntime.capabilities.map((cap) => {
+                  const active = capabilities.includes(cap.id);
+                  return (
+                    <button
+                      key={cap.id}
+                      type="button"
+                      title={cap.description}
+                      onClick={() => onToggleCapability(cap.id)}
+                      className={`rounded-full border px-3 py-1 text-[11px] font-medium transition-colors ${
+                        active
+                          ? "border-blue-500/50 bg-blue-500/10 text-blue-400"
+                          : "border-[var(--border)] bg-[var(--dm-input)] text-[var(--text-muted)] hover:border-[var(--border-hover)]"
+                      }`}
+                    >
+                      {cap.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
           {/* Model Cards Grid with Max Height & Internal Scroll */}
           <div className="max-h-[380px] overflow-y-auto pr-1">

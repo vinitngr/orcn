@@ -20,7 +20,15 @@ curl -X GET "http://localhost:8080/api/v1/runtimes"
       "id": "ollama",
       "name": "Ollama",
       "tasks": [
-        { "id": "text-generation", "name": "Text Generation", "description": "Autoregressive chat and completion models." }
+        { "id": "text-generation", "name": "Text Generation", "description": "Autoregressive chat and completion models." },
+        { "id": "multimodal", "name": "Multimodal", "description": "Models that accept image, video or audio alongside text." },
+        { "id": "embedding", "name": "Embedding", "description": "Models that turn text into dense vector representations." },
+        { "id": "decision", "name": "Decision", "description": "Fast, typed classification models for routing and decisions." }
+      ],
+      "capabilities": [
+        { "id": "tools", "name": "Tool use", "description": "Models that can call tools / function calling." },
+        { "id": "thinking", "name": "Thinking", "description": "Models with explicit reasoning traces." },
+        { "id": "vision", "name": "Vision", "description": "Models that accept images alongside text." }
       ]
     },
     {
@@ -31,7 +39,8 @@ curl -X GET "http://localhost:8080/api/v1/runtimes"
         { "id": "multimodal", "name": "Multimodal", "description": "Models that accept image, video or audio alongside text." },
         { "id": "embedding", "name": "Embedding", "description": "Models that turn text into dense vector representations." },
         { "id": "score", "name": "Reranker", "description": "Cross-encoder models that score query-document pairs." }
-      ]
+      ],
+      "capabilities": []
     }
   ],
   "tasks": [
@@ -43,7 +52,7 @@ curl -X GET "http://localhost:8080/api/v1/runtimes"
 }
 ```
 > [!NOTE]
-> `runtimes[].tasks` is scoped per runtime; the top-level `tasks` array is the de-duplicated union of all tasks in display order. Clients should render the modality selector from `tasks` and the runtime selector from the runtimes that support the selected task.
+> `runtimes[].tasks` is scoped per runtime; the top-level `tasks` array is the de-duplicated union of all tasks in display order. Clients should render the modality selector from the tasks of the selected runtime (e.g. picking vLLM hides `decision`, which only Ollama serves) and the runtime selector from the runtimes that support the selected task. `runtimes[].capabilities` lists the generic facets (`tools`, `thinking`, `vision`) each runtime can filter on during search.
 
 ---
 
