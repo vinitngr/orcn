@@ -28,6 +28,7 @@ import {
 import { Logo } from "@/components/ui/Logos";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { DetailShell } from "@/components/deployments/detail/DetailShell";
+import { DetailSideNav } from "@/components/deployments/detail/DetailSideNav";
 import { OverviewTab } from "@/components/deployments/detail/OverviewTab";
 import { MetricsTab } from "@/components/deployments/detail/MetricsTab";
 import { ReplicasTab } from "@/components/deployments/detail/ReplicasTab";
@@ -238,53 +239,39 @@ export default function DeploymentDetailPage(props: {
         </div>
       </div>
 
-      {/* Underline Style Tab Switcher */}
-      <div className="mb-6 flex items-center gap-6 border-b border-[var(--border)] px-1">
-        {tabItems.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setTab(tab.id as TabId)}
-            className={[
-              "relative flex items-center gap-2 py-3 text-xs font-semibold transition-colors duration-150",
-              activeTab === tab.id
-                ? "text-[var(--text-main)] border-b-2 border-[var(--text-main)] -mb-[1px]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-main)]",
-            ].join(" ")}
-          >
-            <tab.icon className="size-3.5" />
-            <span>{tab.label}</span>
-            {tab.count !== undefined && (
-              <span className="rounded bg-[var(--surface-hover)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* Internal left sidebar + content */}
+      <div className="-ml-6 flex items-start gap-1.5 p-0">
+        <DetailSideNav
+          items={tabItems}
+          activeId={activeTab}
+          onSelect={(id) => setTab(id as TabId)}
+        />
 
-      <DetailShell>
-        {activeTab === "overview" && (
-          <OverviewTab
-            deployment={deployment}
-            nodes={nodes}
-            onOpenTab={(tab) => setTab(tab as TabId)}
-            statusVariant={statusVariant}
-          />
-        )}
-        {activeTab === "metrics" && <MetricsTab />}
-        {activeTab === "replicas" && (
-          <ReplicasTab
-            nodes={nodes}
-            deployment={deployment}
-            statusVariant={statusVariant}
-          />
-        )}
-        {activeTab === "api" && <APISection deployment={deployment} />}
-        {activeTab === "configuration" && (
-          <ConfigurationTab config={parsedSpec} />
-        )}
-      </DetailShell>
+        <div className="min-w-0 flex-1">
+          <DetailShell>
+            {activeTab === "overview" && (
+              <OverviewTab
+                deployment={deployment}
+                nodes={nodes}
+                onOpenTab={(tab) => setTab(tab as TabId)}
+                statusVariant={statusVariant}
+              />
+            )}
+            {activeTab === "metrics" && <MetricsTab />}
+            {activeTab === "replicas" && (
+              <ReplicasTab
+                nodes={nodes}
+                deployment={deployment}
+                statusVariant={statusVariant}
+              />
+            )}
+            {activeTab === "api" && <APISection deployment={deployment} />}
+            {activeTab === "configuration" && (
+              <ConfigurationTab config={parsedSpec} />
+            )}
+          </DetailShell>
+        </div>
+      </div>
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DetailShell } from "@/components/deployments/detail/DetailShell";
+import { DetailSideNav } from "@/components/deployments/detail/DetailSideNav";
 import { NodeOverviewTab } from "@/components/deployments/node-detail/NodeOverviewTab";
 import { NodeMetricsTab } from "@/components/deployments/node-detail/NodeMetricsTab";
 import { NodeWorkloadsTab } from "@/components/deployments/node-detail/NodeWorkloadsTab";
@@ -264,73 +265,64 @@ export default function NodeDetailPage(props: {
         </DropdownMenu>
       </div>
 
-      <div className="mb-6 flex items-center gap-6 overflow-x-auto border-b border-[var(--border)] px-1">
-        {tabItems.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setTab(tab.id)}
-            className={[
-              "relative flex shrink-0 items-center gap-2 py-3 text-xs font-semibold transition-colors duration-150",
-              activeTab === tab.id
-                ? "-mb-[1px] border-b-2 border-[var(--text-main)] text-[var(--text-main)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-main)]",
-            ].join(" ")}
-          >
-            <tab.icon className="size-3.5" />
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      <div className="-ml-6 flex items-start gap-1.5 p-0">
+        <DetailSideNav
+          items={tabItems}
+          activeId={activeTab}
+          onSelect={(id) => setTab(id as TabId)}
+        />
 
-      <DetailShell>
-        {activeTab === "overview" && (
-          <NodeOverviewTab
-            deployment={deployment}
-            node={node}
-            onOpenTab={openTab}
-            statusVariant={statusVariant}
-          />
-        )}
-        {activeTab === "metrics" && (
-          <NodeMetricsTab
-            key={`${deployment.ID}:${node.ID}:metrics`}
-            deploymentId={deployment.ID}
-            nodeId={node.ID}
-            enabled={activeTab === "metrics"}
-          />
-        )}
-        {activeTab === "workloads" && (
-          <NodeWorkloadsTab
-            deployment={deployment}
-            node={node}
-            statusVariant={statusVariant}
-            onOpenTab={openTab}
-          />
-        )}
-        {activeTab === "events" && (
-          <NodeEventsTab
-            key={`${deployment.ID}:${node.ID}:events`}
-            deploymentId={deployment.ID}
-            nodeId={node.ID}
-          />
-        )}
-        {activeTab === "logs" && (
-          <NodeLogsTab
-            key={`${deployment.ID}:${node.ID}:logs`}
-            deploymentId={deployment.ID}
-            nodeId={node.ID}
-            containers={jobContainers}
-            selected={selectedContainer}
-            onSelect={(id) =>
-              id ? setTab("logs", { container: id }) : setTab("logs")
-            }
-          />
-        )}
-        {activeTab === "configuration" && (
-          <NodeConfigurationTab deployment={deployment} node={node} />
-        )}
-      </DetailShell>
+        <div className="min-w-0 flex-1">
+          <DetailShell>
+            {activeTab === "overview" && (
+              <NodeOverviewTab
+                deployment={deployment}
+                node={node}
+                onOpenTab={openTab}
+                statusVariant={statusVariant}
+              />
+            )}
+            {activeTab === "metrics" && (
+              <NodeMetricsTab
+                key={`${deployment.ID}:${node.ID}:metrics`}
+                deploymentId={deployment.ID}
+                nodeId={node.ID}
+                enabled={activeTab === "metrics"}
+              />
+            )}
+            {activeTab === "workloads" && (
+              <NodeWorkloadsTab
+                deployment={deployment}
+                node={node}
+                statusVariant={statusVariant}
+                onOpenTab={openTab}
+              />
+            )}
+            {activeTab === "events" && (
+              <NodeEventsTab
+                key={`${deployment.ID}:${node.ID}:events`}
+                deploymentId={deployment.ID}
+                nodeId={node.ID}
+              />
+            )}
+            {activeTab === "logs" && (
+              <NodeLogsTab
+                key={`${deployment.ID}:${node.ID}:logs`}
+                deploymentId={deployment.ID}
+                nodeId={node.ID}
+                containers={jobContainers}
+                selected={selectedContainer}
+                onSelect={(id) =>
+                  id ? setTab("logs", { container: id }) : setTab("logs")
+                }
+              />
+            )}
+            {activeTab === "configuration" && (
+              <NodeConfigurationTab deployment={deployment} node={node} />
+            )}
+          </DetailShell>
+        </div>
+      </div>
     </div>
   );
 }
