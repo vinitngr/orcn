@@ -123,14 +123,6 @@ export const ComputeInstancesList: React.FC<Props> = ({
                       <span>{i.ram_gb} GB RAM</span>
                     </div>
                   )}
-                  {i.available !== undefined && (
-                    <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
-                      <span className="size-1.5 rounded-full bg-emerald-400" />
-                      <span>
-                        {i.available} node{i.available !== 1 ? "s" : ""} free
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -146,10 +138,23 @@ export const ComputeInstancesList: React.FC<Props> = ({
 
               {/* Price Footer */}
               <div className="flex items-center justify-between border-t border-[var(--dm-divider)] px-4 py-2.5 bg-[var(--dm-inset-60)] rounded-b-xl">
-                <div className="flex items-center gap-1 text-[11px] text-[var(--text-light)]">
-                  <Globe className="size-3" />
-                  <span>{i.location || "On-Demand"}</span>
-                </div>
+                {/* Availability badge — green if nodes free, gray if all busy, hidden if unknown */}
+                {i.available !== undefined ? (
+                  i.available > 0 ? (
+                    <span className="rounded-md bg-green-900/40 border border-green-800/50 px-2 py-0.5 text-[11px] font-medium text-green-400">
+                      Available ({i.available})
+                    </span>
+                  ) : (
+                    <span className="rounded-md bg-[var(--dm-chip)] border border-[var(--border)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-light)]">
+                      Not Available
+                    </span>
+                  )
+                ) : (
+                  <div className="flex items-center gap-1 text-[11px] text-[var(--text-light)]">
+                    <Globe className="size-3" />
+                    <span>{i.location || "Decentralized"}</span>
+                  </div>
+                )}
                 <div className="flex items-baseline gap-0.5">
                   <span className="text-sm font-semibold text-[var(--text-main)]">
                     {i.price !== undefined ? `$${i.price}` : "—"}
