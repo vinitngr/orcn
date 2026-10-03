@@ -198,7 +198,7 @@ export const CURATED_MODELS: CuratedModel[] = [
     image: DEFAULT_VLLM_IMAGE,
     tags: ["indic", "hindi", "compact"],
     contextLength: "4K",
-    minVramGb: 8,
+    minVramGb: 70,
   },
   {
     displayName: "BGE Large Embeddings",

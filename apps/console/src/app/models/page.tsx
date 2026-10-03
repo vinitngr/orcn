@@ -18,6 +18,23 @@ import {
   type CuratedModel,
 } from "@/data/curated-models";
 
+const CATEGORY_ITEMS = [
+  { label: "All types", value: "all" },
+  ...MODEL_CATEGORIES.map((c) => ({ label: c.label, value: c.id })),
+];
+
+const PROVIDER_ITEMS = [
+  { label: "All providers", value: "all" },
+  ...CURATED_PROVIDERS.map((p) => ({ label: p, value: p })),
+];
+
+const SIZE_ITEMS = [
+  { label: "All sizes", value: "all" },
+  { label: "< 4B", value: "small" },
+  { label: "4B - 13B", value: "mid" },
+  { label: "> 13B", value: "large" },
+];
+
 function formatParams(p: number) {
   if (p < 1) return `${Math.round(p * 1000)}M`;
   return `${p}B`;
@@ -184,6 +201,7 @@ export default function AIModelsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <Select
             value={category}
+            items={CATEGORY_ITEMS}
             onValueChange={(val: string | null) => val && setCategory(val)}
           >
             <SelectTrigger className="h-9 min-w-[130px] border-[var(--border)] bg-[var(--dm-input)] text-xs text-[var(--dm-text-2)]">
@@ -200,6 +218,7 @@ export default function AIModelsPage() {
           </Select>
           <Select
             value={provider}
+            items={PROVIDER_ITEMS}
             onValueChange={(val: string | null) => val && setProvider(val)}
           >
             <SelectTrigger className="h-9 min-w-[140px] border-[var(--border)] bg-[var(--dm-input)] text-xs text-[var(--dm-text-2)]">
@@ -216,6 +235,7 @@ export default function AIModelsPage() {
           </Select>
           <Select
             value={size}
+            items={SIZE_ITEMS}
             onValueChange={(val: string | null) => val && setSize(val)}
           >
             <SelectTrigger className="h-9 min-w-[110px] border-[var(--border)] bg-[var(--dm-input)] text-xs text-[var(--dm-text-2)]">

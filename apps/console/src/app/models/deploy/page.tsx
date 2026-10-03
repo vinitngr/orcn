@@ -40,6 +40,7 @@ function DeployAIModelContent() {
     handleModalityChange,
     handleRuntimeChange,
     handleSelectModel,
+    handleImageChange,
     handleDeploy,
     requiredVram,
     taskLabel,
@@ -236,7 +237,7 @@ function DeployAIModelContent() {
                     <input
                       type="text"
                       value={data.image}
-                      onChange={(e) => updateData({ image: e.target.value })}
+                      onChange={(e) => handleImageChange(e.target.value)}
                       placeholder={DEFAULT_VLLM_IMAGE}
                       spellCheck={false}
                       className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--dm-input)] px-3 font-mono text-xs text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:border-[var(--border-hover)] focus:outline-none focus:ring-1 focus:ring-blue-500/30"

@@ -1,20 +1,5 @@
 package ollama
 
-// Live Ollama library adapter.
-//
-// Instead of a precoded models.json baked into the binary, search queries
-// the public Ollama library (https://ollama.com/search) and parses the
-// server-rendered result cards. Each card carries the model name,
-// description, capability tags (tools, thinking, vision, embedding,
-// decision), size tags (9b, 70b, …) and pull counts — everything needed
-// to serve model search without vendoring the registry.
-//
-// The page is plain server-rendered HTML (Go templates + htmx), so a small
-// focused stdlib-only parser (regexp over stable card structure) is enough;
-// no HTML library dependency is pulled in. Results are cached in memory
-// with a TTL, and the last-good result is served when the library is
-// unreachable, so deploys keep working offline.
-
 import (
 	"fmt"
 	"html"
@@ -38,35 +23,20 @@ const (
 	maxSearchResults = 50
 )
 
-// libraryModel is one parsed ollama.com search hit.
 type libraryModel struct {
-	// Name is the pullable name, e.g. "nimble" or "parthsareen/nimble".
 	Name string
-	// Namespace is "library" for official models, else the user/namespace.
 	Namespace   string
 	Description string
-	// Tags are the library capability tags (tools, thinking, vision,
-	// embedding, decision) plus the size tag (9b, …).
 	Tags       []string
 	Pulls      int
-	Parameters float64 // billions, parsed from the size tag when present
+	Parameters float64
 }
 
-// libraryQuery is the per-runtime translation of a canonical task into an
-// Ollama library search: server-side `c` filters plus strict client-side
-// tag matching. A hit must carry the task's own tag — pipelines never leak
-// across tasks (a tools/thinking model is NOT a decision result).
 type libraryQuery struct {
-	// filters are ollama.com ?c= capability values applied server-side.
 	filters []string
-	// matchTags are library tags a hit must carry (union: any one matches).
-	// Empty means accept every hit (text-generation).
 	matchTags []string
 }
 
-// taskLibraryQuery maps a canonical orcn task to an Ollama library search.
-// Rerankers (score) have no Ollama equivalent and are rejected so callers
-// can point users at vLLM instead.
 func taskLibraryQuery(task core.ModelTask) (libraryQuery, error) {
 	switch core.NormalizeModelTask(task) {
 	case core.TaskTextGeneration:
@@ -82,8 +52,6 @@ func taskLibraryQuery(task core.ModelTask) (libraryQuery, error) {
 	}
 }
 
-// --- result cache (TTL + last-good fallback) ---
-
 type libraryCacheEntry struct {
 	models    []libraryModel
 	fetchedAt time.Time
@@ -96,7 +64,6 @@ var libraryCache = struct {
 }{byQuery: make(map[string]libraryCacheEntry), byName: make(map[string]libraryModel)}
 
 // searchLibrary runs a live library search, consulting the cache first and
-// falling back to the last-good cached result when the library is down.
 func searchLibrary(query string, filters []string) ([]libraryModel, error) {
 	key := query + "\x00" + strings.Join(filters, ",")
 
@@ -171,22 +138,7 @@ func fetchLibrarySearch(query string, filters []string) ([]libraryModel, error) 
 	return parseLibrarySearch(string(body)), nil
 }
 
-// --- stdlib-only card parser ---
-//
-// Result cards look like:
-//
-//	<li class="flex items-baseline border-b ...">
-//	  <a href="/library/nimble" class="group w-full">
-//	    ... <h2 ...><span>nimble</span></h2>
-//	    <p class="max-w-lg ...">description</p>
-//	    <span class="... bg-indigo-50 ...">tools</span>   <- capability tags
-//	    <span class="... bg-[#ddf4ff] ...">9b</span>      <- size tag
-//	    ... <span>21.6K</span><span ...>&nbsp;Pulls</span>
-//	  </a>
-//	</li>
-//
-// Namespaced models link to /<namespace>/<model> instead of /library/<model>.
-
+//parsing code
 var (
 	libraryCardRe  = regexp.MustCompile(`(?s)<li\s+class="flex items-baseline border-b[^"]*"[^>]*>(.*?)</li>`)
 	libraryLinkRe  = regexp.MustCompile(`<a\s+href="([^"]+)"`)
@@ -197,7 +149,7 @@ var (
 	libraryPullRe  = regexp.MustCompile(`<span[^>]*>([\d,\.]+[KkMm]?)</span>\s*<span[^>]*>(?:&nbsp;|\s)*Pulls</span>`)
 	libraryTagsRe  = regexp.MustCompile(`<span[^>]*>(\d+)</span>\s*<span[^>]*>(?:&nbsp;|\s)*Tags?</span>`)
 	librarySizeVal = regexp.MustCompile(`^(\d+(?:\.\d+)?)\s*([bBmM])$`)
-	// Model page patterns (direct library probe).
+
 	libraryTitleRe   = regexp.MustCompile(`<title>([^<]+)</title>`)
 	libraryMetaDesc  = regexp.MustCompile(`<meta\s+name="description"\s+content="([^"]*)"`)
 	libraryModelName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.\-/]*$`)
@@ -236,9 +188,6 @@ func parseLibraryCard(card string) (libraryModel, bool) {
 	}
 
 	// A `cloud` marker means the model is *also* on Ollama Cloud — but when it
-	// is the model's only tag (Tags == 1, e.g. kimi-k3) there is no local
-	// variant to `ollama pull`, so it is skipped. Models like gpt-oss carry
-	// the marker alongside real local tags and are kept.
 	cloud := false
 	for _, tag := range libraryCloudRe.FindAllStringSubmatch(card, -1) {
 		if strings.TrimSpace(strings.ToLower(tag[1])) == "cloud" {
@@ -252,8 +201,6 @@ func parseLibraryCard(card string) (libraryModel, bool) {
 				return libraryModel{}, false
 			}
 		}
-		// Tag count unknown: fail open (recall beats precision here —
-		// hiding an official family is worse than listing a cloud model).
 	}
 
 	var m libraryModel

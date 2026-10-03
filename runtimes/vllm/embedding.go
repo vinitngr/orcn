@@ -1,19 +1,15 @@
 package vllm
 
 import (
-	"fmt"
-	"strconv"
-
 	"orcn/core"
 )
 
-func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]string) (*core.JobSpec, error) {
+func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]string, runtimeConfig *modelRuntimeConfig) (*core.JobSpec, error) {
 	command := commonModelArgs(modelID, config)
 	command = append(command,
 		"--dtype", configValue(config, "dtype", "auto"),
 		"--runner", "pooling",
 	)
-	runtimeConfig, runtimeConfigErr := fetchModelRuntimeConfig(modelID)
 	if tensorParallel := configValue(config, "tensor_parallel", "0"); tensorParallel != "0" {
 		command = append(command, "--tensor-parallel-size", tensorParallel)
 	}
@@ -21,15 +17,6 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 		command = append(command, "--api-key", apiKey)
 	}
 	if maxLen := configValue(config, "max_model_len", ""); maxLen != "" {
-		requestedLength, err := strconv.Atoi(maxLen)
-		if err != nil || requestedLength <= 0 {
-			return nil, fmt.Errorf("max_model_len must be a positive integer")
-		}
-		if runtimeConfigErr == nil {
-			if modelLimit := modelMaxLength(runtimeConfig.Config); modelLimit > 0 && requestedLength > modelLimit {
-				return nil, fmt.Errorf("max_model_len %d exceeds the model limit of %d", requestedLength, modelLimit)
-			}
-		}
 		command = append(command, "--max-model-len", maxLen)
 	}
 	if maxSequences := configValue(config, "max_num_seqs", ""); maxSequences != "" {
@@ -39,7 +26,7 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 		command = append(command, "--max-num-batched-tokens", maxBatchedTokens)
 	}
 	mode := "converted"
-	if runtimeConfigErr == nil {
+	if runtimeConfig != nil {
 		mode = embeddingMode(runtimeConfig.Architectures)
 	}
 	if mode == "converted" {
@@ -49,7 +36,7 @@ func (v *VLLMRuntime) buildEmbeddingJobSpec(modelID string, config map[string]st
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath, config), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(runtimeConfig), command, vllmHealthPath, config), nil
 }
 
 func (v *VLLMRuntime) embeddingSchema() []core.ConfigOption {

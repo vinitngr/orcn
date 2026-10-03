@@ -2,6 +2,7 @@ package vllm
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,8 @@ import (
 
 	"orcn/core"
 )
+
+var errModelNotFound = errors.New("model not found on Hugging Face")
 
 type VLLMRuntime struct{}
 
@@ -31,13 +34,31 @@ func (v *VLLMRuntime) SupportedCapabilities() []core.ModelCapability { return ni
 func (v *VLLMRuntime) GetWorkloadType() string { return "model_inference" }
 
 func (v *VLLMRuntime) BuildJobSpec(modelID string, task core.ModelTask, config map[string]string) (*core.JobSpec, error) {
-	switch normalizeTask(task) {
+	normalizedTask := normalizeTask(task)
+	schema := v.GetAdvancedConfigSchema(normalizedTask)
+	if len(schema) == 0 {
+		return nil, fmt.Errorf("vLLM does not support task %q", task)
+	}
+
+	runtimeConfig, runtimeConfigErr := fetchModelRuntimeConfig(modelID)
+	if errors.Is(runtimeConfigErr, errModelNotFound) {
+		return nil, fmt.Errorf("model %q was not found on Hugging Face", modelID)
+	}
+	if runtimeConfigErr != nil {
+		runtimeConfig = nil
+	}
+
+	if err := validateAdvancedConfig(normalizedTask, config, schema, runtimeConfig); err != nil {
+		return nil, err
+	}
+
+	switch normalizedTask {
 	case core.TaskTextGeneration, core.TaskMultimodal:
-		return v.buildTextGenerationJobSpec(modelID, config)
+		return v.buildTextGenerationJobSpec(modelID, config, runtimeConfig)
 	case core.TaskEmbedding:
-		return v.buildEmbeddingJobSpec(modelID, config)
+		return v.buildEmbeddingJobSpec(modelID, config, runtimeConfig)
 	case core.TaskScore:
-		return v.buildScoreJobSpec(modelID, config)
+		return v.buildScoreJobSpec(modelID, config, runtimeConfig)
 	default:
 		return nil, fmt.Errorf("vLLM does not support task %q", task)
 	}
@@ -102,15 +123,13 @@ func (v *VLLMRuntime) buildJobSpec(_ string, entrypoint []string, command []stri
 	}
 }
 
-func resolveEntrypoint(modelID string) []string {
-	if config, err := fetchModelRuntimeConfig(modelID); err == nil {
-		if config.PipelineTag == "audio-text-to-text" || config.PipelineTag == "automatic-speech-recognition" {
-			return []string{
-				"/bin/bash",
-				"-c",
-				"pip install \"vllm[audio]\" && exec python3 -m vllm.entrypoints.openai.api_server \"$@\"",
-				"--",
-			}
+func resolveEntrypoint(runtimeConfig *modelRuntimeConfig) []string {
+	if runtimeConfig != nil && (runtimeConfig.PipelineTag == "audio-text-to-text" || runtimeConfig.PipelineTag == "automatic-speech-recognition") {
+		return []string{
+			"/bin/bash",
+			"-c",
+			"pip install \"vllm[audio]\" && exec python3 -m vllm.entrypoints.openai.api_server \"$@\"",
+			"--",
 		}
 	}
 	return []string{"python3", "-m", "vllm.entrypoints.openai.api_server"}
@@ -127,8 +146,10 @@ func commonModelArgs(modelID string, config map[string]string) []string {
 }
 
 func configValue(config map[string]string, key, fallback string) string {
-	if value, ok := config[key]; ok && value != "" {
-		return value
+	if value, ok := config[key]; ok {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
 	}
 	return fallback
 }
@@ -158,6 +179,9 @@ func fetchModelRuntimeConfig(modelID string) (*modelRuntimeConfig, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%w: %s", errModelNotFound, modelID)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("model details failed: %s", resp.Status)
 	}

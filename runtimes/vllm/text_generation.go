@@ -4,7 +4,7 @@ import (
 	"orcn/core"
 )
 
-func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[string]string) (*core.JobSpec, error) {
+func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[string]string, runtimeConfig *modelRuntimeConfig) (*core.JobSpec, error) {
 	command := commonModelArgs(modelID, config)
 	command = append(command,
 		"--dtype", "auto",
@@ -37,7 +37,7 @@ func (v *VLLMRuntime) buildTextGenerationJobSpec(modelID string, config map[stri
 		command = append(command, "--enforce-eager")
 	}
 
-	return v.buildJobSpec(modelID, resolveEntrypoint(modelID), command, vllmHealthPath, config), nil
+	return v.buildJobSpec(modelID, resolveEntrypoint(runtimeConfig), command, vllmHealthPath, config), nil
 }
 
 func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {
@@ -99,7 +99,6 @@ func (v *VLLMRuntime) textGenerationSchema() []core.ConfigOption {
 		},
 	}
 }
-
 
 func textGenerationMetadata(data map[string]interface{}, task core.ModelTask) map[string]interface{} {
 	config, _ := data["config"].(map[string]interface{})

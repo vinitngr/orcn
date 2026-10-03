@@ -84,7 +84,3 @@ func embeddingMode(architectures []string) string {
 	}
 	return "converted"
 }
-
-
-
-

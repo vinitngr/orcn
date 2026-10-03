@@ -10,7 +10,6 @@ import (
 
 var ollamaLog = logger.New("OLLAMA")
 
-// OllamaModelDetails is the user-facing dossier for an Ollama library model.
 type OllamaModelDetails struct {
 	Name        string   `json:"name"`
 	Namespace   string   `json:"namespace"`
@@ -55,7 +54,6 @@ func (v *OllamaRuntime) SupportedCapabilities() []core.ModelCapability {
 func (v *OllamaRuntime) BuildJobSpec(modelID string, task core.ModelTask, advancedConfig map[string]string) (*core.JobSpec, error) {
 	switch core.NormalizeModelTask(task) {
 	case core.TaskTextGeneration, core.TaskEmbedding, core.TaskMultimodal, core.TaskDecision:
-		// All Ollama-servable tasks deploy the same way: pull + serve.
 	default:
 		return nil, errors.New("ollama does not support task \"" + string(task) + "\"")
 	}
@@ -69,7 +67,7 @@ func (v *OllamaRuntime) BuildJobSpec(modelID string, task core.ModelTask, advanc
 		contextLength = val
 	}
 
-	image := "ollama/ollama:0.32.5"
+	image := "ollama/ollama:latest"
 	if val, ok := advancedConfig["image"]; ok && val != "" {
 		image = val
 	}
@@ -117,8 +115,6 @@ func (v *OllamaRuntime) SearchModels(query string, task core.ModelTask, capabili
 	}
 	caps := core.NormalizeCapabilities(capabilities)
 
-	// Strip :tag before searching — ollama.com matches on names, and
-	// "gpt-oss:latest" would otherwise return nothing.
 	base := stripLibraryTag(query)
 	models, err := searchLibrary(base, lq.filters)
 	if err != nil {
@@ -133,9 +129,9 @@ func (v *OllamaRuntime) SearchModels(query string, task core.ModelTask, capabili
 		}
 		parsed = append(parsed, m)
 	}
-	// Name the model directly and the official entry floats above forks,
-	// even across hyphenation differences ("gptoss" finds "gpt-oss").
+
 	parsed = rankLibraryModels(parsed, query)
+
 	// Search missed it entirely (bad relevance, brand-new release): probe
 	// the library page for the exact name as a last resort. The probe must
 	// pass the same strict task tag check — no pipeline leaks.

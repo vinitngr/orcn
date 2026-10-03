@@ -25,7 +25,6 @@ interface DeployModelData {
   provider: string;
   provider_connection_id: string;
   model: string;
-  /** Hidden container image override from the curated catalog (falls back to runtime default). */
   image: string;
   instance: ComputeInstance | null;
   hf_token: string;
@@ -94,11 +93,7 @@ function bytesPerParamFromId(modelId: string): number {
   return 2;
 }
 
-/**
- * VRAM estimate for search results, where only the id + param count are
- * known (no full model details yet). Applies the same per-quantization
- * bytes/param as the full estimator so cards agree with the summary.
- */
+
 function estimateSearchVram(modelId: string, paramsB: number): number {
   const overhead = paramsB > 50 ? 8 : paramsB > 20 ? 4 : 2;
   return paramsB * bytesPerParamFromId(modelId) + overhead;
@@ -185,8 +180,9 @@ export function useDeployModel() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ModelItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  // Generic capability facets (tools / thinking / vision). Sent to the
-  // backend on search; each runtime filters on the ones it supports.
+  
+  const [imageFromCatalog, setImageFromCatalog] = useState(false);
+  
   const [capabilities, setCapabilities] = useState<string[]>([]);
   const [runtimes, setRuntimes] = useState<RuntimeCapability[]>([]);
   const [modalities, setModalities] = useState<RuntimeTask[]>([]);
@@ -261,6 +257,7 @@ export function useDeployModel() {
         if (fromCatalog && preselectedModel) {
           setIsPreselected(true);
           setStep(2);
+          if (preselectedImage) setImageFromCatalog(true);
         }
       })
       .catch(console.error)
@@ -381,14 +378,16 @@ export function useDeployModel() {
     setSearchResults([]);
     setModelDetails(null);
     setCapabilities([]);
-    setData((d) => {      const runtimeIds = runtimes
+    // Drop any image override: it belongs to the previous runtime and must
+    // never leak into another runtime.
+    setImageFromCatalog(false);
+    setData((d) => {
+      const runtimeIds = runtimes
         .filter((c) => c.tasks.some((t) => t.id === val))
         .map((c) => c.id);
       const runtime = runtimeIds.includes(d.runtime)
         ? d.runtime
         : (runtimeIds[0] ?? "");
-      // Drop any catalog image override: it belongs to the previous
-      // runtime's default and must never leak into another runtime.
       return { ...d, modality: val, runtime, model: "", image: "", advanced_config: {} };
     });
   };
@@ -397,14 +396,28 @@ export function useDeployModel() {
     setSearchResults([]);
     setModelDetails(null);
     setCapabilities([]);
+    setImageFromCatalog(false);
     setData((d) => ({ ...d, runtime: val, model: "", image: "", advanced_config: {} }));
   };
 
-  // Selecting a (different) model drops the catalog image override, so a
-  // stale ollama/vLLM default can never leak into the deploy payload.
+  // Switching models drops a *catalog* image override (it belongs to the
+  // card you came from); a manually typed step-3 override is kept.
   const handleSelectModel = (id: string) => {
+    if (data.model === id) return;
     setModelDetails(null);
-    setData((d) => (d.model === id ? d : { ...d, model: id, image: "" }));
+    if (imageFromCatalog) {
+      setImageFromCatalog(false);
+      setData((d) => ({ ...d, model: id, image: "" }));
+    } else {
+      setData((d) => ({ ...d, model: id }));
+    }
+  };
+
+  // Manual step-3 image override: owned by the user, never auto-cleared on
+  // model switches (only runtime/modality switches invalidate it).
+  const handleImageChange = (val: string) => {
+    setImageFromCatalog(false);
+    setData((d) => ({ ...d, image: val }));
   };
 
   const toggleCapability = (id: string) => {
@@ -505,6 +518,7 @@ export function useDeployModel() {
     handleModalityChange,
     handleRuntimeChange,
     handleSelectModel,
+    handleImageChange,
     handleDeploy,
     requiredVram,
     taskLabel,

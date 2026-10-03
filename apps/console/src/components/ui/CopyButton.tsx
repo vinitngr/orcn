@@ -22,12 +22,43 @@ export function CopyButton({
     e.preventDefault();
     e.stopPropagation();
     if (!value) return;
-    try {
-      await navigator.clipboard.writeText(value);
+
+    const markCopied = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    };
+
+    try {
+      await navigator.clipboard.writeText(value);
+      markCopied();
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      const selection = document.getSelection();
+      const previousRange = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+      textarea.select();
+      textarea.setSelectionRange(0, value.length);
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      document.body.removeChild(textarea);
+      if (previousRange && selection) {
+        selection.removeAllRanges();
+        selection.addRange(previousRange);
+      }
+      if (ok) {
+        markCopied();
+      } else {
+        console.error("Failed to copy text to clipboard");
+      }
     }
   };
 
